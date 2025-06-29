@@ -1,0 +1,27 @@
+# CMake build folders
+/build
+/CMakeFiles
+/CMakeCache.txt
+Makefile
+cmake_install.cmake
+
+# VSCode
+.vscode/
+
+# Binaries
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+
+# Object files
+*.o
+*.obj
+
+# Clangd index
+.cache/
+
+# Generated files
+compile_commands.json
