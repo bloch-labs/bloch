@@ -10,7 +10,8 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(bloch_tests
-    test_runner.cpp
+    test_version.cpp
+    test_lexer.cpp
 )
 
 target_link_libraries(bloch_tests
