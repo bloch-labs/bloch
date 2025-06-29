@@ -27,4 +27,4 @@ jobs:
       run: cmake --build build
 
     - name: Run tests
-      run: ./bin/bloch_tests
+      run: ctest --test-dir build --output-on-failure
