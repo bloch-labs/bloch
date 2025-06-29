@@ -12,5 +12,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_options(-Wall -Wextra -Werror -pedantic)
 endif()
 
+enable_testing()
+
 add_subdirectory(src)
 add_subdirectory(tests)
