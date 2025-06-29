@@ -1,0 +1,23 @@
+# Style base
+BasedOnStyle: Google
+
+# Style
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+BreakBeforeBraces: Attach
+SpaceBeforeParens: ControlStatements
+DerivePointerAlignment: false
+PointerAlignment: Left
+SortIncludes: true
+IncludeBlocks: Preserve
+AllowShortIfStatementsOnASingleLine: false
+NamespaceIndentation: All
+FixNamespaceComments: false
+
+# C++ specific
+Language: Cpp
+
+# Quoting style
+AlwaysBreakTemplateDeclarations: Yes

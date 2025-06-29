@@ -2,10 +2,8 @@
 
 #include <string>
 
-namespace bloch
-{
-    enum class TokenType
-    {
+namespace bloch {
+    enum class TokenType {
         // Literals
         Identifier,
         IntegerLiteral,
@@ -73,8 +71,7 @@ namespace bloch
         Unknown
     };
 
-    struct Token
-    {
+    struct Token {
         TokenType type;
         std::string value;
         int line;
