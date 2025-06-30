@@ -103,7 +103,7 @@ TEST(LexerTest, LineAndColumnTracking) {
 }
 
 TEST(LexerTest, SkipsComments) {
-    Lexer lexer("int x # comment\ny");
+    Lexer lexer("int x // comment\ny");
     auto tokens = lexer.tokenize();
 
     ASSERT_GE(tokens.size(), 4);
