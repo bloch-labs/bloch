@@ -27,9 +27,7 @@ jobs:
             if ! clang-format --dry-run --Werror $FILES; then
               echo ""
               echo "❌ Code is not formatted correctly."
-              echo "👉 Please run:"
-              echo ""
-              echo "    clang-format -i $(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
+              echo "👉 Please run: clang-format -i \$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
               echo ""
               exit 1
             else
