@@ -12,10 +12,10 @@ namespace bloch {
         std::vector<Token> tokenize();
 
        private:
-        std::string source;
-        size_t position;
-        int line;
-        int column;
+        std::string m_source;
+        size_t m_position;
+        int m_line;
+        int m_column;
 
         char peek() const;
         char advance();
