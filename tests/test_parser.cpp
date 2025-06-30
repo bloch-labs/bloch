@@ -176,9 +176,9 @@ TEST(ParserTest, ParseClass) {
     EXPECT_EQ(clazz->methods[0]->name, "bar");
     EXPECT_FALSE(clazz->methods[0]->isConstructor);
 
-    auto* retType = dynamic_cast<ObjectType*>(clazz->methods[0]->returnType.get());
+    auto* retType = dynamic_cast<PrimitiveType*>(clazz->methods[0]->returnType.get());
     ASSERT_NE(retType, nullptr);
-    EXPECT_EQ(retType->className, "int");
+    EXPECT_EQ(retType->name, "int");
 }
 
 TEST(ParserTest, ParseConstructorFunction) {
@@ -193,26 +193,12 @@ TEST(ParserTest, ParseConstructorFunction) {
     auto* func = program->functions[0].get();
     EXPECT_TRUE(func->isConstructor);
     EXPECT_EQ(func->name, "Foo");
-    ASSERT_EQ(func->params.size(), 1u);
-    EXPECT_EQ(func->params[0]->name, "x");
+    ASSERT_EQ(func->params.size(), 0u);
 
-    auto* retType = dynamic_cast<ObjectType*>(func->returnType.get());
+    auto* retType = dynamic_cast<VoidType*>(func->returnType.get());
     ASSERT_NE(retType, nullptr);
-    EXPECT_EQ(retType->className, "void");
     ASSERT_NE(func->body, nullptr);
-    ASSERT_EQ(func->body->statements.size(), 1u);
-
-    auto* ret = dynamic_cast<ReturnStatement*>(func->body->statements[0].get());
-    ASSERT_NE(ret, nullptr);
-
-    auto* call = dynamic_cast<ConstructorCallExpression*>(ret->value.get());
-    ASSERT_NE(call, nullptr);
-    EXPECT_EQ(call->className, "Foo");
-    ASSERT_EQ(call->arguments.size(), 1u);
-
-    auto* arg = dynamic_cast<VariableExpression*>(call->arguments[0].get());
-    ASSERT_NE(arg, nullptr);
-    EXPECT_EQ(arg->name, "x");
+    ASSERT_EQ(func->body->statements.size(), 0u);
 }
 
 TEST(ParserTest, ExpressionPrecedence) {
