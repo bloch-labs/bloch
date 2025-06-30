@@ -27,6 +27,10 @@ namespace bloch {
         return m_position < m_source.length() ? m_source[m_position] : '\0';
     }
 
+    char Lexer::peekNext() const {
+        return (m_position + 1) < m_source.length() ? m_source[m_position + 1] : '\0';
+    }
+
     char Lexer::advance() {
         char c = m_source[m_position++];
         m_column++;
@@ -53,7 +57,9 @@ namespace bloch {
                     continue;
                 }
                 advance();
-            } else if (c == '#') {
+            } else if (c == '/' && peekNext() == '/') {
+                advance();
+                advance();
                 skipComment();
             } else {
                 break;

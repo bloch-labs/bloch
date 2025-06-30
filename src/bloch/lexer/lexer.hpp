@@ -18,6 +18,7 @@ namespace bloch {
         int m_column;
 
         char peek() const;
+        char peekNext() const;
         char advance();
 
         bool match(char expected);
