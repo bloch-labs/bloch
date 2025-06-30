@@ -31,7 +31,8 @@ namespace bloch {
         return (m_position + 1) < m_source.length() ? m_source[m_position + 1] : '\0';
     }
 
-    char Lexer::advance() {
+    char Lexer::advance() 
+    {
         char c = m_source[m_position++];
         m_column++;
         return c;
