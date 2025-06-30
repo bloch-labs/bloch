@@ -12,6 +12,7 @@ enable_testing()
 add_executable(bloch_tests
     test_version.cpp
     test_lexer.cpp
+    test_ast.cpp
 )
 
 target_link_libraries(bloch_tests
