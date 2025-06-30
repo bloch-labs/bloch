@@ -4,6 +4,8 @@
 Bloch is designed to provide developers with intuitive syntax, robust tooling, and seamless compilation to OpenQASM for execution on real or simulated quantum hardware.
 
 ## 📚 Docs
+> ⚠ **Note:** docs are still under construction.
+
 See `/docs` for 
 - Language specification
 - Grammar
@@ -43,7 +45,7 @@ ctest
 ```
 
 ## 🤝 Contributing
-Bloch is an open-source project and we welcome contributions! Please see CONTRIBUTING.md for guidelines on how to get involved.
+Bloch is an open-source project and we welcome contributions! Please see [CONTRIBUTING.md](https://github.com/bloch-lang/bloch/blob/master/CONTRIBUTING.md) for guidelines on how to get involved.
 
 ## 📄 License
 This project is open-source under the Apache 2.0 License. See LICENSE for details.
