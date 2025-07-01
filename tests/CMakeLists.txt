@@ -14,6 +14,7 @@ add_executable(bloch_tests
     test_lexer.cpp
     test_ast.cpp
     test_parser.cpp
+    test_semantics.cpp
 )
 
 target_link_libraries(bloch_tests
