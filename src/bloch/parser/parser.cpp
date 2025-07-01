@@ -57,7 +57,7 @@ namespace bloch {
     // Error
     void Parser::reportError(const std::string& msg) {
         const Token& token = peek();
-        throw BlochRuntimeError("Bloch Parser Error", token.line, token.column, msg);
+        throw BlochRuntimeError("[Bloch Parser Error]", token.line, token.column, msg);
     }
 
     // Main parse function
