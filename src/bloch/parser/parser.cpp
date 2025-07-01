@@ -265,10 +265,6 @@ namespace bloch {
             var->varType = parseType();
         }
 
-        if (!check(TokenType::Identifier)) {
-            reportError("Expected variable name");
-        }
-
         // Name
         if (!check(TokenType::Identifier)) {
             reportError("Expected variable name");
@@ -700,7 +696,7 @@ namespace bloch {
     }
 
     std::unique_ptr<Type> Parser::parseArrayType(std::unique_ptr<Type> elementType) {
-        return std::make_unique<ArrayType>(ArrayType{std::move(elementType)});
+        return std::make_unique<ArrayType>(std::move(elementType));
     }
 
     // Parameters and Argments
