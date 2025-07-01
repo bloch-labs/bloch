@@ -10,6 +10,8 @@ namespace bloch {
     class ASTVisitor;  // Forward declaration
 
     struct ASTNode {
+        int line = 0;
+        int column = 0;
         virtual ~ASTNode() = default;
         virtual void accept(ASTVisitor& visitor) = 0;
     };

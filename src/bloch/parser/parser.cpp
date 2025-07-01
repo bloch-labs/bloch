@@ -124,14 +124,20 @@ namespace bloch {
                 reportError("Expected constructor name after '*'");
             }
 
-            func->name = advance().value;
+            const Token& nameToken = advance();
+            func->name = nameToken.value;
+            func->line = nameToken.line;
+            func->column = nameToken.column;
         } else {
             func->isConstructor = false;
 
             if (!check(TokenType::Identifier)) {
                 reportError("Expected function name after 'function' keyword");
             }
-            func->name = advance().value;
+            const Token& nameToken = advance();
+            func->name = nameToken.value;
+            func->line = nameToken.line;
+            func->column = nameToken.column;
         }
 
         // Parse parameters
@@ -144,7 +150,10 @@ namespace bloch {
             if (!check(TokenType::Identifier)) {
                 reportError("Expected parameter name");
             }
-            param->name = advance().value;
+            const Token& paramToken = advance();
+            param->name = paramToken.value;
+            param->line = paramToken.line;
+            param->column = paramToken.column;
 
             func->params.push_back(std::move(param));
 
@@ -224,6 +233,9 @@ namespace bloch {
     }
 
     std::unique_ptr<Statement> Parser::parseTopLevelStatement() {
+        if (check(TokenType::LBrace))
+            return parseBlock();
+
         bool isFinal = match(TokenType::Final);
 
         // Lookahead for user-defined type declarations: Identifier Identifier
@@ -269,7 +281,10 @@ namespace bloch {
         if (!check(TokenType::Identifier)) {
             reportError("Expected variable name");
         }
-        var->name = advance().value;
+        const Token& variableToken = advance();
+        var->name = variableToken.value;
+        var->line = variableToken.line;
+        var->column = variableToken.column;
 
         // Initializer
         if (match(TokenType::Equals)) {
@@ -318,6 +333,9 @@ namespace bloch {
     // Statements
 
     std::unique_ptr<Statement> Parser::parseStatement() {
+        if (check(TokenType::LBrace))
+            return parseBlock();
+
         bool isFinal = match(TokenType::Final);
 
         // Lookahead for user-defined type declarations: Identifier Identifier
@@ -355,9 +373,11 @@ namespace bloch {
 
     // {...}
     std::unique_ptr<BlockStatement> Parser::parseBlock() {
-        expect(TokenType::LBrace, "Expected '{' to start block");
+        const Token& lbrace = expect(TokenType::LBrace, "Expected '{' to start block");
 
         auto block = std::make_unique<BlockStatement>();
+        block->line = lbrace.line;
+        block->column = lbrace.column;
         while (!check(TokenType::RBrace) && !isAtEnd()) {
             block->statements.push_back(parseStatement());
         }
@@ -369,6 +389,8 @@ namespace bloch {
     // return expr;
     std::unique_ptr<ReturnStatement> Parser::parseReturn() {
         auto stmt = std::make_unique<ReturnStatement>();
+        stmt->line = previous().line;
+        stmt->column = previous().column;
 
         if (!check(TokenType::Semicolon)) {
             stmt->value = parseExpression();
@@ -469,11 +491,14 @@ namespace bloch {
             reportError("Expected variable name in assignment");
         }
 
-        std::string name = advance().value;
+        const Token& nameToken = advance();
+        std::string name = nameToken.value;
         expect(TokenType::Equals, "Expected '=' in assignment");
 
         auto stmt = std::make_unique<AssignmentStatement>();
         stmt->name = name;
+        stmt->line = nameToken.line;
+        stmt->column = nameToken.column;
         stmt->value = parseExpression();
 
         expect(TokenType::Semicolon, "Expected ';' after assignment");
@@ -502,7 +527,10 @@ namespace bloch {
             if (auto varExpr = dynamic_cast<VariableExpression*>(expr.get())) {
                 std::string name = varExpr->name;
                 auto value = parseAssignmentExpression();
-                return std::make_unique<AssignmentExpression>(name, std::move(value));
+                auto assign = std::make_unique<AssignmentExpression>(name, std::move(value));
+                assign->line = equals.line;
+                assign->column = equals.column;
+                return assign;
             } else {
                 reportError("Invalid assignment target");
             }
@@ -607,7 +635,11 @@ namespace bloch {
         }
 
         if (match(TokenType::Identifier)) {
-            return std::make_unique<VariableExpression>(VariableExpression{previous().value});
+            const Token& token = previous();
+            auto expr = std::make_unique<VariableExpression>(VariableExpression{token.value});
+            expr->line = token.line;
+            expr->column = token.column;
+            return expr;
         }
 
         if (match(TokenType::LParen)) {
