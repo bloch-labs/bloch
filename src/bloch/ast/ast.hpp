@@ -7,7 +7,7 @@
 namespace bloch {
 
     // Base Node Interfaces
-    class ASTVisitor;  // Forward declaration
+    class ASTVisitor;
 
     struct ASTNode {
         int line = 0;
