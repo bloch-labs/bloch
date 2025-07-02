@@ -1,9 +1,8 @@
 #include <iostream>
 #include "bloch/lexer/lexer.hpp"
-#include "bloch/version/version.hpp"
 
 int main() {
-    std::cout << "Bloch Language Compiler v" << bloch::version << std::endl;
+    std::cout << "Bloch: A General Purpose Quantum Programming Language";
 
     bloch::Lexer lexer("");
 
