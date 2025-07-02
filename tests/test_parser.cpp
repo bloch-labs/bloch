@@ -221,3 +221,25 @@ TEST(ParserTest, ExpressionPrecedence) {
     ASSERT_NE(mul, nullptr);
     EXPECT_EQ(mul->op, "*");
 }
+
+TEST(ParserTest, ParseIfElse) {
+    const char* src = "if (1) { return 1; } else { return 0; }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(tokens);
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 1u);
+    auto* ifStmt = dynamic_cast<IfStatement*>(program->statements[0].get());
+    ASSERT_NE(ifStmt, nullptr);
+    ASSERT_NE(ifStmt->thenBranch, nullptr);
+    ASSERT_NE(ifStmt->elseBranch, nullptr);
+
+    auto* thenBlock = dynamic_cast<BlockStatement*>(ifStmt->thenBranch.get());
+    ASSERT_NE(thenBlock, nullptr);
+    ASSERT_EQ(thenBlock->statements.size(), 1u);
+
+    auto* elseBlock = dynamic_cast<BlockStatement*>(ifStmt->elseBranch.get());
+    ASSERT_NE(elseBlock, nullptr);
+    ASSERT_EQ(elseBlock->statements.size(), 1u);
+}

@@ -24,6 +24,7 @@ namespace bloch {
         Import,
         Return,
         If,
+        Else,
         For,
         Class,
         Measure,
