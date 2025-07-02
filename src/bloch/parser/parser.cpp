@@ -57,7 +57,7 @@ namespace bloch {
     // Error
     void Parser::reportError(const std::string& msg) {
         const Token& token = peek();
-        throw BlochRuntimeError("[Bloch Parser Error]", token.line, token.column, msg);
+        throw BlochRuntimeError("Bloch Parser Error", token.line, token.column, msg);
     }
 
     // Main parse function
@@ -72,7 +72,7 @@ namespace bloch {
             } else if (check(TokenType::Class)) {
                 program->classes.push_back(parseClass());
             } else {
-                program->statements.push_back(parseTopLevelStatement());
+                program->statements.push_back(parseStatement());
             }
         }
 
@@ -232,32 +232,6 @@ namespace bloch {
         return clazz;
     }
 
-    std::unique_ptr<Statement> Parser::parseTopLevelStatement() {
-        if (check(TokenType::LBrace))
-            return parseBlock();
-
-        bool isFinal = match(TokenType::Final);
-
-        // Lookahead for user-defined type declarations: Identifier Identifier
-        if (check(TokenType::Identifier) && checkNext(TokenType::Identifier)) {
-            auto type = parseType();  // consumes the type name (first identifier)
-            return parseVariableDeclaration(std::move(type), isFinal);
-        }
-
-        // Match primitive declarations or annotated declarations
-        if (check(TokenType::At) || check(TokenType::Int) || check(TokenType::Float) ||
-            check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
-            check(TokenType::Qubit)) {
-            return parseVariableDeclaration(isFinal);
-        }
-
-        // Fallback: expression statement
-        auto exprStmt = std::make_unique<ExpressionStatement>();
-        exprStmt->expression = parseExpression();
-        expect(TokenType::Semicolon, "Expected ';' after expression");
-        return exprStmt;
-    }
-
     // Declarations
     std::unique_ptr<VariableDeclaration> Parser::parseVariableDeclaration(bool isFinal) {
         return parseVariableDeclaration(nullptr, isFinal);
@@ -400,9 +374,7 @@ namespace bloch {
         return stmt;
     }
 
-    // if (cond) {...}
-    // NOTE: while elseBranch field exists, we are setting to nullptr here but this
-    // can be extended in future
+    // if (cond) {...} else {...}
     std::unique_ptr<IfStatement> Parser::parseIf() {
         expect(TokenType::LParen, "Expected '(' after 'if'");
         auto condition = parseExpression();
@@ -410,11 +382,15 @@ namespace bloch {
 
         auto thenBranch = parseBlock();
 
+        std::unique_ptr<BlockStatement> elseBranch = nullptr;
+        if (match(TokenType::Else)) {
+            elseBranch = parseBlock();
+        }
+
         auto stmt = std::make_unique<IfStatement>();
         stmt->condition = std::move(condition);
         stmt->thenBranch = std::move(thenBranch);
-        stmt->elseBranch = nullptr;
-
+        stmt->elseBranch = std::move(elseBranch);
         return stmt;
     }
 

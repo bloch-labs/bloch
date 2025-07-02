@@ -82,8 +82,22 @@ TEST(SemanticTest, QuantumReturnTypeBitAllowed) {
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
-TEST(SemanticTest, QuantumReturnTypeInvalid) {
+TEST(SemanticTest, QuantumReturnTypeInvalidInt) {
     const char* src = "@quantum function q() -> int { return 0; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, QuantumReturnTypeInvalidString) {
+    const char* src = "@quantum function q() -> string { return \"hello\"; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, QuantumReturnTypeInvalidChar) {
+    const char* src = "@quantum function q() -> char { return \'c\'; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);

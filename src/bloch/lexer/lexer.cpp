@@ -74,7 +74,7 @@ namespace bloch {
     }
 
     void Lexer::reportError(const std::string& msg) {
-        throw BlochRuntimeError("[Bloch Lexer Error]", m_line, m_column, msg);
+        throw BlochRuntimeError("Bloch Lexer Error", m_line, m_column, msg);
     }
 
     Token Lexer::makeToken(TokenType type, const std::string& value) {
@@ -181,6 +181,7 @@ namespace bloch {
             {"import", TokenType::Import},
             {"return", TokenType::Return},
             {"if", TokenType::If},
+            {"else", TokenType::Else},
             {"for", TokenType::For},
             {"class", TokenType::Class},
             {"measure", TokenType::Measure},
