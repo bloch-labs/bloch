@@ -23,19 +23,21 @@ namespace bloch {
         return tokens;
     }
 
-    char Lexer::peek() const { return m_position < m_source.size() ? m_source[m_position] : '\0'; }
+    char Lexer::peek() const noexcept {
+        return m_position < m_source.size() ? m_source[m_position] : '\0';
+    }
 
-    char Lexer::peekNext() const {
+    char Lexer::peekNext() const noexcept {
         return (m_position + 1) < m_source.size() ? m_source[m_position + 1] : '\0';
     }
 
-    char Lexer::advance() {
+    char Lexer::advance() noexcept {
         char c = m_source[m_position++];
         m_column++;
         return c;
     }
 
-    bool Lexer::match(char expected) {
+    bool Lexer::match(char expected) noexcept {
         if (m_position >= m_source.size() || m_source[m_position] != expected) {
             return false;
         }
@@ -239,6 +241,7 @@ namespace bloch {
         }
 
         reportError("Unterminated char literal");
-        return makeToken(TokenType::Unknown, std::string(m_source.substr(start - 1, m_position - start + 1)));
+        return makeToken(TokenType::Unknown,
+                         std::string(m_source.substr(start - 1, m_position - start + 1)));
     }
 }
