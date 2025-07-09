@@ -7,10 +7,9 @@ Bloch is designed to provide developers with intuitive syntax, robust tooling, a
 > ⚠ **Note:** docs are still under construction.
 
 See `/docs` for 
-- Language specification
-- Grammar
+- [Grammar](docs/grammar.md)
 - Standard library
-- How the compiler works
+- [How the compiler works](docs/compiler.md)
 
 ## 🚀 Usage
 
