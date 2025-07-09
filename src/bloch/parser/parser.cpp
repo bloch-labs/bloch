@@ -5,7 +5,7 @@
 #include "../error/bloch_runtime_error.hpp"
 
 namespace bloch {
-    Parser::Parser(const std::vector<Token>& tokens) : m_tokens(tokens), m_current(0) {}
+    Parser::Parser(std::vector<Token> tokens) : m_tokens(std::move(tokens)), m_current(0) {}
 
     // Token manipulation
     const Token& Parser::peek() const {
@@ -743,7 +743,6 @@ namespace bloch {
             args.push_back(parseExpression());
         } while (match(TokenType::Comma));
 
-        expect(TokenType::RParen, "Expected ')' after argument list");
         return args;
     }
 }
