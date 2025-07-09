@@ -9,7 +9,7 @@ using namespace bloch;
 static std::unique_ptr<Program> parseProgram(const char* src) {
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     return parser.parse();
 }
 

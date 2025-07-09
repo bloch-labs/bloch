@@ -8,7 +8,7 @@ using namespace bloch;
 TEST(ParserTest, ParseImport) {
     Lexer lexer("import math;");
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->imports.size(), 1u);
@@ -18,7 +18,7 @@ TEST(ParserTest, ParseImport) {
 TEST(ParserTest, ParseVariableDeclaration) {
     Lexer lexer("int x;");
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->statements.size(), 1u);
@@ -35,7 +35,7 @@ TEST(ParserTest, ParseVariableDeclaration) {
 TEST(ParserTest, ParseInitialisedVariableDeclaration) {
     Lexer lexer("int x = 10;");
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->statements.size(), 1u);
@@ -56,7 +56,7 @@ TEST(ParserTest, ParseInitialisedVariableDeclaration) {
 TEST(ParserTest, ParseFinalVariableDeclaration) {
     Lexer lexer("final int x;");
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->statements.size(), 1u);
@@ -74,7 +74,7 @@ TEST(ParserTest, ParseFinalVariableDeclaration) {
 TEST(ParserTest, ParseInitialisedFinalVariableDeclaration) {
     Lexer lexer("final int x = 10;");
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->statements.size(), 1u);
@@ -97,7 +97,7 @@ TEST(ParserTest, ParseQubitWithStateAnnotation) {
     const char* src = "@state(\"+\") qubit q;";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->statements.size(), 1u);
@@ -118,7 +118,7 @@ TEST(ParserTest, ParseClassicalFunction) {
     const char* src = "function add(int a, int b) -> int { return a + b; }";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->functions.size(), 1u);
@@ -147,7 +147,7 @@ TEST(ParserTest, ParseQuantumFunction) {
     const char* src = "@quantum function q() -> void { }";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->functions.size(), 1u);
@@ -163,7 +163,7 @@ TEST(ParserTest, ParseClass) {
         "class Foo { @members(\"public\"): int x; @methods: function bar() -> int { return 5; } }";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->classes.size(), 1u);
@@ -185,7 +185,7 @@ TEST(ParserTest, ParseConstructorFunction) {
     const char* src = "function *Foo() -> void { }";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->functions.size(), 1u);
@@ -205,7 +205,7 @@ TEST(ParserTest, ExpressionPrecedence) {
     const char* src = "int x = 1 + 2 * 3;";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->statements.size(), 1u);
@@ -226,7 +226,7 @@ TEST(ParserTest, ParseIfElse) {
     const char* src = "if (1) { return 1; } else { return 0; }";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
-    Parser parser(tokens);
+    Parser parser(std::move(tokens));
     auto program = parser.parse();
 
     ASSERT_EQ(program->statements.size(), 1u);

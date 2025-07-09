@@ -10,11 +10,11 @@
 namespace bloch {
     class Parser {
        public:
-        explicit Parser(const std::vector<Token>& tokens);
+        explicit Parser(std::vector<Token> tokens);
         [[nodiscard]] std::unique_ptr<Program> parse();
 
        private:
-        const std::vector<Token>& m_tokens;
+        std::vector<Token> m_tokens;
         size_t m_current;
 
         // Token manipulation
