@@ -8,14 +8,14 @@
 #include "../error/bloch_runtime_error.hpp"
 
 namespace bloch {
-    Lexer::Lexer(const std::string& source)
+    Lexer::Lexer(const std::string_view source) noexcept
         : m_source(source), m_position(0), m_line(1), m_column(1) {}
 
     std::vector<Token> Lexer::tokenize() {
         std::vector<Token> tokens;
-        while (m_position < m_source.length()) {
+        while (m_position < m_source.size()) {
             skipWhitespace();
-            if (m_position < m_source.length()) {
+            if (m_position < m_source.size()) {
                 tokens.push_back(scanToken());
             }
         }
@@ -23,22 +23,22 @@ namespace bloch {
         return tokens;
     }
 
-    char Lexer::peek() const {
-        return m_position < m_source.length() ? m_source[m_position] : '\0';
+    char Lexer::peek() const noexcept {
+        return m_position < m_source.size() ? m_source[m_position] : '\0';
     }
 
-    char Lexer::peekNext() const {
-        return (m_position + 1) < m_source.length() ? m_source[m_position + 1] : '\0';
+    char Lexer::peekNext() const noexcept {
+        return (m_position + 1) < m_source.size() ? m_source[m_position + 1] : '\0';
     }
 
-    char Lexer::advance() {
+    char Lexer::advance() noexcept {
         char c = m_source[m_position++];
         m_column++;
         return c;
     }
 
-    bool Lexer::match(char expected) {
-        if (m_position >= m_source.length() || m_source[m_position] != expected) {
+    bool Lexer::match(char expected) noexcept {
+        if (m_position >= m_source.size() || m_source[m_position] != expected) {
             return false;
         }
         m_position++;
@@ -47,7 +47,7 @@ namespace bloch {
     }
 
     void Lexer::skipWhitespace() {
-        while (m_position < m_source.length()) {
+        while (m_position < m_source.size()) {
             char c = peek();
             if (isspace(c)) {
                 if (c == '\n') {
@@ -68,7 +68,7 @@ namespace bloch {
     }
 
     void Lexer::skipComment() {
-        while (m_position < m_source.length() && m_source[m_position] != '\n') {
+        while (m_position < m_source.size() && m_source[m_position] != '\n') {
             advance();
         }
     }
@@ -150,22 +150,24 @@ namespace bloch {
             if (peek() == 'f') {
                 advance();
                 return makeToken(TokenType::FloatLiteral,
-                                 m_source.substr(start, m_position - start));
+                                 std::string(m_source.substr(start, m_position - start)));
             } else {
                 reportError("Float literal must end with 'f'");
-                return makeToken(TokenType::Unknown, m_source.substr(start, m_position - start));
+                return makeToken(TokenType::Unknown,
+                                 std::string(m_source.substr(start, m_position - start)));
             }
         }
-        return makeToken(TokenType::IntegerLiteral, m_source.substr(start, m_position - start));
+        return makeToken(TokenType::IntegerLiteral,
+                         std::string(m_source.substr(start, m_position - start)));
     }
 
     Token Lexer::scanIdentifierOrKeyword() {
         size_t start = m_position - 1;
         while (isalnum(peek()) || peek() == '_') advance();
 
-        std::string text = m_source.substr(start, m_position - start);
+        std::string_view text = m_source.substr(start, m_position - start);
 
-        static const std::unordered_map<std::string, TokenType> keywords = {
+        static const std::unordered_map<std::string_view, TokenType> keywords = {
 
             // Primitives
             {"int", TokenType::Int},
@@ -203,15 +205,15 @@ namespace bloch {
 
         auto it = keywords.find(text);
         if (it != keywords.end()) {
-            return makeToken(it->second, text);
+            return makeToken(it->second, std::string(text));
         }
 
-        return makeToken(TokenType::Identifier, text);
+        return makeToken(TokenType::Identifier, std::string(text));
     }
 
     Token Lexer::scanString() {
         size_t start = m_position;
-        while (m_position < m_source.length() && peek() != '"') {
+        while (m_position < m_source.size() && peek() != '"') {
             if (peek() == '\n')
                 m_line++;
             advance();
@@ -220,24 +222,26 @@ namespace bloch {
         if (peek() == '"') {
             advance();
             return makeToken(TokenType::StringLiteral,
-                             m_source.substr(start - 1, m_position - start + 1));
+                             std::string(m_source.substr(start - 1, m_position - start + 1)));
         }
 
         reportError("Unterminated string literal");
-        return makeToken(TokenType::Unknown, m_source.substr(start - 1, m_position - start + 1));
+        return makeToken(TokenType::Unknown,
+                         std::string(m_source.substr(start - 1, m_position - start + 1)));
     }
 
     Token Lexer::scanChar() {
         size_t start = m_position;
-        if (m_position < m_source.length())
+        if (m_position < m_source.size())
             advance();
 
         if (peek() == '\'') {
             advance();
-            return makeToken(TokenType::CharLiteral, m_source.substr(start - 1, 3));
+            return makeToken(TokenType::CharLiteral, std::string(m_source.substr(start - 1, 3)));
         }
 
         reportError("Unterminated char literal");
-        return makeToken(TokenType::Unknown, m_source.substr(start - 1, m_position - start + 1));
+        return makeToken(TokenType::Unknown,
+                         std::string(m_source.substr(start - 1, m_position - start + 1)));
     }
 }
