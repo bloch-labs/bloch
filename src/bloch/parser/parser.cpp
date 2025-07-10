@@ -602,7 +602,25 @@ namespace bloch {
     std::unique_ptr<Expression> Parser::parsePrimary() {
         if (match(TokenType::IntegerLiteral) || match(TokenType::FloatLiteral) ||
             match(TokenType::StringLiteral) || match(TokenType::CharLiteral)) {
-            return std::make_unique<LiteralExpression>(LiteralExpression{previous().value});
+            auto tok = previous();
+            std::string litType;
+            switch (tok.type) {
+                case TokenType::IntegerLiteral:
+                    litType = "int";
+                    break;
+                case TokenType::FloatLiteral:
+                    litType = "float";
+                    break;
+                case TokenType::CharLiteral:
+                    litType = "char";
+                    break;
+                case TokenType::StringLiteral:
+                    litType = "string";
+                    break;
+                default:
+                    break;
+            }
+            return std::make_unique<LiteralExpression>(LiteralExpression{tok.value, litType});
         }
 
         if (match(TokenType::Measure)) {
@@ -635,13 +653,14 @@ namespace bloch {
 
         switch (token.type) {
             case TokenType::IntegerLiteral:
-                return std::make_unique<LiteralExpression>(LiteralExpression{token.value});
+                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "int"});
             case TokenType::FloatLiteral:
-                return std::make_unique<LiteralExpression>(LiteralExpression{token.value});
+                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "float"});
             case TokenType::CharLiteral:
-                return std::make_unique<LiteralExpression>(LiteralExpression{token.value});
+                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "char"});
             case TokenType::StringLiteral:
-                return std::make_unique<LiteralExpression>(LiteralExpression{token.value});
+                return std::make_unique<LiteralExpression>(
+                    LiteralExpression{token.value, "string"});
             default:
                 reportError("Expected a literal value.");
                 return nullptr;

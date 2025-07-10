@@ -166,3 +166,52 @@ TEST(SemanticTest, DuplicateMethodDeclarationFails) {
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
 }
+
+TEST(SemanticTest, BuiltinGateCallIsValid) {
+    const char* src = "qubit q; h(q);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, BuiltinGateWrongArgCount) {
+    const char* src = "qubit q; h();";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, AssignFromVoidFunctionFails) {
+    const char* src = "function foo() -> void { } int x = foo();";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, AssignFromVoidBuiltinFails) {
+    const char* src = "qubit q; qubit r = h(q);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, BuiltinGateWrongArgType) {
+    const char* src = "string s = \"hello\"; qubit q; h(s);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, FunctionArgumentTypeMismatchFails) {
+    const char* src = "function foo(int a) -> void { } foo(1.2f);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, FunctionArgumentTypeMatchPasses) {
+    const char* src = "function foo(int a) -> void { } foo(3);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}

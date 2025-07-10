@@ -1,4 +1,5 @@
 #include "semantic_analyser.hpp"
+#include "built_ins.hpp"
 
 namespace bloch {
 
@@ -15,9 +16,25 @@ namespace bloch {
             throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
                                     "Variable '" + node.name + "' redeclared");
         }
-        declare(node.name, node.isFinal);
-        if (node.initializer)
+        std::string typeName;
+        if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get()))
+            typeName = prim->name;
+        else if (dynamic_cast<VoidType*>(node.varType.get()))
+            typeName = "void";
+        else if (auto obj = dynamic_cast<ObjectType*>(node.varType.get()))
+            typeName = obj->className;
+        declare(node.name, node.isFinal, typeName);
+        if (node.initializer) {
+            if (auto call = dynamic_cast<CallExpression*>(node.initializer.get())) {
+                if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
+                    if (returnsVoid(callee->name)) {
+                        throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
+                                                "Cannot assign result of void function");
+                    }
+                }
+            }
             node.initializer->accept(*this);
+        }
     }
 
     void SemanticAnalyser::visit(BlockStatement& node) {
@@ -91,8 +108,17 @@ namespace bloch {
             throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
                                     "Cannot assign to final variable '" + node.name + "'");
         }
-        if (node.value)
+        if (node.value) {
+            if (auto call = dynamic_cast<CallExpression*>(node.value.get())) {
+                if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
+                    if (returnsVoid(callee->name)) {
+                        throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
+                                                "Cannot assign result of void function");
+                    }
+                }
+            }
             node.value->accept(*this);
+        }
     }
 
     void SemanticAnalyser::visit(BinaryExpression& node) {
@@ -121,6 +147,36 @@ namespace bloch {
             if (!isDeclared(var->name) && !isFunctionDeclared(var->name)) {
                 throw BlochRuntimeError("Bloch Semantic Error", var->line, var->column,
                                         "Variable '" + var->name + "' not declared");
+            }
+            size_t expected = getFunctionParamCount(var->name);
+            if (expected != node.arguments.size()) {
+                throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
+                                        "Function '" + var->name + "' expects " +
+                                            std::to_string(expected) + " argument(s)");
+            }
+            auto types = getFunctionParamTypes(var->name);
+            for (size_t i = 0; i < node.arguments.size() && i < types.size(); ++i) {
+                auto& arg = node.arguments[i];
+                std::string expectedType = types[i];
+                if (expectedType.empty())
+                    continue;
+                if (auto argVar = dynamic_cast<VariableExpression*>(arg.get())) {
+                    std::string actual = getVariableType(argVar->name);
+                    if (!actual.empty() && actual != expectedType) {
+                        throw BlochRuntimeError(
+                            "Bloch Semantic Error", argVar->line, argVar->column,
+                            "Argument " + std::to_string(i + 1) + " of '" + var->name +
+                                "' expects type '" + expectedType + "'");
+                    }
+                } else if (auto argLit = dynamic_cast<LiteralExpression*>(arg.get())) {
+                    std::string actual = argLit->literalType;
+                    if (!actual.empty() && actual != expectedType) {
+                        throw BlochRuntimeError(
+                            "Bloch Semantic Error", argLit->line, argLit->column,
+                            "Argument " + std::to_string(i + 1) + " of '" + var->name +
+                                "' expects type '" + expectedType + "'");
+                    }
+                }
             }
         } else if (node.callee) {
             node.callee->accept(*this);
@@ -154,8 +210,17 @@ namespace bloch {
             throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
                                     "Cannot assign to final variable '" + node.name + "'");
         }
-        if (node.value)
+        if (node.value) {
+            if (auto call = dynamic_cast<CallExpression*>(node.value.get())) {
+                if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
+                    if (returnsVoid(callee->name)) {
+                        throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
+                                                "Cannot assign result of void function");
+                    }
+                }
+            }
             node.value->accept(*this);
+        }
     }
 
     void SemanticAnalyser::visit(ConstructorCallExpression& node) {
@@ -197,13 +262,34 @@ namespace bloch {
         Type* prevReturn = m_currentReturnType;
         m_currentReturnType = node.returnType.get();
 
+        FunctionInfo info;
+        info.returnType = node.returnType.get();
+        for (auto& param : node.params) {
+            if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get()))
+                info.paramTypes.push_back(prim->name);
+            else if (dynamic_cast<VoidType*>(param->type.get()))
+                info.paramTypes.push_back("void");
+            else if (auto obj = dynamic_cast<ObjectType*>(param->type.get()))
+                info.paramTypes.push_back(obj->className);
+            else
+                info.paramTypes.push_back("");
+        }
+        m_functionInfo[node.name] = info;
+
         beginScope();
         for (auto& param : node.params) {
             if (isDeclared(param->name)) {
                 throw BlochRuntimeError("Bloch Semantic Error", param->line, param->column,
                                         "Parameter '" + param->name + "' redeclared");
             }
-            declare(param->name, false);
+            std::string typeName;
+            if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get()))
+                typeName = prim->name;
+            else if (dynamic_cast<VoidType*>(param->type.get()))
+                typeName = "void";
+            else if (auto obj = dynamic_cast<ObjectType*>(param->type.get()))
+                typeName = obj->className;
+            declare(param->name, false, typeName);
             param->accept(*this);
         }
         if (node.body)
@@ -245,10 +331,11 @@ namespace bloch {
 
     void SemanticAnalyser::endScope() { m_scopes.pop_back(); }
 
-    void SemanticAnalyser::declare(const std::string& name, bool isFinalVar) {
+    void SemanticAnalyser::declare(const std::string& name, bool isFinalVar,
+                                   const std::string& typeName) {
         if (m_scopes.empty())
             return;
-        m_scopes.back()[name] = VariableInfo{isFinalVar};
+        m_scopes.back()[name] = VariableInfo{isFinalVar, typeName};
     }
 
     bool SemanticAnalyser::isDeclared(const std::string& name) const {
@@ -262,7 +349,7 @@ namespace bloch {
     void SemanticAnalyser::declareFunction(const std::string& name) { m_functions.insert(name); }
 
     bool SemanticAnalyser::isFunctionDeclared(const std::string& name) const {
-        return m_functions.count(name) > 0;
+        return m_functions.count(name) > 0 || builtInGates.count(name) > 0;
     }
 
     bool SemanticAnalyser::isFinal(const std::string& name) const {
@@ -271,6 +358,46 @@ namespace bloch {
             if (found != it->end())
                 return found->second.isFinal;
         }
+        return false;
+    }
+
+    size_t SemanticAnalyser::getFunctionParamCount(const std::string& name) const {
+        auto it = m_functionInfo.find(name);
+        if (it != m_functionInfo.end())
+            return it->second.paramTypes.size();
+        auto builtin = builtInGates.find(name);
+        if (builtin != builtInGates.end())
+            return builtin->second.paramTypes.size();
+        return 0;
+    }
+
+    std::vector<std::string> SemanticAnalyser::getFunctionParamTypes(
+        const std::string& name) const {
+        auto it = m_functionInfo.find(name);
+        if (it != m_functionInfo.end())
+            return it->second.paramTypes;
+        auto builtin = builtInGates.find(name);
+        if (builtin != builtInGates.end())
+            return builtin->second.paramTypes;
+        return {};
+    }
+
+    std::string SemanticAnalyser::getVariableType(const std::string& name) const {
+        for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
+            auto found = it->find(name);
+            if (found != it->end())
+                return found->second.typeName;
+        }
+        return "";
+    }
+
+    bool SemanticAnalyser::returnsVoid(const std::string& name) const {
+        auto it = m_functionInfo.find(name);
+        if (it != m_functionInfo.end())
+            return dynamic_cast<VoidType*>(it->second.returnType) != nullptr;
+        auto builtin = builtInGates.find(name);
+        if (builtin != builtInGates.end())
+            return builtin->second.returnType == "void";
         return false;
     }
 

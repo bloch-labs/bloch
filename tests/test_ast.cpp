@@ -32,8 +32,8 @@ TEST(ASTTest, FunctionDeclarationBasics) {
 }
 
 TEST(ASTTest, ExpressionNodes) {
-    auto left = std::make_unique<LiteralExpression>("1");
-    auto right = std::make_unique<LiteralExpression>("2");
+    auto left = std::make_unique<LiteralExpression>("1", "int");
+    auto right = std::make_unique<LiteralExpression>("2", "int");
     BinaryExpression expr("+", std::move(left), std::move(right));
 
     EXPECT_EQ(expr.op, "+");
