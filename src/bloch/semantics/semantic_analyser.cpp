@@ -168,6 +168,14 @@ namespace bloch {
                             "Argument " + std::to_string(i + 1) + " of '" + var->name +
                                 "' expects type '" + expectedType + "'");
                     }
+                } else if (auto argLit = dynamic_cast<LiteralExpression*>(arg.get())) {
+                    std::string actual = argLit->literalType;
+                    if (!actual.empty() && actual != expectedType) {
+                        throw BlochRuntimeError(
+                            "Bloch Semantic Error", argLit->line, argLit->column,
+                            "Argument " + std::to_string(i + 1) + " of '" + var->name +
+                                "' expects type '" + expectedType + "'");
+                    }
                 }
             }
         } else if (node.callee) {
