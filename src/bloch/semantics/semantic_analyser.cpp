@@ -118,8 +118,9 @@ namespace bloch {
 
     void SemanticAnalyser::visit(CallExpression& node) {
         if (auto var = dynamic_cast<VariableExpression*>(node.callee.get())) {
-            if(!isDeclared(var->name) && !isFunctionDeclared(var->name)) {
-                throw BlochRuntimeError("Bloch Semantic Error", var->line, var->column, "Variable '" + var->name + "' not declared");
+            if (!isDeclared(var->name) && !isFunctionDeclared(var->name)) {
+                throw BlochRuntimeError("Bloch Semantic Error", var->line, var->column,
+                                        "Variable '" + var->name + "' not declared");
             }
         } else if (node.callee) {
             node.callee->accept(*this);
