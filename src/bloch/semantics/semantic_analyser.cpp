@@ -117,8 +117,13 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(CallExpression& node) {
-        if (node.callee)
+        if (auto var = dynamic_cast<VariableExpression*>(node.callee.get())) {
+            if(!isDeclared(var->name) && !isFunctionDeclared(var->name)) {
+                throw BlochRuntimeError("Bloch Semantic Error", var->line, var->column, "Variable '" + var->name + "' not declared");
+            }
+        } else if (node.callee) {
             node.callee->accept(*this);
+        }
         for (auto& arg : node.arguments) arg->accept(*this);
     }
 
@@ -213,6 +218,22 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(Program& node) {
+        for (auto& fn : node.functions) {
+            if (isFunctionDeclared(fn->name)) {
+                throw BlochRuntimeError("Bloch Semantic Error", fn->line, fn->column,
+                                        "Function '" + fn->name + "' redeclared");
+            }
+            declareFunction(fn->name);
+        }
+        for (auto& cls : node.classes) {
+            for (auto& method : cls->methods) {
+                if (isFunctionDeclared(method->name)) {
+                    throw BlochRuntimeError("Bloch Semantic Error", method->line, method->column,
+                                            "Function '" + method->name + "' redeclared");
+                }
+                declareFunction(method->name);
+            }
+        }
         for (auto& imp : node.imports) imp->accept(*this);
         for (auto& fn : node.functions) fn->accept(*this);
         for (auto& cls : node.classes) cls->accept(*this);
@@ -235,6 +256,12 @@ namespace bloch {
                 return true;
         }
         return false;
+    }
+
+    void SemanticAnalyser::declareFunction(const std::string& name) { m_functions.insert(name); }
+
+    bool SemanticAnalyser::isFunctionDeclared(const std::string& name) const {
+        return m_functions.count(name) > 0;
     }
 
     bool SemanticAnalyser::isFinal(const std::string& name) const {
