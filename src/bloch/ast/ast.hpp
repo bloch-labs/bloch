@@ -149,8 +149,9 @@ namespace bloch {
     // Literal Expression
     struct LiteralExpression : public Expression {
         std::string value;
+        std::string literalType;
 
-        LiteralExpression(const std::string& value) : value(value) {}
+        LiteralExpression(const std::string& value, const std::string& type) : value(value), literalType(type) {}
         void accept(ASTVisitor& visitor) override;
     };
 

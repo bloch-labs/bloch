@@ -51,6 +51,7 @@ TEST(ParserTest, ParseInitialisedVariableDeclaration) {
     auto* lit = dynamic_cast<LiteralExpression*>(var->initializer.get());
     ASSERT_NE(lit, nullptr);
     EXPECT_EQ(lit->value, "10");
+    EXPECT_EQ(lit->literalType, "int");
 }
 
 TEST(ParserTest, ParseFinalVariableDeclaration) {
@@ -217,6 +218,7 @@ TEST(ParserTest, ExpressionPrecedence) {
     auto* leftLit = dynamic_cast<LiteralExpression*>(binAdd->left.get());
     ASSERT_NE(leftLit, nullptr);
     EXPECT_EQ(leftLit->value, "1");
+    EXPECT_EQ(leftLit->literalType, "int");
     auto* mul = dynamic_cast<BinaryExpression*>(binAdd->right.get());
     ASSERT_NE(mul, nullptr);
     EXPECT_EQ(mul->op, "*");

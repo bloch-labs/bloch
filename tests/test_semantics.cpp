@@ -201,3 +201,17 @@ TEST(SemanticTest, BuiltinGateWrongArgType) {
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
 }
+
+TEST(SemanticTest, FunctionArgumentTypeMismatchFails) {
+    const char* src = "function foo(int a) -> void { } foo(1.2f);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, FunctionArgumentTypeMatchPasses) {
+    const char* src = "function foo(int a) -> void { } foo(3);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
