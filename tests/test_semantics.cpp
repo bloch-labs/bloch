@@ -130,3 +130,39 @@ TEST(SemanticTest, FinalVariableDeclarationOk) {
     SemanticAnalyser analyser;
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
+
+TEST(SemanticTest, AssignFromFunctionCall) {
+    const char* src = "function foo() -> bit { return 0; } bit b = foo();";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, CallBeforeDeclaration) {
+    const char* src = "bit b = foo(); function foo() -> bit { return 0; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, CallUndefinedFunctionFails) {
+    const char* src = "bit b = foo();";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, DuplicateFunctionDeclarationFails) {
+    const char* src = "function foo() -> void { } function foo() -> void { }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, DuplicateMethodDeclarationFails) {
+    const char* src =
+        "class Foo { @methods: function bar() -> void { } function bar() -> void { } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}

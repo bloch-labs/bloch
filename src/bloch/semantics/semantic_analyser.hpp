@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "../ast/ast.hpp"
@@ -56,11 +57,14 @@ namespace bloch {
 
         std::vector<std::unordered_map<std::string, VariableInfo>> m_scopes;
         Type* m_currentReturnType = nullptr;
+        std::unordered_set<std::string> m_functions;
 
         void beginScope();
         void endScope();
         void declare(const std::string& name, bool isFinal);
         bool isDeclared(const std::string& name) const;
+        void declareFunction(const std::string& name);
+        bool isFunctionDeclared(const std::string& name) const;
         bool isFinal(const std::string& name) const;
     };
 
