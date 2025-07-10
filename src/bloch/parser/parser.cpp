@@ -659,7 +659,8 @@ namespace bloch {
             case TokenType::CharLiteral:
                 return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "char"});
             case TokenType::StringLiteral:
-                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "string"});
+                return std::make_unique<LiteralExpression>(
+                    LiteralExpression{token.value, "string"});
             default:
                 reportError("Expected a literal value.");
                 return nullptr;

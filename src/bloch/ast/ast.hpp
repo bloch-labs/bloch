@@ -151,7 +151,8 @@ namespace bloch {
         std::string value;
         std::string literalType;
 
-        LiteralExpression(const std::string& value, const std::string& type) : value(value), literalType(type) {}
+        LiteralExpression(const std::string& value, const std::string& type)
+            : value(value), literalType(type) {}
         void accept(ASTVisitor& visitor) override;
     };
 
