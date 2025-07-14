@@ -202,11 +202,39 @@ TEST(SemanticTest, BuiltinGateWrongArgType) {
     EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
 }
 
+TEST(SemanticTest, BuiltinGateLiteralArgTypeMismatchFails) {
+    const char* src = "qubit q; rx(q, 1);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, BuiltinGateLiteralArgTypeMatchPasses) {
+    const char* src = "qubit q; rx(q, 1.0f);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
 TEST(SemanticTest, FunctionArgumentTypeMismatchFails) {
     const char* src = "function foo(int a) -> void { } foo(1.2f);";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, FunctionArgumentVariableTypeMismatchFails) {
+    const char* src = "function foo(float a) -> void { } int x; foo(x);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
+TEST(SemanticTest, FunctionArgumentVariableTypeMatchPasses) {
+    const char* src = "function foo(int a) -> void { } int x; foo(x);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
 TEST(SemanticTest, FunctionArgumentTypeMatchPasses) {

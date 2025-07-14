@@ -7,6 +7,7 @@
 
 #include "../ast/ast.hpp"
 #include "../error/bloch_runtime_error.hpp"
+#include "type_system.hpp"
 
 namespace bloch {
 
@@ -51,31 +52,26 @@ namespace bloch {
         void visit(Program& node) override;
 
        private:
-        struct VariableInfo {
-            bool isFinal = false;
-            std::string typeName;
-        };
-
-        std::vector<std::unordered_map<std::string, VariableInfo>> m_scopes;
-        Type* m_currentReturnType = nullptr;
+        SymbolTable m_symbols;
+        ValueType m_currentReturnType = ValueType::Unknown;
         std::unordered_set<std::string> m_functions;
 
         struct FunctionInfo {
-            Type* returnType = nullptr;
-            std::vector<std::string> paramTypes;
+            ValueType returnType = ValueType::Unknown;
+            std::vector<ValueType> paramTypes;
         };
         std::unordered_map<std::string, FunctionInfo> m_functionInfo;
 
         void beginScope();
         void endScope();
-        void declare(const std::string& name, bool isFinal, const std::string& typeName);
+        void declare(const std::string& name, bool isFinal, ValueType type);
         bool isDeclared(const std::string& name) const;
         void declareFunction(const std::string& name);
         bool isFunctionDeclared(const std::string& name) const;
         bool isFinal(const std::string& name) const;
         size_t getFunctionParamCount(const std::string& name) const;
-        std::vector<std::string> getFunctionParamTypes(const std::string& name) const;
-        std::string getVariableType(const std::string& name) const;
+        std::vector<ValueType> getFunctionParamTypes(const std::string& name) const;
+        ValueType getVariableType(const std::string& name) const;
         bool returnsVoid(const std::string& name) const;
     };
 
