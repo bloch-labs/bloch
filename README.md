@@ -6,10 +6,11 @@ Bloch is designed to provide developers with intuitive syntax, robust tooling, a
 ## 📚 Docs
 > ⚠ **Note:** docs are still under construction.
 
-See `/docs` for 
+See `/docs` for
 - [Grammar](docs/grammar.md)
 - Standard library
 - [How the compiler works](docs/compiler.md)
+- [Example programs](examples/README.md)
 
 ## 🚀 Usage
 

@@ -1,0 +1,6 @@
+function main() -> void {
+    qubit q;
+    h(q);
+    bit result = measure q;
+    echo(result);
+}
