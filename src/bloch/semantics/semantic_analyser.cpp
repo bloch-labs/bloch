@@ -342,7 +342,7 @@ namespace bloch {
         m_symbols.declare(name, isFinalVar, type);
     }
 
-    bool SemanticAnalyser::isDeclared(const std::string& name) const { m_symbols.isDeclared(name); }
+    bool SemanticAnalyser::isDeclared(const std::string& name) const { return m_symbols.isDeclared(name); }
 
     void SemanticAnalyser::declareFunction(const std::string& name) { m_functions.insert(name); }
 
@@ -350,7 +350,7 @@ namespace bloch {
         return m_functions.count(name) > 0 || builtInGates.count(name) > 0;
     }
 
-    bool SemanticAnalyser::isFinal(const std::string& name) const { m_symbols.isFinal(name); }
+    bool SemanticAnalyser::isFinal(const std::string& name) const { return m_symbols.isFinal(name); }
 
     size_t SemanticAnalyser::getFunctionParamCount(const std::string& name) const {
         auto it = m_functionInfo.find(name);
