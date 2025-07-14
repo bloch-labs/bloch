@@ -1,0 +1,18 @@
+@quantum
+function entangle_measure(qubit a, qubit b) -> bit {
+    h(a);
+    cx(a, b);
+    return measure a;
+}
+
+function main() -> void {
+    qubit q0;
+    qubit q1;
+    bit control = entangle_measure(q0, q1);
+    if (control == 1) {
+        z(q1);
+    }
+    bit b1 = measure q1;
+    echo(control);
+    echo(b1);
+}

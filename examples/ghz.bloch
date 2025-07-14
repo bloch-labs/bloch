@@ -1,0 +1,22 @@
+@quantum
+function ghz(qubit q0, qubit q1, qubit q2) -> void {
+    h(q0);
+    cx(q0, q1);
+    cx(q1, q2);
+}
+
+function main() -> void {
+    qubit q0;
+    qubit q1;
+    qubit q2;
+
+    ghz(q0, q1, q2);
+
+    bit r0 = measure q0;
+    bit r1 = measure q1;
+    bit r2 = measure q2;
+    
+    echo(r0);
+    echo(r1);
+    echo(r2);
+}
