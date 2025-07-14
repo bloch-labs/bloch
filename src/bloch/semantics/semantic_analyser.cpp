@@ -16,14 +16,14 @@ namespace bloch {
             throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
                                     "Variable '" + node.name + "' redeclared");
         }
-        std::string typeName;
+        ValueType type = ValueType::Unknown;
         if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get()))
-            typeName = prim->name;
+            type = typeFromString(prim->name);
         else if (dynamic_cast<VoidType*>(node.varType.get()))
-            typeName = "void";
+            type = ValueType::Void;
         else if (auto obj = dynamic_cast<ObjectType*>(node.varType.get()))
-            typeName = obj->className;
-        declare(node.name, node.isFinal, typeName);
+            type = ValueType::Custom;
+        declare(node.name, node.isFinal, type);
         if (node.initializer) {
             if (auto call = dynamic_cast<CallExpression*>(node.initializer.get())) {
                 if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
@@ -49,7 +49,7 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(ReturnStatement& node) {
-        bool isVoid = dynamic_cast<VoidType*>(m_currentReturnType) != nullptr;
+        bool isVoid = m_currentReturnType == ValueType::Void;
         if (node.value && isVoid) {
             throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
                                     "Void function cannot return a value");
@@ -157,24 +157,24 @@ namespace bloch {
             auto types = getFunctionParamTypes(var->name);
             for (size_t i = 0; i < node.arguments.size() && i < types.size(); ++i) {
                 auto& arg = node.arguments[i];
-                std::string expectedType = types[i];
-                if (expectedType.empty())
+                ValueType expectedType = types[i];
+                if (expectedType == ValueType::Unknown)
                     continue;
                 if (auto argVar = dynamic_cast<VariableExpression*>(arg.get())) {
-                    std::string actual = getVariableType(argVar->name);
-                    if (!actual.empty() && actual != expectedType) {
+                    ValueType actual = getVariableType(argVar->name);
+                    if (actual != ValueType::Unknown && actual != expectedType) {
                         throw BlochRuntimeError(
                             "Bloch Semantic Error", argVar->line, argVar->column,
                             "Argument " + std::to_string(i + 1) + " of '" + var->name +
-                                "' expects type '" + expectedType + "'");
+                                "' expects type '" + typeToString(expectedType) + "'");
                     }
                 } else if (auto argLit = dynamic_cast<LiteralExpression*>(arg.get())) {
-                    std::string actual = argLit->literalType;
-                    if (!actual.empty() && actual != expectedType) {
+                    ValueType actual = typeFromString(argLit->literalType);
+                    if (actual != ValueType::Unknown && actual != expectedType) {
                         throw BlochRuntimeError(
                             "Bloch Semantic Error", argLit->line, argLit->column,
                             "Argument " + std::to_string(i + 1) + " of '" + var->name +
-                                "' expects type '" + expectedType + "'");
+                                "' expects type '" + typeToString(expectedType) + "'");
                     }
                 }
             }
@@ -259,20 +259,27 @@ namespace bloch {
                                         "@quantum functions must return 'bit' or 'void'");
             }
         }
-        Type* prevReturn = m_currentReturnType;
-        m_currentReturnType = node.returnType.get();
+        ValueType prevReturn = m_currentReturnType;
+        if (auto prim = dynamic_cast<PrimitiveType*>(node.returnType.get()))
+            m_currentReturnType = typeFromString(prim->name);
+        else if (dynamic_cast<VoidType*>(node.returnType.get()))
+            m_currentReturnType = ValueType::Void;
+        else if (dynamic_cast<ObjectType*>(node.returnType.get()))
+            m_currentReturnType = ValueType::Custom;
+        else
+            m_currentReturnType = ValueType::Unknown;
 
         FunctionInfo info;
-        info.returnType = node.returnType.get();
+        info.returnType = m_currentReturnType;
         for (auto& param : node.params) {
             if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get()))
-                info.paramTypes.push_back(prim->name);
+                info.paramTypes.push_back(typeFromString(prim->name));
             else if (dynamic_cast<VoidType*>(param->type.get()))
-                info.paramTypes.push_back("void");
+                info.paramTypes.push_back(ValueType::Void);
             else if (auto obj = dynamic_cast<ObjectType*>(param->type.get()))
-                info.paramTypes.push_back(obj->className);
+                info.paramTypes.push_back(ValueType::Custom);
             else
-                info.paramTypes.push_back("");
+                info.paramTypes.push_back(ValueType::Unknown);
         }
         m_functionInfo[node.name] = info;
 
@@ -282,14 +289,14 @@ namespace bloch {
                 throw BlochRuntimeError("Bloch Semantic Error", param->line, param->column,
                                         "Parameter '" + param->name + "' redeclared");
             }
-            std::string typeName;
+            ValueType type = ValueType::Unknown;
             if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get()))
-                typeName = prim->name;
+                type = typeFromString(prim->name);
             else if (dynamic_cast<VoidType*>(param->type.get()))
-                typeName = "void";
+                type = ValueType::Void;
             else if (auto obj = dynamic_cast<ObjectType*>(param->type.get()))
-                typeName = obj->className;
-            declare(param->name, false, typeName);
+                type = ValueType::Custom;
+            declare(param->name, false, type);
             param->accept(*this);
         }
         if (node.body)
@@ -327,23 +334,16 @@ namespace bloch {
         for (auto& stmt : node.statements) stmt->accept(*this);
     }
 
-    void SemanticAnalyser::beginScope() { m_scopes.emplace_back(); }
+    void SemanticAnalyser::beginScope() { m_symbols.beginScope(); }
 
-    void SemanticAnalyser::endScope() { m_scopes.pop_back(); }
+    void SemanticAnalyser::endScope() { m_symbols.endScope(); }
 
-    void SemanticAnalyser::declare(const std::string& name, bool isFinalVar,
-                                   const std::string& typeName) {
-        if (m_scopes.empty())
-            return;
-        m_scopes.back()[name] = VariableInfo{isFinalVar, typeName};
+    void SemanticAnalyser::declare(const std::string& name, bool isFinalVar, ValueType type) {
+        m_symbols.declare(name, isFinalVar, type);
     }
 
     bool SemanticAnalyser::isDeclared(const std::string& name) const {
-        for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
-            if (it->count(name))
-                return true;
-        }
-        return false;
+        return m_symbols.isDeclared(name);
     }
 
     void SemanticAnalyser::declareFunction(const std::string& name) { m_functions.insert(name); }
@@ -353,12 +353,7 @@ namespace bloch {
     }
 
     bool SemanticAnalyser::isFinal(const std::string& name) const {
-        for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
-            auto found = it->find(name);
-            if (found != it->end())
-                return found->second.isFinal;
-        }
-        return false;
+        return m_symbols.isFinal(name);
     }
 
     size_t SemanticAnalyser::getFunctionParamCount(const std::string& name) const {
@@ -371,8 +366,7 @@ namespace bloch {
         return 0;
     }
 
-    std::vector<std::string> SemanticAnalyser::getFunctionParamTypes(
-        const std::string& name) const {
+    std::vector<ValueType> SemanticAnalyser::getFunctionParamTypes(const std::string& name) const {
         auto it = m_functionInfo.find(name);
         if (it != m_functionInfo.end())
             return it->second.paramTypes;
@@ -382,22 +376,17 @@ namespace bloch {
         return {};
     }
 
-    std::string SemanticAnalyser::getVariableType(const std::string& name) const {
-        for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
-            auto found = it->find(name);
-            if (found != it->end())
-                return found->second.typeName;
-        }
-        return "";
+    ValueType SemanticAnalyser::getVariableType(const std::string& name) const {
+        return m_symbols.getType(name);
     }
 
     bool SemanticAnalyser::returnsVoid(const std::string& name) const {
         auto it = m_functionInfo.find(name);
         if (it != m_functionInfo.end())
-            return dynamic_cast<VoidType*>(it->second.returnType) != nullptr;
+            return it->second.returnType == ValueType::Void;
         auto builtin = builtInGates.find(name);
         if (builtin != builtInGates.end())
-            return builtin->second.returnType == "void";
+            return builtin->second.returnType == ValueType::Void;
         return false;
     }
 
