@@ -1,0 +1,43 @@
+name: Update the Changelog on Tag
+
+on:
+  push:
+    tags:
+      - '[0-9]*'
+
+jobs:
+  promote-unreleased:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Promote [unreleased] section
+        run: | 
+          VERSION="${GITHUB_REF#refs/tags/}"
+          DATE=$(date +"%d/%m/%Y")
+
+          awk -v ver="$VERSION" -v date="$DATE" '
+          BEGIN { unreleased = 0 }
+          /^## \[Unreleased\]/ {
+            print $0
+            unreleased = 1
+            print ""
+            next
+          }
+          /^## \[/ && unreleased == 1 {
+            print "## [" ver "] - " date
+            unreleased = 0
+          }
+          { print }
+          ' CHANGELOG.md > NEW_CHANGELOG.md 
+
+          mv NEW_CHANGELOG.md CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "chore: update changelog on tag for $VERSION"
+          git push
