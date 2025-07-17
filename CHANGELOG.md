@@ -7,6 +7,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 ## [Unreleased]
 ### Added 
 - #56: added a changelog
+- #57: added github actions to force changelog entry on PR to `master` and to update changelog on tag 
 
 ## [0.4.0-alpha] - 17/07/2025
 ### Fixed
@@ -56,7 +57,3 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 ### Changed
 - #3: prefix private class members with `m_`
 - #2: refactor to allow bloch-lang comments to start with `//`
-
-
-
-
