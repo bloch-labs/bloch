@@ -5,6 +5,11 @@ All notable changes to the Bloch langugae are documented here
 This project follows [Semantic Versioning](https://semver.org/) and the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. 
 
 ## [Unreleased]
+### Fixed
+- #60: fix update changelog on tag github action 
+
+
+## [0.4.1-alpha] - 17/07/2025
 ### Added 
 - #56: added a changelog
 - #57: added github actions to force changelog entry on PR to `master` and to update changelog on tag 
