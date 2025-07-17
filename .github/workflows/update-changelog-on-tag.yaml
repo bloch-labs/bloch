@@ -70,17 +70,14 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: | 
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: ${{ steps.create_pr.outputs.pull-request-number }}
-            });
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
 
             await github.rest.pulls.merge({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: pr.data.number
+              pull_number: prNumber
               merge_method: "squash"
             });
-
-            console.log(`PR #${pr.data.number} squash-merged into master`);
+            console.log(`PR #${prNumber} squash-merged into master`);
+        env:
+          PR_NUMBER: ${{ steps.create_pr.outputs.pull-request-number }}
