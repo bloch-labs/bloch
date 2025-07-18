@@ -9,6 +9,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #53: added language support for `==` and `!=` operators
 - #68: added first pass of quantum simulator
 - #67: added runtime evalutor which calls the simulator
+- #71: added codegen and main cli functionality
 
 
 ## [0.4.2-alpha] - 18/07/2025
