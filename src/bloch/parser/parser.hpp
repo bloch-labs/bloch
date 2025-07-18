@@ -59,6 +59,7 @@ namespace bloch {
         // Expressions
         [[nodiscard]] std::unique_ptr<Expression> parseExpression();
         [[nodiscard]] std::unique_ptr<Expression> parseAssignmentExpression();
+        [[nodiscard]] std::unique_ptr<Expression> parseEquality();
         [[nodiscard]] std::unique_ptr<Expression> parseComparison();
         [[nodiscard]] std::unique_ptr<Expression> parseAdditive();
         [[nodiscard]] std::unique_ptr<Expression> parseMultiplicative();

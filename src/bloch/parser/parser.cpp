@@ -494,7 +494,7 @@ namespace bloch {
     std::unique_ptr<Expression> Parser::parseExpression() { return parseAssignmentExpression(); }
 
     std::unique_ptr<Expression> Parser::parseAssignmentExpression() {
-        auto expr = parseComparison();
+        auto expr = parseEquality();
 
         if (match(TokenType::Equals)) {
             auto equals = previous();
@@ -510,6 +510,18 @@ namespace bloch {
             } else {
                 reportError("Invalid assignment target");
             }
+        }
+
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseEquality() {
+        auto expr = parseComparison();
+
+        while (match(TokenType:: EqualEqual) || match(TokenType::BangEqual)) {
+            std::string op = previous().value;
+            auto right = parseComparison();
+            expr = std::make_unique<BinaryExpression>(BinaryExpression{op, std::move(expr), std::move(right)});
         }
 
         return expr;
