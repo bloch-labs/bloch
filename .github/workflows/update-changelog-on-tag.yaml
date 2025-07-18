@@ -66,19 +66,10 @@ jobs:
           base: master
           delete-branch: true
       
-      - name: Auto merge PR
-        uses: actions/github-script@v7
+      - name: Enable auto-merge for PR
+        if: ${{ steps.create_pr.outputs.pull-request-number }}
+        uses: peter-evans/enable-pull-request-automerge@v3
         with:
-          script: | 
-            const prNumber = parseInt(process.env.PR_NUMBER, 10);
-
-            await github.rest.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-              merge_method: "squash"
-            });
-            console.log(`PR #${prNumber} squash-merged into master`);
-        env:
-          PR_NUMBER: ${{ steps.create_pr.outputs.pull-request-number }}
+          pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
+          merge-method: squash
 
