@@ -62,3 +62,4 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 ### Changed
 - #3: prefix private class members with `m_`
 - #2: refactor to allow bloch-lang comments to start with `//`
+
