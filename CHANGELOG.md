@@ -5,9 +5,13 @@ All notable changes to the Bloch langugae are documented here
 This project follows [Semantic Versioning](https://semver.org/) and the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. 
 
 ## [Unreleased]
+### Added
+- #53: added language support for `==` and `!=` operators
+
+
+## [0.4.2-alpha] - 18/07/2025
 ### Fixed
 - #60: fix update changelog on tag github action 
-
 
 ## [0.4.1-alpha] - 17/07/2025
 ### Added 

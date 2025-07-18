@@ -55,7 +55,7 @@ TEST(LexerTest, LogicalKeyword) {
 }
 
 TEST(LexerTest, Operators) {
-    Lexer lexer("-> + - * / ;");
+    Lexer lexer("-> + - * / == != ;");
     auto tokens = lexer.tokenize();
 
     EXPECT_EQ(tokens[0].type, TokenType::Arrow);
@@ -63,7 +63,9 @@ TEST(LexerTest, Operators) {
     EXPECT_EQ(tokens[2].type, TokenType::Minus);
     EXPECT_EQ(tokens[3].type, TokenType::Star);
     EXPECT_EQ(tokens[4].type, TokenType::Slash);
-    EXPECT_EQ(tokens[5].type, TokenType::Semicolon);
+    EXPECT_EQ(tokens[5].type, TokenType::EqualEqual);
+    EXPECT_EQ(tokens[6].type, TokenType::BangEqual);
+    EXPECT_EQ(tokens[7].type, TokenType::Semicolon);
 }
 
 TEST(LexerTest, StringLiteral) {

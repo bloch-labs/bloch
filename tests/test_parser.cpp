@@ -245,3 +245,25 @@ TEST(ParserTest, ParseIfElse) {
     ASSERT_NE(elseBlock, nullptr);
     ASSERT_EQ(elseBlock->statements.size(), 1u);
 }
+
+TEST(ParserTest, ParseEqualityOperators) {
+    const char* src = "int a = 1 == 2; int b = 3 != 4;";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 2u);
+
+    auto* eqVar = dynamic_cast<VariableDeclaration*>(program->statements[0].get());
+    ASSERT_NE(eqVar, nullptr);
+    auto* eqBin = dynamic_cast<BinaryExpression*>(eqVar->initializer.get());
+    ASSERT_NE(eqBin, nullptr);
+    EXPECT_EQ(eqBin->op, "==");
+
+    auto* neVar = dynamic_cast<VariableDeclaration*>(program->statements[1].get());
+    ASSERT_NE(neVar, nullptr);
+    auto* neBin = dynamic_cast<BinaryExpression*>(neVar->initializer.get());
+    ASSERT_NE(neBin, nullptr);
+    EXPECT_EQ(neBin->op, "!=");
+}

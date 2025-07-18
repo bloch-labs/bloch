@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include <string_view>
 #include <unordered_map>
 #include "../error/bloch_runtime_error.hpp"
 
@@ -91,7 +92,11 @@ namespace bloch {
 
         switch (c) {
             case '=':
-                return makeToken(TokenType::Equals, "=");
+                return match('=') ? makeToken(TokenType::EqualEqual, "==")
+                                  : makeToken(TokenType::Equals, "=");
+            case '!':
+                return match('=') ? makeToken(TokenType::BangEqual, "!=")
+                                  : makeToken(TokenType::Bang, "!");
             case '+':
                 return makeToken(TokenType::Plus, "+");
             case '-':
