@@ -13,8 +13,6 @@ namespace bloch {
         if (it != m_functions.end()) {
             call(it->second, {});
         }
-        throw BlochRuntimeError("Bloch Runtime Error", program.line, program.column,
-                                "No 'main' function found");
     }
 
     Value RuntimeEvaluator::lookup(const std::string& name) {
