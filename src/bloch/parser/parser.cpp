@@ -518,10 +518,11 @@ namespace bloch {
     std::unique_ptr<Expression> Parser::parseEquality() {
         auto expr = parseComparison();
 
-        while (match(TokenType:: EqualEqual) || match(TokenType::BangEqual)) {
+        while (match(TokenType::EqualEqual) || match(TokenType::BangEqual)) {
             std::string op = previous().value;
             auto right = parseComparison();
-            expr = std::make_unique<BinaryExpression>(BinaryExpression{op, std::move(expr), std::move(right)});
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
         }
 
         return expr;
