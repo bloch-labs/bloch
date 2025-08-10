@@ -5,12 +5,15 @@ All notable changes to the Bloch langugae are documented here
 This project follows [Semantic Versioning](https://semver.org/) and the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. 
 
 ## [Unreleased]
+### Fixed
+- #51: ensured all boolean fields in AST nodes are initialised
+
+## [0.4.2-alpha] - 08/08/2025
 ### Added
 - #53: added language support for `==` and `!=` operators
 - #68: added first pass of quantum simulator
 - #67: added runtime evalutor which calls the simulator
 - #71: added codegen and main cli functionality
-
 
 ## [0.4.2-alpha] - 18/07/2025
 ### Fixed
