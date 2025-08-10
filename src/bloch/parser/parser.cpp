@@ -256,27 +256,17 @@ namespace bloch {
         return var;
     }
 
-    // @quantum, @adjoint, @state
+    // @quantum, @adjoint
     std::unique_ptr<AnnotationNode> Parser::parseAnnotation() {
         (void)expect(TokenType::At, "Expected '@' to begin annotation");
 
-        if (!check(TokenType::Quantum) && !check(TokenType::Adjoint) && !check(TokenType::State)) {
+        if (!check(TokenType::Quantum) && !check(TokenType::Adjoint)) {
             reportError("Unknown annotation");
         }
 
         auto nameToken = advance();
         auto annotation = std::make_unique<AnnotationNode>();
         annotation->name = nameToken.value;
-
-        if (annotation->name == "state") {
-            (void)expect(TokenType::LParen, "Expected '(' after @state");
-            if (!check(TokenType::CharLiteral) && !check(TokenType::StringLiteral)) {
-                reportError("Expected character or string inside @state(...)");
-            }
-            annotation->value = advance().value;
-            (void)expect(TokenType::RParen, "Expected ')' after @state argument");
-        }
-
         return annotation;
     }
 

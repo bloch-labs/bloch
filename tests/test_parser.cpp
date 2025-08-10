@@ -94,25 +94,12 @@ TEST(ParserTest, ParseInitialisedFinalVariableDeclaration) {
     EXPECT_EQ(lit->value, "10");
 }
 
-TEST(ParserTest, ParseQubitWithStateAnnotation) {
+TEST(ParserTest, StateAnnotationIsRejected) {
     const char* src = "@state(\"+\") qubit q;";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
-    auto program = parser.parse();
-
-    ASSERT_EQ(program->statements.size(), 1u);
-
-    auto* var = dynamic_cast<VariableDeclaration*>(program->statements[0].get());
-    ASSERT_NE(var, nullptr);
-    ASSERT_EQ(var->annotations.size(), 1u);
-    EXPECT_EQ(var->annotations[0]->name, "state");
-    EXPECT_EQ(var->annotations[0]->value, "\"+\"");
-
-    auto* type = dynamic_cast<PrimitiveType*>(var->varType.get());
-    ASSERT_NE(type, nullptr);
-    EXPECT_EQ(type->name, "qubit");
-    EXPECT_EQ(var->name, "q");
+    EXPECT_THROW(parser.parse(), BlochRuntimeError);
 }
 
 TEST(ParserTest, ParseClassicalFunction) {

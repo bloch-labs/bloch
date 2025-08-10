@@ -36,7 +36,6 @@ namespace bloch {
         // Annotations
         At,
         Quantum,
-        State,
         Adjoint,
         Members,
         Methods,

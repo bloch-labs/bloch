@@ -201,7 +201,6 @@ namespace bloch {
             // Annotation Values
             {"quantum", TokenType::Quantum},
             {"adjoint", TokenType::Adjoint},
-            {"state", TokenType::State},
             {"members", TokenType::Members},
             {"methods", TokenType::Methods},
 

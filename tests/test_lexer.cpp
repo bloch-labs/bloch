@@ -87,7 +87,7 @@ TEST(LexerTest, CharLiteral) {
 TEST(LexerTest, UnterminatedStringThrows) {
     Lexer lexer("\"hello");
 
-    EXPECT_THROW({ lexer.tokenize(); }, BlochRuntimeError);
+    EXPECT_THROW({ (void)lexer.tokenize(); }, BlochRuntimeError);
 }
 
 TEST(LexerTest, UnterminatedCharThrows) {

@@ -13,8 +13,7 @@ methodsSection = "@methods" ":" { function } ;
 function       = { annotation } "function" [ "*" ] identifier
                   "(" [ parameterList ] ")" "->" type block ;
 
-annotation     = "@" ( "quantum" | "adjoint" | stateAnnotation ) ;
-stateAnnotation= "state" "(" ( charLiteral | stringLiteral ) ")" ;
+annotation     = "@" ( "quantum" | "adjoint" ) ;
 
 parameterList  = parameter { "," parameter } ;
 parameter      = type identifier ;
