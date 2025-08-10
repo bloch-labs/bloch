@@ -86,11 +86,9 @@ namespace bloch {
         (void)expect(TokenType::Import, "Expected 'import' keyword");
 
         auto stmt = std::make_unique<ImportStatement>();
-        if (!check(TokenType::Identifier)) {
-            reportError("Expected module name after 'import'");
-        }
-
-        stmt->module = advance().value;
+        const Token& moduleToken =
+            expect(TokenType::Identifier, "Expected module name after 'import'");
+        stmt->module = moduleToken.value;
         (void)expect(TokenType::Semicolon, "Expected ';' after import statement");
 
         return stmt;
@@ -120,21 +118,16 @@ namespace bloch {
         if (match(TokenType::Star)) {
             func->isConstructor = true;
 
-            if (!check(TokenType::Identifier)) {
-                reportError("Expected constructor name after '*'");
-            }
-
-            const Token& nameToken = advance();
+            const Token& nameToken =
+                expect(TokenType::Identifier, "Expected constructor name after '*'");
             func->name = nameToken.value;
             func->line = nameToken.line;
             func->column = nameToken.column;
         } else {
             func->isConstructor = false;
 
-            if (!check(TokenType::Identifier)) {
-                reportError("Expected function name after 'function' keyword");
-            }
-            const Token& nameToken = advance();
+            const Token& nameToken =
+                expect(TokenType::Identifier, "Expected function name after 'function' keyword");
             func->name = nameToken.value;
             func->line = nameToken.line;
             func->column = nameToken.column;
@@ -147,10 +140,7 @@ namespace bloch {
 
             param->type = parseType();
 
-            if (!check(TokenType::Identifier)) {
-                reportError("Expected parameter name");
-            }
-            const Token& paramToken = advance();
+            const Token& paramToken = expect(TokenType::Identifier, "Expected parameter name");
             param->name = paramToken.value;
             param->line = paramToken.line;
             param->column = paramToken.column;
@@ -178,10 +168,8 @@ namespace bloch {
 
         auto clazz = std::make_unique<ClassDeclaration>();
 
-        if (!check(TokenType::Identifier)) {
-            reportError("Expected class name after 'class'");
-        }
-        clazz->name = advance().value;
+        const Token& nameToken = expect(TokenType::Identifier, "Expected class name after 'class'");
+        clazz->name = nameToken.value;
 
         (void)expect(TokenType::LBrace, "Expected '{' to start class body");
 
@@ -192,11 +180,9 @@ namespace bloch {
                 (void)advance();
 
                 (void)expect(TokenType::LParen, "Expected '(' after @members");
-                if (!check(TokenType::StringLiteral)) {
-                    reportError("Expected access modifier string in @members");
-                }
-
-                std::string accessModifier = advance().value;
+                const Token& modifierToken =
+                    expect(TokenType::StringLiteral, "Expected access modifier string in @members");
+                std::string accessModifier = modifierToken.value;
                 if (accessModifier != "\"public\"" && accessModifier != "\"private\"") {
                     reportError("Access modifier must be \"public\" or \"private\"");
                 }
