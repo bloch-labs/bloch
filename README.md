@@ -1,4 +1,4 @@
-# Bloch — A High-Level Quantum Programming Language
+# Bloch — A Modern Quantum Programming Language
 **Bloch** is a strongly typed, compiled quantum programming language designed for hybrid classical-quantum computation. It combines classical control with OpenQASM-compatible quantum semantics, enabling intuitive yet powerful quantum algorithm development.
 
 Bloch is designed to provide developers with intuitive syntax, robust tooling, and seamless compilation to OpenQASM for execution on real or simulated quantum hardware.
