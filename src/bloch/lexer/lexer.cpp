@@ -52,15 +52,15 @@ namespace bloch {
             char c = peek();
             if (isspace(c)) {
                 if (c == '\n') {
-                    advance();
+                    (void)advance();
                     m_line++;
                     m_column = 1;
                     continue;
                 }
-                advance();
+                (void)advance();
             } else if (c == '/' && peekNext() == '/') {
-                advance();
-                advance();
+                (void)advance();
+                (void)advance();
                 skipComment();
             } else {
                 break;
@@ -70,7 +70,7 @@ namespace bloch {
 
     void Lexer::skipComment() {
         while (m_position < m_source.size() && m_source[m_position] != '\n') {
-            advance();
+            (void)advance();
         }
     }
 
@@ -147,13 +147,13 @@ namespace bloch {
 
     Token Lexer::scanNumber() {
         size_t start = m_position - 1;
-        while (isdigit(peek())) advance();
+        while (isdigit(peek())) (void)advance();
 
         if (peek() == '.') {
-            advance();
-            while (isdigit(peek())) advance();
+            (void)advance();
+            while (isdigit(peek())) (void)advance();
             if (peek() == 'f') {
-                advance();
+                (void)advance();
                 return makeToken(TokenType::FloatLiteral,
                                  std::string(m_source.substr(start, m_position - start)));
             } else {
@@ -168,7 +168,7 @@ namespace bloch {
 
     Token Lexer::scanIdentifierOrKeyword() {
         size_t start = m_position - 1;
-        while (isalnum(peek()) || peek() == '_') advance();
+        while (isalnum(peek()) || peek() == '_') (void)advance();
 
         std::string_view text = m_source.substr(start, m_position - start);
 
@@ -221,11 +221,11 @@ namespace bloch {
         while (m_position < m_source.size() && peek() != '"') {
             if (peek() == '\n')
                 m_line++;
-            advance();
+            (void)advance();
         }
 
         if (peek() == '"') {
-            advance();
+            (void)advance();
             return makeToken(TokenType::StringLiteral,
                              std::string(m_source.substr(start - 1, m_position - start + 1)));
         }
@@ -238,10 +238,10 @@ namespace bloch {
     Token Lexer::scanChar() {
         size_t start = m_position;
         if (m_position < m_source.size())
-            advance();
+            (void)advance();
 
         if (peek() == '\'') {
-            advance();
+            (void)advance();
             return makeToken(TokenType::CharLiteral, std::string(m_source.substr(start - 1, 3)));
         }
 

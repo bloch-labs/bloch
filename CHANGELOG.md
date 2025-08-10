@@ -5,8 +5,11 @@ All notable changes to the Bloch langugae are documented here
 This project follows [Semantic Versioning](https://semver.org/) and the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. 
 
 ## [Unreleased]
+### Changed
+- #77: simplifed Parser by making better use of the `expect` function
 ### Fixed
 - #51: ensured all boolean fields in AST nodes are initialised
+- #77: addressed no return type warnings in lexer and parser
 
 ## [0.4.2-alpha] - 08/08/2025
 ### Added
