@@ -29,7 +29,7 @@ namespace bloch {
     // Token matching
     bool Parser::match(TokenType type) {
         if (check(type)) {
-            advance();
+            (void)advance();
             return true;
         }
         return false;
@@ -83,7 +83,7 @@ namespace bloch {
 
     // import module;
     std::unique_ptr<ImportStatement> Parser::parseImport() {
-        expect(TokenType::Import, "Expected 'import' keyword");
+        (void)expect(TokenType::Import, "Expected 'import' keyword");
 
         auto stmt = std::make_unique<ImportStatement>();
         if (!check(TokenType::Identifier)) {
@@ -91,7 +91,7 @@ namespace bloch {
         }
 
         stmt->module = advance().value;
-        expect(TokenType::Semicolon, "Expected ';' after import statement");
+        (void)expect(TokenType::Semicolon, "Expected ';' after import statement");
 
         return stmt;
     }
@@ -102,7 +102,7 @@ namespace bloch {
 
         // Parse annotations
         while (check(TokenType::At)) {
-            advance();
+            (void)advance();
             if (match(TokenType::Quantum) || match(TokenType::Adjoint)) {
                 std::string name = previous().value;
                 std::string value = "";
@@ -114,7 +114,7 @@ namespace bloch {
             }
         }
 
-        expect(TokenType::Function, "Expected 'function' keyword");
+        (void)expect(TokenType::Function, "Expected 'function' keyword");
 
         // Constructor detection
         if (match(TokenType::Star)) {
@@ -141,7 +141,7 @@ namespace bloch {
         }
 
         // Parse parameters
-        expect(TokenType::LParen, "Expected '(' after function name");
+        (void)expect(TokenType::LParen, "Expected '(' after function name");
         while (!check(TokenType::RParen)) {
             auto param = std::make_unique<Parameter>();
 
@@ -160,10 +160,10 @@ namespace bloch {
             if (!match(TokenType::Comma))
                 break;
         }
-        expect(TokenType::RParen, "Expected ')' after parameters");
+        (void)expect(TokenType::RParen, "Expected ')' after parameters");
 
         // Return type
-        expect(TokenType::Arrow, "Expected '->' before return type");
+        (void)expect(TokenType::Arrow, "Expected '->' before return type");
 
         func->returnType = parseType();
 
@@ -174,7 +174,7 @@ namespace bloch {
     }
 
     std::unique_ptr<ClassDeclaration> Parser::parseClass() {
-        expect(TokenType::Class, "Expected 'class' keyword");
+        (void)expect(TokenType::Class, "Expected 'class' keyword");
 
         auto clazz = std::make_unique<ClassDeclaration>();
 
@@ -183,15 +183,15 @@ namespace bloch {
         }
         clazz->name = advance().value;
 
-        expect(TokenType::LBrace, "Expected '{' to start class body");
+        (void)expect(TokenType::LBrace, "Expected '{' to start class body");
 
         while (!check(TokenType::RBrace) && !isAtEnd()) {
             // @members("public") or @members("private"):
             if (check(TokenType::At) && checkNext(TokenType::Members)) {
-                advance();
-                advance();
+                (void)advance();
+                (void)advance();
 
-                expect(TokenType::LParen, "Expected '(' after @members");
+                (void)expect(TokenType::LParen, "Expected '(' after @members");
                 if (!check(TokenType::StringLiteral)) {
                     reportError("Expected access modifier string in @members");
                 }
@@ -202,8 +202,8 @@ namespace bloch {
                 }
                 accessModifier = accessModifier.substr(1, accessModifier.length() - 2);
 
-                expect(TokenType::RParen, "Expected ')' after access modifier");
-                expect(TokenType::Colon, "Expected ':' after @members(...)");
+                (void)expect(TokenType::RParen, "Expected ')' after access modifier");
+                (void)expect(TokenType::Colon, "Expected ':' after @members(...)");
 
                 while (!check(TokenType::At) && !check(TokenType::RBrace)) {
                     bool isFinal = match(TokenType::Final);
@@ -214,10 +214,10 @@ namespace bloch {
 
                 // @methods:
             } else if (check(TokenType::At) && checkNext(TokenType::Methods)) {
-                advance();
-                advance();
+                (void)advance();
+                (void)advance();
 
-                expect(TokenType::Colon, "Expected ':' after @methods");
+                (void)expect(TokenType::Colon, "Expected ':' after @methods");
 
                 while (!check(TokenType::At) && !check(TokenType::RBrace)) {
                     clazz->methods.push_back(parseFunction());
@@ -228,7 +228,7 @@ namespace bloch {
             }
         }
 
-        expect(TokenType::RBrace, "Expected '}' to end class body");
+        (void)expect(TokenType::RBrace, "Expected '}' to end class body");
         return clazz;
     }
 
@@ -265,14 +265,14 @@ namespace bloch {
             var->initializer = parseExpression();
         }
 
-        expect(TokenType::Semicolon, "Expected ';' after variable declaration");
+        (void)expect(TokenType::Semicolon, "Expected ';' after variable declaration");
 
         return var;
     }
 
     // @quantum, @adjoint, @state
     std::unique_ptr<AnnotationNode> Parser::parseAnnotation() {
-        expect(TokenType::At, "Expected '@' to begin annotation");
+        (void)expect(TokenType::At, "Expected '@' to begin annotation");
 
         if (!check(TokenType::Quantum) && !check(TokenType::Adjoint) && !check(TokenType::State)) {
             reportError("Unknown annotation");
@@ -283,12 +283,12 @@ namespace bloch {
         annotation->name = nameToken.value;
 
         if (annotation->name == "state") {
-            expect(TokenType::LParen, "Expected '(' after @state");
+            (void)expect(TokenType::LParen, "Expected '(' after @state");
             if (!check(TokenType::CharLiteral) && !check(TokenType::StringLiteral)) {
                 reportError("Expected character or string inside @state(...)");
             }
             annotation->value = advance().value;
-            expect(TokenType::RParen, "Expected ')' after @state argument");
+            (void)expect(TokenType::RParen, "Expected ')' after @state argument");
         }
 
         return annotation;
@@ -356,7 +356,7 @@ namespace bloch {
             block->statements.push_back(parseStatement());
         }
 
-        expect(TokenType::RBrace, "Expected '}' to end block");
+        (void)expect(TokenType::RBrace, "Expected '}' to end block");
         return block;
     }
 
@@ -370,15 +370,15 @@ namespace bloch {
             stmt->value = parseExpression();
         }
 
-        expect(TokenType::Semicolon, "Expected ';' after return value");
+        (void)expect(TokenType::Semicolon, "Expected ';' after return value");
         return stmt;
     }
 
     // if (cond) {...} else {...}
     std::unique_ptr<IfStatement> Parser::parseIf() {
-        expect(TokenType::LParen, "Expected '(' after 'if'");
+        (void)expect(TokenType::LParen, "Expected '(' after 'if'");
         auto condition = parseExpression();
-        expect(TokenType::RParen, "Expected ')' after condition");
+        (void)expect(TokenType::RParen, "Expected ')' after condition");
 
         auto thenBranch = parseBlock();
 
@@ -396,7 +396,7 @@ namespace bloch {
 
     // for (init; cond; update) {...}
     std::unique_ptr<ForStatement> Parser::parseFor() {
-        expect(TokenType::LParen, "Expected '(' after 'for'");
+        (void)expect(TokenType::LParen, "Expected '(' after 'for'");
 
         std::unique_ptr<Statement> initializer = nullptr;
 
@@ -413,14 +413,14 @@ namespace bloch {
                 initializer = parseExpressionStatement();
             }
         } else {
-            advance();
+            (void)advance();
         }
 
         auto condition = parseExpression();
-        expect(TokenType::Semicolon, "Expected ';' after loop condition");
+        (void)expect(TokenType::Semicolon, "Expected ';' after loop condition");
 
         auto increment = parseExpression();
-        expect(TokenType::RParen, "Expected ')' after for clause");
+        (void)expect(TokenType::RParen, "Expected ')' after for clause");
 
         auto body = parseBlock();
 
@@ -435,10 +435,10 @@ namespace bloch {
 
     // echo(expr);
     std::unique_ptr<EchoStatement> Parser::parseEcho() {
-        expect(TokenType::LParen, "Expected '(' after 'echo'");
+        (void)expect(TokenType::LParen, "Expected '(' after 'echo'");
         auto value = parseExpression();
-        expect(TokenType::RParen, "Expected ')' after echo argument");
-        expect(TokenType::Semicolon, "Expected ';' after echo statement");
+        (void)expect(TokenType::RParen, "Expected ')' after echo argument");
+        (void)expect(TokenType::Semicolon, "Expected ';' after echo statement");
 
         auto stmt = std::make_unique<EchoStatement>();
         stmt->value = std::move(value);
@@ -449,7 +449,7 @@ namespace bloch {
     std::unique_ptr<ResetStatement> Parser::parseReset() {
         auto stmt = std::make_unique<ResetStatement>();
         stmt->target = parseExpression();
-        expect(TokenType::Semicolon, "Expected ';' after reset target");
+        (void)expect(TokenType::Semicolon, "Expected ';' after reset target");
         return stmt;
     }
 
@@ -457,7 +457,7 @@ namespace bloch {
     std::unique_ptr<MeasureStatement> Parser::parseMeasure() {
         auto stmt = std::make_unique<MeasureStatement>();
         stmt->qubit = parseExpression();
-        expect(TokenType::Semicolon, "Expected ';' after measure target");
+        (void)expect(TokenType::Semicolon, "Expected ';' after measure target");
         return stmt;
     }
 
@@ -469,7 +469,7 @@ namespace bloch {
 
         const Token& nameToken = advance();
         std::string name = nameToken.value;
-        expect(TokenType::Equals, "Expected '=' in assignment");
+        (void)expect(TokenType::Equals, "Expected '=' in assignment");
 
         auto stmt = std::make_unique<AssignmentStatement>();
         stmt->name = name;
@@ -477,13 +477,13 @@ namespace bloch {
         stmt->column = nameToken.column;
         stmt->value = parseExpression();
 
-        expect(TokenType::Semicolon, "Expected ';' after assignment");
+        (void)expect(TokenType::Semicolon, "Expected ';' after assignment");
         return stmt;
     }
 
     std::unique_ptr<ExpressionStatement> Parser::parseExpressionStatement() {
         auto expr = parseExpression();
-        expect(TokenType::Semicolon, "Expected ';' after expression");
+        (void)expect(TokenType::Semicolon, "Expected ';' after expression");
         auto stmt = std::make_unique<ExpressionStatement>();
         stmt->expression = std::move(expr);
         return stmt;
@@ -571,9 +571,9 @@ namespace bloch {
     std::unique_ptr<Expression> Parser::parseUnary() {
         if (match(TokenType::Star)) {
             Token className = expect(TokenType::Identifier, "Expected class name after '*'");
-            expect(TokenType::LParen, "Expected '(' after class name");
+            (void)expect(TokenType::LParen, "Expected '(' after class name");
             auto args = parseArgumentList();
-            expect(TokenType::RParen, "Expected ')' after arguments");
+            (void)expect(TokenType::RParen, "Expected ')' after arguments");
 
             return std::make_unique<ConstructorCallExpression>(className.value, std::move(args));
         }
@@ -592,7 +592,7 @@ namespace bloch {
 
         while (true) {
             if (match(TokenType::Dot)) {
-                expect(TokenType::Identifier, "Expected member name after '.'");
+                (void)expect(TokenType::Identifier, "Expected member name after '.'");
                 std::string member = previous().value;
                 expr = std::make_unique<MemberAccessExpression>(std::move(expr), member);
             } else if (match(TokenType::LParen)) {
@@ -602,7 +602,7 @@ namespace bloch {
                         args.push_back(parseExpression());
                     } while (match(TokenType::Comma));
                 }
-                expect(TokenType::RParen, "Expected ')' after arguments");
+                (void)expect(TokenType::RParen, "Expected ')' after arguments");
                 expr = std::make_unique<CallExpression>(std::move(expr), std::move(args));
             } else {
                 break;
@@ -651,7 +651,7 @@ namespace bloch {
 
         if (match(TokenType::LParen)) {
             auto expr = parseExpression();
-            expect(TokenType::RParen, "Expected ')' after expression");
+            (void)expect(TokenType::RParen, "Expected ')' after expression");
             return std::make_unique<ParenthesizedExpression>(
                 ParenthesizedExpression{std::move(expr)});
         }
@@ -691,7 +691,7 @@ namespace bloch {
 
             // Array types are only allowed for primitive types
             if (match(TokenType::LBracket)) {
-                expect(TokenType::RBracket, "Expected ']' after '[' in array type");
+                (void)expect(TokenType::RBracket, "Expected ']' after '[' in array type");
                 return parseArrayType(std::move(baseType));
             }
 
@@ -710,18 +710,18 @@ namespace bloch {
 
     std::unique_ptr<Type> Parser::parsePrimitiveType() {
         if (check(TokenType::Void)) {
-            advance();
+            (void)advance();
             return std::make_unique<VoidType>();
         }
 
         if (check(TokenType::Logical)) {
-            advance();
-            expect(TokenType::Less, "Expected '<' after 'logical'");
+            (void)advance();
+            (void)expect(TokenType::Less, "Expected '<' after 'logical'");
             if (!check(TokenType::Identifier)) {
                 reportError("Expected code identifier inside logical<>");
             }
             std::string code = advance().value;
-            expect(TokenType::Greater, "Expected '>' after code identifier");
+            (void)expect(TokenType::Greater, "Expected '>' after code identifier");
             return std::make_unique<LogicalType>(code);
         }
 

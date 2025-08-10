@@ -7,6 +7,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 ## [Unreleased]
 ### Fixed
 - #51: ensured all boolean fields in AST nodes are initialised
+- #77: addressed no return type warnings in lexer and parser
 
 ## [0.4.2-alpha] - 08/08/2025
 ### Added
