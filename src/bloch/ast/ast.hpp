@@ -40,7 +40,7 @@ namespace bloch {
         std::unique_ptr<Type> varType;
         std::unique_ptr<Expression> initializer;
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
-        bool isFinal;
+        bool isFinal = false;
 
         VariableDeclaration() = default;
         void accept(ASTVisitor& visitor) override;
@@ -292,7 +292,7 @@ namespace bloch {
         std::unique_ptr<Type> returnType;
         std::unique_ptr<BlockStatement> body;
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
-        bool hasQuantumAnnotation;
+        bool hasQuantumAnnotation = false;
         bool isConstructor = false;
 
         FunctionDeclaration() = default;
