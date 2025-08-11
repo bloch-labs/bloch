@@ -12,6 +12,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 ### Fixed
 - #51: ensured all boolean fields in AST nodes are initialised
 - #77: addressed no return type warnings in lexer and parser
+- #79: fix division by zero bug in `RuntimeEvaluator::eval` to throw a `RuntimeError` instead of crashing when divisor is zero
 
 ## [0.5.0-alpha] - 08/08/2025
 ### Added
