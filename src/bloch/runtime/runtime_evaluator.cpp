@@ -154,11 +154,18 @@ namespace bloch {
                 return {Value::Type::Int, l.intValue * r.intValue};
             }
             if (bin->op == "/") {
+                if (r.intValue == 0) {
+                    throw std::runtime_error("Division by zero in expression evaluation");
+                }
                 return {Value::Type::Int, l.intValue / r.intValue};
             }
             if (bin->op == "%") {
+                if (r.intValue == 0) {
+                    throw std::runtime_error("Modulo by zero in expression evaluation");
+                }
                 return {Value::Type::Int, l.intValue % r.intValue};
             }
+
             if (bin->op == ">") {
                 return {Value::Type::Bit, 0, 0.0, l.intValue > r.intValue};
             }
