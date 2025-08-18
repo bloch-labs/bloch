@@ -659,10 +659,10 @@ namespace bloch {
     // Types
 
     std::unique_ptr<Type> Parser::parseType() {
-        // First: handle primitives and logical<>
-        if (check(TokenType::Void) || check(TokenType::Logical) || check(TokenType::Int) ||
-            check(TokenType::Float) || check(TokenType::Char) || check(TokenType::String) ||
-            check(TokenType::Bit) || check(TokenType::Qubit)) {
+        // First: handle primitives
+        if (check(TokenType::Void) || check(TokenType::Int) || check(TokenType::Float) ||
+            check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
+            check(TokenType::Qubit)) {
             auto baseType = parsePrimitiveType();
 
             // Array types are only allowed for primitive types
@@ -688,17 +688,6 @@ namespace bloch {
         if (check(TokenType::Void)) {
             (void)advance();
             return std::make_unique<VoidType>();
-        }
-
-        if (check(TokenType::Logical)) {
-            (void)advance();
-            (void)expect(TokenType::Less, "Expected '<' after 'logical'");
-            if (!check(TokenType::Identifier)) {
-                reportError("Expected code identifier inside logical<>");
-            }
-            std::string code = advance().value;
-            (void)expect(TokenType::Greater, "Expected '>' after code identifier");
-            return std::make_unique<LogicalType>(code);
         }
 
         if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||

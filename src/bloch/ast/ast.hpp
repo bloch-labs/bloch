@@ -239,13 +239,6 @@ namespace bloch {
         void accept(ASTVisitor& visitor) override;
     };
 
-    struct LogicalType : public Type {
-        std::string code;
-
-        LogicalType(const std::string& code) : code(code) {}
-        void accept(ASTVisitor& visitor) override;
-    };
-
     struct ArrayType : public Type {
         std::unique_ptr<Type> elementType;
 
@@ -351,7 +344,6 @@ namespace bloch {
         virtual void visit(MemberAccessExpression& node) = 0;
 
         virtual void visit(PrimitiveType& node) = 0;
-        virtual void visit(LogicalType& node) = 0;
         virtual void visit(ArrayType& node) = 0;
         virtual void visit(VoidType& node) = 0;
         virtual void visit(ObjectType& node) = 0;
@@ -387,7 +379,6 @@ namespace bloch {
     inline void ConstructorCallExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MemberAccessExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void PrimitiveType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
-    inline void LogicalType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ArrayType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VoidType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ObjectType::accept(ASTVisitor& visitor) { visitor.visit(*this); }

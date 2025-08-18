@@ -181,7 +181,6 @@ namespace bloch {
             {"char", TokenType::Char},
             {"qubit", TokenType::Qubit},
             {"bit", TokenType::Bit},
-            {"logical", TokenType::Logical},
 
             // Keywords
             {"void", TokenType::Void},

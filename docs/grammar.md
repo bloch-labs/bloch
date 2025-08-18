@@ -61,6 +61,5 @@ literal               = integerLiteral
 type                  = primitiveType [ "[" "]" ]
                       | identifier ;
 primitiveType         = "void" | "int" | "float" | "char" | "string"
-                      | "bit" | "qubit" | logicalType ;
-logicalType           = "logical" "<" identifier ">" ;
+                      | "bit" | "qubit" ;
 ```
