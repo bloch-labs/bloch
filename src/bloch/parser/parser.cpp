@@ -660,9 +660,9 @@ namespace bloch {
 
     std::unique_ptr<Type> Parser::parseType() {
         // First: handle primitives
-        if (check(TokenType::Void) || check(TokenType::Int) ||
-            check(TokenType::Float) || check(TokenType::Char) || check(TokenType::String) ||
-            check(TokenType::Bit) || check(TokenType::Qubit)) {
+        if (check(TokenType::Void) || check(TokenType::Int) || check(TokenType::Float) ||
+            check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
+            check(TokenType::Qubit)) {
             auto baseType = parsePrimitiveType();
 
             // Array types are only allowed for primitive types
