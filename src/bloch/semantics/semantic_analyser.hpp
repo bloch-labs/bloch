@@ -40,7 +40,6 @@ namespace bloch {
         void visit(MemberAccessExpression& node) override;
 
         void visit(PrimitiveType& node) override;
-        void visit(LogicalType& node) override;
         void visit(ArrayType& node) override;
         void visit(VoidType& node) override;
         void visit(ObjectType& node) override;

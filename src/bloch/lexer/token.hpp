@@ -18,7 +18,6 @@ namespace bloch {
         Char,
         Qubit,
         Bit,
-        Logical,
         Void,
         Function,
         Import,

@@ -45,15 +45,6 @@ TEST(LexerTest, KeywordDetection) {
     EXPECT_EQ(tokens[2].type, TokenType::Return);
 }
 
-TEST(LexerTest, LogicalKeyword) {
-    Lexer lexer("logical");
-    auto tokens = lexer.tokenize();
-
-    ASSERT_EQ(tokens.size(), 2);
-    EXPECT_EQ(tokens[0].type, TokenType::Logical);
-    EXPECT_EQ(tokens[0].value, "logical");
-}
-
 TEST(LexerTest, Operators) {
     Lexer lexer("-> + - * / == != ;");
     auto tokens = lexer.tokenize();

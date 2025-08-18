@@ -233,7 +233,6 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(PrimitiveType&) {}
-    void SemanticAnalyser::visit(LogicalType&) {}
     void SemanticAnalyser::visit(ArrayType&) {}
     void SemanticAnalyser::visit(VoidType&) {}
     void SemanticAnalyser::visit(ObjectType&) {}
