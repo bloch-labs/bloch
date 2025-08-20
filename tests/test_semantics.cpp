@@ -32,7 +32,7 @@ TEST(SemanticTest, ErrorHasLineColumn) {
     try {
         analyser.analyse(*program);
     } catch (const BlochRuntimeError& err) {
-        bool threw = true;
+        threw = true;
         EXPECT_GT(err.line, 0);
         EXPECT_GT(err.column, 0);
     }
