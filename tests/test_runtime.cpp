@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "test_framework.hpp"
 #include "bloch/codegen/cpp_generator.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"

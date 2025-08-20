@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "test_framework.hpp"
 #include "bloch/ast/ast.hpp"
 
 using namespace bloch;

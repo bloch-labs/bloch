@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "test_framework.hpp"
 #include "bloch/error/bloch_runtime_error.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
@@ -28,13 +28,15 @@ TEST(SemanticTest, UseUndeclaredVariableFails) {
 TEST(SemanticTest, ErrorHasLineColumn) {
     auto program = parseProgram("x = 5;");
     SemanticAnalyser analyser;
+    bool threw = false;
     try {
         analyser.analyse(*program);
-        FAIL() << "Expected BlochRuntimeError";
     } catch (const BlochRuntimeError& err) {
+        bool threw = true;
         EXPECT_GT(err.line, 0);
         EXPECT_GT(err.column, 0);
     }
+    EXPECT_TRUE(threw);
 }
 
 TEST(SemanticTest, RedeclaredVariableFails) {

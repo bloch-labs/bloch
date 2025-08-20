@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "test_framework.hpp"
 #include "bloch/error/bloch_runtime_error.hpp"
 #include "bloch/lexer/lexer.hpp"
 
