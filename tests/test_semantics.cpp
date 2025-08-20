@@ -1,8 +1,8 @@
-#include "test_framework.hpp"
 #include "bloch/error/bloch_runtime_error.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
 #include "bloch/semantics/semantic_analyser.hpp"
+#include "test_framework.hpp"
 
 using namespace bloch;
 

@@ -1,37 +1,36 @@
-#include "test_framework.hpp"
 #include <array>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
+#include "test_framework.hpp"
 
 namespace {
-std::string runBloch(const std::string& source, const std::string& name) {
-    namespace fs = std::filesystem;
-    fs::path cwd = fs::current_path();
-    fs::path blochFile = cwd / name;
-    std::ofstream ofs(blochFile);
-    ofs << source;
-    ofs.close();
+    std::string runBloch(const std::string& source, const std::string& name) {
+        namespace fs = std::filesystem;
+        fs::path cwd = fs::current_path();
+        fs::path blochFile = cwd / name;
+        std::ofstream ofs(blochFile);
+        ofs << source;
+        ofs.close();
 
-    fs::path blochBin = cwd.parent_path() / "bin" / "bloch";
-    std::string cmd = blochBin.string() + " " + name;
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
-    if (!pipe)
+        fs::path blochBin = cwd.parent_path() / "bin" / "bloch";
+        std::string cmd = blochBin.string() + " " + name;
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+        if (!pipe)
+            return result;
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
+
+        fs::path stem = blochFile.stem();
+        fs::remove(blochFile);
+        fs::remove(cwd / (stem.string() + ".cpp"));
+        fs::remove(cwd / (stem.string() + ".qasm"));
+        fs::remove(cwd / (stem.string() + ".out"));
         return result;
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
-        result += buffer.data();
-
-    fs::path stem = blochFile.stem();
-    fs::remove(blochFile);
-    fs::remove(cwd / (stem.string() + ".cpp"));
-    fs::remove(cwd / (stem.string() + ".qasm"));
-    fs::remove(cwd / (stem.string() + ".out"));
-    return result;
-}
+    }
 }
 
 TEST(IntegrationTest, RunsQuantumProgram) {

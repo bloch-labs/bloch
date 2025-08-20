@@ -1,6 +1,6 @@
-#include "test_framework.hpp"
 #include "bloch/error/bloch_runtime_error.hpp"
 #include "bloch/lexer/lexer.hpp"
+#include "test_framework.hpp"
 
 using namespace bloch;
 
