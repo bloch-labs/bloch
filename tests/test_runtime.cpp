@@ -1,9 +1,9 @@
-#include <gtest/gtest.h>
 #include "bloch/codegen/cpp_generator.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
 #include "bloch/semantics/semantic_analyser.hpp"
+#include "test_framework.hpp"
 
 using namespace bloch;
 

@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "bloch/ast/ast.hpp"
+#include "test_framework.hpp"
 
 using namespace bloch;
 

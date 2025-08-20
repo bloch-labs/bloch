@@ -473,15 +473,15 @@ namespace bloch {
         auto expr = parseEquality();
 
         if (match(TokenType::Equals)) {
-            auto equals = previous();
-
             // Must be a variable on the left-hand side
             if (auto varExpr = dynamic_cast<VariableExpression*>(expr.get())) {
+                int line = varExpr->line;
+                int column = varExpr->column;
                 std::string name = varExpr->name;
                 auto value = parseAssignmentExpression();
                 auto assign = std::make_unique<AssignmentExpression>(name, std::move(value));
-                assign->line = equals.line;
-                assign->column = equals.column;
+                assign->line = line;
+                assign->column = column;
                 return assign;
             } else {
                 reportError("Invalid assignment target");

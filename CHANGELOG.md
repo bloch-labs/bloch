@@ -24,6 +24,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #68: added first pass of quantum simulator
 - #67: added runtime evalutor which calls the simulator
 - #71: added codegen and main cli functionality
+- #81: added integration tests
 
 ### Changed
 - #3: prefix private class members with `m_`
@@ -44,6 +45,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 ### Removed  
 - #24: remove old `version` starter code
 - #74: removed `@state` annotations as they are not supported by OpenQASM
+- #80: removed `logical<>` primitive type
 
 
 

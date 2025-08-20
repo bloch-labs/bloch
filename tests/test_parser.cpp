@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
 #include "bloch/error/bloch_runtime_error.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
+#include "test_framework.hpp"
 
 using namespace bloch;
 
