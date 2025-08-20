@@ -161,14 +161,6 @@ TEST(SemanticTest, DuplicateFunctionDeclarationFails) {
     EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
 }
 
-TEST(SemanticTest, DuplicateMethodDeclarationFails) {
-    const char* src =
-        "class Foo { @methods: function bar() -> void { } function bar() -> void { } }";
-    auto program = parseProgram(src);
-    SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
-}
-
 TEST(SemanticTest, BuiltinGateCallIsValid) {
     const char* src = "qubit q; h(q);";
     auto program = parseProgram(src);

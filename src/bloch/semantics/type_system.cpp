@@ -17,7 +17,7 @@ namespace bloch {
             return ValueType::Bit;
         if (name == "void")
             return ValueType::Void;
-        return ValueType::Custom;
+        return ValueType::Unknown;
     }
 
     std::string typeToString(ValueType type) {
@@ -36,8 +36,6 @@ namespace bloch {
                 return "bit";
             case ValueType::Void:
                 return "void";
-            case ValueType::Custom:
-                return "custom";
             default:
                 return "unknown";
         }
@@ -47,11 +45,10 @@ namespace bloch {
 
     void SymbolTable::endScope() { m_scopes.pop_back(); }
 
-    void SymbolTable::declare(const std::string& name, bool isFinal, ValueType type,
-                              const std::string& customName) {
+    void SymbolTable::declare(const std::string& name, bool isFinal, ValueType type) {
         if (m_scopes.empty())
             return;
-        m_scopes.back()[name] = SymbolInfo{isFinal, type, customName};
+        m_scopes.back()[name] = SymbolInfo{isFinal, type};
     }
 
     bool SymbolTable::isDeclared(const std::string& name) const {

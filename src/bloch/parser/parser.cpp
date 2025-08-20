@@ -69,8 +69,6 @@ namespace bloch {
                 program->imports.push_back(parseImport());
             } else if (check(TokenType::Function) || checkFunctionAnnotation()) {
                 program->functions.push_back(parseFunction());
-            } else if (check(TokenType::Class)) {
-                program->classes.push_back(parseClass());
             } else {
                 program->statements.push_back(parseStatement());
             }
@@ -114,24 +112,13 @@ namespace bloch {
 
         (void)expect(TokenType::Function, "Expected 'function' keyword");
 
-        // Constructor detection
-        if (match(TokenType::Star)) {
-            func->isConstructor = true;
-
-            const Token& nameToken =
-                expect(TokenType::Identifier, "Expected constructor name after '*'");
-            func->name = nameToken.value;
-            func->line = nameToken.line;
-            func->column = nameToken.column;
-        } else {
-            func->isConstructor = false;
-
-            const Token& nameToken =
-                expect(TokenType::Identifier, "Expected function name after 'function' keyword");
-            func->name = nameToken.value;
-            func->line = nameToken.line;
-            func->column = nameToken.column;
+        if(!check(TokenType::Identifier)) {
+            reportError("Expected function name after 'function' keyword");
         }
+        const Token& nameToken = advance();
+        func->name = nameToken.value;
+        func->line = nameToken.line;
+        func->column = nameToken.column;
 
         // Parse parameters
         (void)expect(TokenType::LParen, "Expected '(' after function name");
@@ -161,61 +148,6 @@ namespace bloch {
         func->body = parseBlock();
 
         return func;
-    }
-
-    std::unique_ptr<ClassDeclaration> Parser::parseClass() {
-        (void)expect(TokenType::Class, "Expected 'class' keyword");
-
-        auto clazz = std::make_unique<ClassDeclaration>();
-
-        const Token& nameToken = expect(TokenType::Identifier, "Expected class name after 'class'");
-        clazz->name = nameToken.value;
-
-        (void)expect(TokenType::LBrace, "Expected '{' to start class body");
-
-        while (!check(TokenType::RBrace) && !isAtEnd()) {
-            // @members("public") or @members("private"):
-            if (check(TokenType::At) && checkNext(TokenType::Members)) {
-                (void)advance();
-                (void)advance();
-
-                (void)expect(TokenType::LParen, "Expected '(' after @members");
-                const Token& modifierToken =
-                    expect(TokenType::StringLiteral, "Expected access modifier string in @members");
-                std::string accessModifier = modifierToken.value;
-                if (accessModifier != "\"public\"" && accessModifier != "\"private\"") {
-                    reportError("Access modifier must be \"public\" or \"private\"");
-                }
-                accessModifier = accessModifier.substr(1, accessModifier.length() - 2);
-
-                (void)expect(TokenType::RParen, "Expected ')' after access modifier");
-                (void)expect(TokenType::Colon, "Expected ':' after @members(...)");
-
-                while (!check(TokenType::At) && !check(TokenType::RBrace)) {
-                    bool isFinal = match(TokenType::Final);
-                    auto member = parseVariableDeclaration(isFinal);
-                    member->access = accessModifier;
-                    clazz->members.push_back(std::move(member));
-                }
-
-                // @methods:
-            } else if (check(TokenType::At) && checkNext(TokenType::Methods)) {
-                (void)advance();
-                (void)advance();
-
-                (void)expect(TokenType::Colon, "Expected ':' after @methods");
-
-                while (!check(TokenType::At) && !check(TokenType::RBrace)) {
-                    clazz->methods.push_back(parseFunction());
-                }
-
-            } else {
-                reportError("Only @members(...) or @methods are allowed inside class body");
-            }
-        }
-
-        (void)expect(TokenType::RBrace, "Expected '}' to end class body");
-        return clazz;
     }
 
     // Declarations
@@ -545,15 +477,6 @@ namespace bloch {
     }
 
     std::unique_ptr<Expression> Parser::parseUnary() {
-        if (match(TokenType::Star)) {
-            Token className = expect(TokenType::Identifier, "Expected class name after '*'");
-            (void)expect(TokenType::LParen, "Expected '(' after class name");
-            auto args = parseArgumentList();
-            (void)expect(TokenType::RParen, "Expected ')' after arguments");
-
-            return std::make_unique<ConstructorCallExpression>(className.value, std::move(args));
-        }
-
         if (match(TokenType::Minus)) {
             std::string op = previous().value;
             auto right = parseUnary();
@@ -567,11 +490,7 @@ namespace bloch {
         auto expr = parsePrimary();
 
         while (true) {
-            if (match(TokenType::Dot)) {
-                (void)expect(TokenType::Identifier, "Expected member name after '.'");
-                std::string member = previous().value;
-                expr = std::make_unique<MemberAccessExpression>(std::move(expr), member);
-            } else if (match(TokenType::LParen)) {
+            if (match(TokenType::LParen)) {
                 std::vector<std::unique_ptr<Expression>> args;
                 if (!check(TokenType::RParen)) {
                     do {
@@ -672,12 +591,6 @@ namespace bloch {
             }
 
             return baseType;
-        }
-
-        // Handle ObjectType (class types)
-        if (check(TokenType::Identifier)) {
-            std::string typeName = advance().value;
-            return std::make_unique<ObjectType>(typeName);
         }
 
         reportError("Expected type");

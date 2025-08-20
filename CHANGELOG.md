@@ -46,7 +46,8 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 ### Removed  
 - #24: remove old `version` starter code
 - #74: removed `@state` annotations as they are not supported by OpenQASM
-- #80: removed `logical<>` primitive type
+- #80: removed `logical<>` primitive type as not MVP
+- #75: removed class functionality as not MVP
 
 
 

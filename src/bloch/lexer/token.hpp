@@ -25,19 +25,14 @@ namespace bloch {
         If,
         Else,
         For,
-        Class,
         Measure,
         Final,
         Reset,
-        Public,
-        Private,
 
         // Annotations
         At,
         Quantum,
         Adjoint,
-        Members,
-        Methods,
 
         // Operators and Punctuation
         Equals,
@@ -55,8 +50,6 @@ namespace bloch {
         BangEqual,
         Semicolon,
         Comma,
-        Dot,
-        Colon,
         Arrow,
         LParen,
         RParen,

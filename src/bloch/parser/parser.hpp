@@ -35,7 +35,6 @@ namespace bloch {
         // Top level
         [[nodiscard]] std::unique_ptr<ImportStatement> parseImport();
         [[nodiscard]] std::unique_ptr<FunctionDeclaration> parseFunction();
-        [[nodiscard]] std::unique_ptr<ClassDeclaration> parseClass();
 
         // Declarations
         [[nodiscard]] std::unique_ptr<VariableDeclaration> parseVariableDeclaration(bool isFinal);

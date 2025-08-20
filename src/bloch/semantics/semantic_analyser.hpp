@@ -36,18 +36,14 @@ namespace bloch {
         void visit(ParenthesizedExpression& node) override;
         void visit(MeasureExpression& node) override;
         void visit(AssignmentExpression& node) override;
-        void visit(ConstructorCallExpression& node) override;
-        void visit(MemberAccessExpression& node) override;
 
         void visit(PrimitiveType& node) override;
         void visit(ArrayType& node) override;
         void visit(VoidType& node) override;
-        void visit(ObjectType& node) override;
 
         void visit(Parameter& node) override;
         void visit(AnnotationNode& node) override;
         void visit(FunctionDeclaration& node) override;
-        void visit(ClassDeclaration& node) override;
         void visit(Program& node) override;
 
        private:
