@@ -21,8 +21,6 @@ namespace bloch {
             type = typeFromString(prim->name);
         else if (dynamic_cast<VoidType*>(node.varType.get()))
             type = ValueType::Void;
-        else if (auto obj = dynamic_cast<ObjectType*>(node.varType.get()))
-            type = ValueType::Custom;
         declare(node.name, node.isFinal, type);
         if (node.initializer) {
             if (auto call = dynamic_cast<CallExpression*>(node.initializer.get())) {
@@ -223,19 +221,9 @@ namespace bloch {
         }
     }
 
-    void SemanticAnalyser::visit(ConstructorCallExpression& node) {
-        for (auto& arg : node.arguments) arg->accept(*this);
-    }
-
-    void SemanticAnalyser::visit(MemberAccessExpression& node) {
-        if (node.object)
-            node.object->accept(*this);
-    }
-
     void SemanticAnalyser::visit(PrimitiveType&) {}
     void SemanticAnalyser::visit(ArrayType&) {}
     void SemanticAnalyser::visit(VoidType&) {}
-    void SemanticAnalyser::visit(ObjectType&) {}
 
     void SemanticAnalyser::visit(Parameter& node) {
         if (node.type)
@@ -263,8 +251,6 @@ namespace bloch {
             m_currentReturnType = typeFromString(prim->name);
         else if (dynamic_cast<VoidType*>(node.returnType.get()))
             m_currentReturnType = ValueType::Void;
-        else if (dynamic_cast<ObjectType*>(node.returnType.get()))
-            m_currentReturnType = ValueType::Custom;
         else
             m_currentReturnType = ValueType::Unknown;
 
@@ -275,8 +261,6 @@ namespace bloch {
                 info.paramTypes.push_back(typeFromString(prim->name));
             else if (dynamic_cast<VoidType*>(param->type.get()))
                 info.paramTypes.push_back(ValueType::Void);
-            else if (auto obj = dynamic_cast<ObjectType*>(param->type.get()))
-                info.paramTypes.push_back(ValueType::Custom);
             else
                 info.paramTypes.push_back(ValueType::Unknown);
         }
@@ -293,8 +277,6 @@ namespace bloch {
                 type = typeFromString(prim->name);
             else if (dynamic_cast<VoidType*>(param->type.get()))
                 type = ValueType::Void;
-            else if (auto obj = dynamic_cast<ObjectType*>(param->type.get()))
-                type = ValueType::Custom;
             declare(param->name, false, type);
             param->accept(*this);
         }
@@ -305,11 +287,6 @@ namespace bloch {
         m_currentReturnType = prevReturn;
     }
 
-    void SemanticAnalyser::visit(ClassDeclaration& node) {
-        for (auto& member : node.members) member->accept(*this);
-        for (auto& method : node.methods) method->accept(*this);
-    }
-
     void SemanticAnalyser::visit(Program& node) {
         for (auto& fn : node.functions) {
             if (isFunctionDeclared(fn->name)) {
@@ -318,18 +295,8 @@ namespace bloch {
             }
             declareFunction(fn->name);
         }
-        for (auto& cls : node.classes) {
-            for (auto& method : cls->methods) {
-                if (isFunctionDeclared(method->name)) {
-                    throw BlochRuntimeError("Bloch Semantic Error", method->line, method->column,
-                                            "Function '" + method->name + "' redeclared");
-                }
-                declareFunction(method->name);
-            }
-        }
         for (auto& imp : node.imports) imp->accept(*this);
         for (auto& fn : node.functions) fn->accept(*this);
-        for (auto& cls : node.classes) cls->accept(*this);
         for (auto& stmt : node.statements) stmt->accept(*this);
     }
 

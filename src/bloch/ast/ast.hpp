@@ -36,7 +36,6 @@ namespace bloch {
     // Variable Declaration
     struct VariableDeclaration : public Statement {
         std::string name;
-        std::string access;
         std::unique_ptr<Type> varType;
         std::unique_ptr<Expression> initializer;
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
@@ -210,27 +209,6 @@ namespace bloch {
         void accept(ASTVisitor& visitor) override;
     };
 
-    // Constructor Call Expression
-    struct ConstructorCallExpression : public Expression {
-        std::string className;
-        std::vector<std::unique_ptr<Expression>> arguments;
-
-        ConstructorCallExpression(const std::string& className,
-                                  std::vector<std::unique_ptr<Expression>> args)
-            : className(className), arguments(std::move(args)) {}
-        void accept(ASTVisitor& visitor) override;
-    };
-
-    // Class Method Access Expression
-    struct MemberAccessExpression : public Expression {
-        std::unique_ptr<Expression> object;
-        std::string member;
-
-        MemberAccessExpression(std::unique_ptr<Expression> obj, const std::string& mem)
-            : object(std::move(obj)), member(mem) {}
-        void accept(ASTVisitor& visitor) override;
-    };
-
     // Type Nodes
     struct PrimitiveType : public Type {
         std::string name;
@@ -248,13 +226,6 @@ namespace bloch {
 
     struct VoidType : public Type {
         VoidType() = default;
-        void accept(ASTVisitor& visitor) override;
-    };
-
-    struct ObjectType : public Type {
-        std::string className;
-
-        ObjectType(const std::string& className) : className(className) {}
         void accept(ASTVisitor& visitor) override;
     };
 
@@ -286,19 +257,8 @@ namespace bloch {
         std::unique_ptr<BlockStatement> body;
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
         bool hasQuantumAnnotation = false;
-        bool isConstructor = false;
 
         FunctionDeclaration() = default;
-        void accept(ASTVisitor& visitor) override;
-    };
-
-    // Class Declaration
-    struct ClassDeclaration : public ASTNode {
-        std::string name;
-        std::vector<std::unique_ptr<VariableDeclaration>> members;
-        std::vector<std::unique_ptr<FunctionDeclaration>> methods;
-
-        ClassDeclaration() = default;
         void accept(ASTVisitor& visitor) override;
     };
 
@@ -306,7 +266,6 @@ namespace bloch {
     struct Program : public ASTNode {
         std::vector<std::unique_ptr<ImportStatement>> imports;
         std::vector<std::unique_ptr<FunctionDeclaration>> functions;
-        std::vector<std::unique_ptr<ClassDeclaration>> classes;
         std::vector<std::unique_ptr<Statement>> statements;
 
         Program() = default;
@@ -340,18 +299,14 @@ namespace bloch {
         virtual void visit(ParenthesizedExpression& node) = 0;
         virtual void visit(MeasureExpression& node) = 0;
         virtual void visit(AssignmentExpression& node) = 0;
-        virtual void visit(ConstructorCallExpression& node) = 0;
-        virtual void visit(MemberAccessExpression& node) = 0;
 
         virtual void visit(PrimitiveType& node) = 0;
         virtual void visit(ArrayType& node) = 0;
         virtual void visit(VoidType& node) = 0;
-        virtual void visit(ObjectType& node) = 0;
 
         virtual void visit(Parameter& node) = 0;
         virtual void visit(AnnotationNode& node) = 0;
         virtual void visit(FunctionDeclaration& node) = 0;
-        virtual void visit(ClassDeclaration& node) = 0;
         virtual void visit(Program& node) = 0;
     };
 
@@ -376,15 +331,11 @@ namespace bloch {
     inline void ParenthesizedExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MeasureExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AssignmentExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
-    inline void ConstructorCallExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
-    inline void MemberAccessExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void PrimitiveType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ArrayType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VoidType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
-    inline void ObjectType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void Parameter::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AnnotationNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void FunctionDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
-    inline void ClassDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void Program::accept(ASTVisitor& visitor) { visitor.visit(*this); }
 }

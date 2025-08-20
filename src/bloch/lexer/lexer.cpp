@@ -118,10 +118,6 @@ namespace bloch {
                 return makeToken(TokenType::Semicolon, ";");
             case ',':
                 return makeToken(TokenType::Comma, ",");
-            case '.':
-                return makeToken(TokenType::Dot, ".");
-            case ':':
-                return makeToken(TokenType::Colon, ":");
             case '@':
                 return makeToken(TokenType::At, "@");
             case '"':
@@ -190,18 +186,13 @@ namespace bloch {
             {"if", TokenType::If},
             {"else", TokenType::Else},
             {"for", TokenType::For},
-            {"class", TokenType::Class},
             {"measure", TokenType::Measure},
             {"final", TokenType::Final},
             {"reset", TokenType::Reset},
-            {"public", TokenType::Public},
-            {"private", TokenType::Private},
 
             // Annotation Values
             {"quantum", TokenType::Quantum},
             {"adjoint", TokenType::Adjoint},
-            {"members", TokenType::Members},
-            {"methods", TokenType::Methods},
 
             // Built ins
             {"echo", TokenType::Echo}};

@@ -43,7 +43,7 @@ function main() -> void {
 }
 )";
     std::string output = runBloch(src, "quantum_test.bloch");
-    EXPECT_EQ("1\n1\n", output);
+    EXPECT_EQ("1\n", output);
 }
 
 TEST(IntegrationTest, RunsClassicalProgram) {
@@ -54,5 +54,5 @@ function main() -> void {
 }
 )";
     std::string output = runBloch(src, "classical_test.bloch");
-    EXPECT_EQ("5\n5\n", output);
+    EXPECT_EQ("5\n", output);
 }

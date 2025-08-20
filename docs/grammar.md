@@ -1,7 +1,7 @@
 # Bloch Grammar (EBNF)
 
 ```
-program        = { import | function | class | statement } ;
+program        = { import | function | statement } ;
 
 import         = "import" identifier ";" ;
 
@@ -10,7 +10,7 @@ classSection   = membersSection | methodsSection ;
 membersSection = "@members" "(" ("\"public\"" | "\"private\"") ")" ":" { variableDeclaration } ;
 methodsSection = "@methods" ":" { function } ;
 
-function       = { annotation } "function" [ "*" ] identifier
+function       = { annotation } "function" identifier
                   "(" [ parameterList ] ")" "->" type block ;
 
 annotation     = "@" ( "quantum" | "adjoint" ) ;
@@ -44,9 +44,8 @@ assignmentExpression  = comparison [ "=" assignmentExpression ] ;
 comparison            = additive { (">" | "<" | ">=" | "<=") additive } ;
 additive              = multiplicative { ("+" | "-") multiplicative } ;
 multiplicative        = unary { ("*" | "/" | "%") unary } ;
-unary                 = constructorCall | "-" unary | call ;
-constructorCall       = "*" identifier "(" [ argumentList ] ")" ;
-call                  = primary { ("." identifier) | "(" [ argumentList ] ")" } ;
+unary                 = "-" unary | call ;
+call                  = primary { "(" [ argumentList ] ")" } ;
 argumentList          = expression { "," expression } ;
 primary               = literal
                       | "measure" expression
@@ -58,8 +57,7 @@ literal               = integerLiteral
                       | stringLiteral
                       | charLiteral ;
 
-type                  = primitiveType [ "[" "]" ]
-                      | identifier ;
+type                  = primitiveType [ "[" "]" ] ;
 primitiveType         = "void" | "int" | "float" | "char" | "string"
                       | "bit" | "qubit" ;
 ```
