@@ -45,3 +45,19 @@ TEST(RuntimeTest, CppGenerationOmitsQuantumOps) {
     EXPECT_EQ(cpp.find("measure"), std::string::npos);
     EXPECT_NE(cpp.find("bool b"), std::string::npos);
 }
+
+TEST(RuntimeTest, MeasurementsPreservedInLoops) {
+    const char* src =
+        "@quantum function flip() -> bit { qubit q; x(q); bit r = measure q; return r; } "
+        "function main() -> void { for (int i = 0; i < 3; i = i + 1) { bit b = flip(); } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    const auto& meas = eval.measurements();
+    ASSERT_EQ(meas.size(), 2u);
+    for (const auto& kv : meas) {
+        ASSERT_EQ(kv.second.size(), 3u);
+    }
+}

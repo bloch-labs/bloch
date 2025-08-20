@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "../ast/ast.hpp"
 #include "../semantics/built_ins.hpp"
 
@@ -9,11 +10,12 @@ namespace bloch {
 
     class CppGenerator {
        public:
-        explicit CppGenerator(const std::unordered_map<const Expression*, int>& m) : m_measure(m) {}
+        explicit CppGenerator(const std::unordered_map<const Expression*, std::vector<int>>& m)
+            : m_measure(m) {}
         std::string generate(Program& program);
 
        private:
-        const std::unordered_map<const Expression*, int>& m_measure;
+        const std::unordered_map<const Expression*, std::vector<int>>& m_measure;
         int m_indent = 0;
         std::string m_code;
         void indent();
