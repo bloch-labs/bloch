@@ -64,13 +64,6 @@ int main(int argc, char** argv) {
             std::cout << cpp;
             return 0;
         }
-        std::string out = base + ".out";
-        std::string cmd = "g++ -std=c++17 " + base + ".cpp -o " + out;
-        if (std::system(cmd.c_str()) != 0) {
-            std::cerr << "Failed to compile generated C++\n";
-            return 1;
-        }
-        std::system(("./" + out).c_str());
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;
         return 1;
