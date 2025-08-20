@@ -60,14 +60,14 @@ namespace bloch {
             }
             oss << ")";
             auto it = m_measure.find(e);
-            if (it != m_measure.end()) {
-                return it->second ? "true" : "false";
+            if (it != m_measure.end() && !it->second.empty()) {
+                return it->second.back() ? "true" : "false";
             }
             return oss.str();
         } else if (auto meas = dynamic_cast<MeasureExpression*>(e)) {
             auto it = m_measure.find(e);
-            if (it != m_measure.end())
-                return it->second ? "true" : "false";
+            if (it != m_measure.end() && !it->second.empty())
+                return it->second.back() ? "true" : "false";
             return "false";
         } else if (auto assign = dynamic_cast<AssignmentExpression*>(e)) {
             return assign->name + " = " + genExpr(assign->value.get());

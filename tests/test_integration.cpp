@@ -56,3 +56,27 @@ function main() -> void {
     std::string output = runBloch(src, "classical_test.bloch");
     EXPECT_EQ("5\n", output);
 }
+
+TEST(IntegrationTest, CountsHeadsInLoop) {
+    std::string src = R"(
+@quantum
+function flip() -> bit {
+    qubit q;
+    x(q);
+    bit r = measure q;
+    return r;
+}
+
+function main() -> void {
+    int heads = 0;
+    for (int i = 0; i < 10; i = i + 1) {
+        bit b = flip();
+        if (b == 1) {
+            heads = heads + 1;
+        }
+    }
+    echo(heads);
+}
+)";
+    std::string output = runBloch(src, "coin_flip_test.bloch");
+    EXPECT_EQ("10\n", output);}

@@ -40,6 +40,7 @@ namespace bloch {
         for (size_t i = 0; i < fn->params.size() && i < args.size(); ++i) {
             m_env.back()[fn->params[i]->name] = args[i];
         }
+        bool prevReturn = m_hasReturn;
         m_hasReturn = false;
         if (fn->body)
             for (auto& stmt : fn->body->statements) {
@@ -49,6 +50,7 @@ namespace bloch {
             }
         Value ret = m_returnValue;
         m_env.pop_back();
+        m_hasReturn = prevReturn;
         return ret;
     }
 
@@ -144,45 +146,47 @@ namespace bloch {
         } else if (auto bin = dynamic_cast<BinaryExpression*>(e)) {
             Value l = eval(bin->left.get());
             Value r = eval(bin->right.get());
+            auto lInt = l.type == Value::Type::Bit ? l.bitValue : l.intValue;
+            auto rInt = r.type == Value::Type::Bit ? r.bitValue : r.intValue;
             if (bin->op == "+") {
-                return {Value::Type::Int, l.intValue + r.intValue};
+                return {Value::Type::Int, lInt + rInt};
             }
             if (bin->op == "-") {
-                return {Value::Type::Int, l.intValue - r.intValue};
+                return {Value::Type::Int, lInt - rInt};
             }
             if (bin->op == "*") {
-                return {Value::Type::Int, l.intValue * r.intValue};
+                return {Value::Type::Int, lInt * rInt};
             }
             if (bin->op == "/") {
-                if (r.intValue == 0) {
+                if (rInt == 0) {
                     throw std::runtime_error("Division by zero in expression evaluation");
                 }
-                return {Value::Type::Int, l.intValue / r.intValue};
+                return {Value::Type::Int, lInt / rInt};
             }
             if (bin->op == "%") {
-                if (r.intValue == 0) {
+                if (rInt == 0) {
                     throw std::runtime_error("Modulo by zero in expression evaluation");
                 }
-                return {Value::Type::Int, l.intValue % r.intValue};
+                return {Value::Type::Int, lInt % rInt};
             }
 
             if (bin->op == ">") {
-                return {Value::Type::Bit, 0, 0.0, l.intValue > r.intValue};
+                return {Value::Type::Bit, 0, 0.0, lInt > rInt};
             }
             if (bin->op == "<") {
-                return {Value::Type::Bit, 0, 0.0, l.intValue < r.intValue};
+                return {Value::Type::Bit, 0, 0.0, lInt < rInt};
             }
             if (bin->op == ">=") {
-                return {Value::Type::Bit, 0, 0.0, l.intValue >= r.intValue};
+                return {Value::Type::Bit, 0, 0.0, lInt >= rInt};
             }
             if (bin->op == "<=") {
-                return {Value::Type::Bit, 0, 0.0, l.intValue <= r.intValue};
+                return {Value::Type::Bit, 0, 0.0, lInt <= rInt};
             }
             if (bin->op == "==") {
-                return {Value::Type::Bit, 0, 0.0, l.intValue == r.intValue};
+                return {Value::Type::Bit, 0, 0.0, lInt == rInt};
             }
             if (bin->op == "!=") {
-                return {Value::Type::Bit, 0, 0.0, l.intValue != r.intValue};
+                return {Value::Type::Bit, 0, 0.0, lInt != rInt};
             }
         } else if (auto unary = dynamic_cast<UnaryExpression*>(e)) {
             Value r = eval(unary->right.get());
@@ -219,7 +223,7 @@ namespace bloch {
                 if (fit != m_functions.end()) {
                     auto res = call(fit->second, args);
                     if (fit->second->hasQuantumAnnotation && res.type == Value::Type::Bit) {
-                        m_measurements[e] = res.bitValue;
+                        m_measurements[e].push_back(res.bitValue);
                     }
                     return res;
                 }
@@ -228,7 +232,7 @@ namespace bloch {
             Value q = eval(idx->qubit.get());
             int bit = m_sim.measure(q.qubit);
             markMeasured(q.qubit);
-            m_measurements[e] = bit;
+            m_measurements[e].push_back(bit);
             return {Value::Type::Bit, 0, 0.0, bit};
         } else if (auto assignExpr = dynamic_cast<AssignmentExpression*>(e)) {
             Value v = eval(assignExpr->value.get());

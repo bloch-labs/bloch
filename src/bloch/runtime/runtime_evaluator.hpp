@@ -22,7 +22,7 @@ namespace bloch {
     class RuntimeEvaluator {
        public:
         void execute(Program& program);
-        const std::unordered_map<const Expression*, int>& measurements() const {
+        const std::unordered_map<const Expression*, std::vector<int>>& measurements() const {
             return m_measurements;
         }
         std::string getQasm() const { return m_sim.getQasm(); }
@@ -33,7 +33,7 @@ namespace bloch {
         std::vector<std::unordered_map<std::string, Value>> m_env;
         Value m_returnValue;
         bool m_hasReturn = false;
-        std::unordered_map<const Expression*, int> m_measurements;
+        std::unordered_map<const Expression*, std::vector<int>> m_measurements;
         struct QubitInfo {
             std::string name;
             bool measured;

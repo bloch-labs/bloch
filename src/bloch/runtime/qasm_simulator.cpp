@@ -12,8 +12,8 @@ namespace bloch {
         int index = m_qubits++;
         std::vector<std::complex<double>> newState(m_state.size() * 2);
         for (size_t i = 0; i < m_state.size(); ++i) {
-            newState[2 * i] = m_state[i];
-            newState[2 * i + 1] = 0;
+            newState[i] = m_state[i];
+            newState[i + m_state.size()] = 0;
         }
         m_state.swap(newState);
         return index;
