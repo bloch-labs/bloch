@@ -79,4 +79,5 @@ function main() -> void {
 }
 )";
     std::string output = runBloch(src, "coin_flip_test.bloch");
-    EXPECT_EQ("10\n", output);}
+    EXPECT_EQ("10\n", output);
+}

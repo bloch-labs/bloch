@@ -46,7 +46,6 @@ TEST(RuntimeTest, CppGenerationOmitsQuantumOps) {
     EXPECT_NE(cpp.find("bool b"), std::string::npos);
 }
 
-
 TEST(RuntimeTest, MeasurementsPreservedInLoops) {
     const char* src =
         "@quantum function flip() -> bit { qubit q; x(q); bit r = measure q; return r; } "
