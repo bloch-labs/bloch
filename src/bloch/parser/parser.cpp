@@ -112,7 +112,7 @@ namespace bloch {
 
         (void)expect(TokenType::Function, "Expected 'function' keyword");
 
-        if(!check(TokenType::Identifier)) {
+        if (!check(TokenType::Identifier)) {
             reportError("Expected function name after 'function' keyword");
         }
         const Token& nameToken = advance();
