@@ -114,6 +114,10 @@ namespace bloch {
             case '<':
                 return match('=') ? makeToken(TokenType::LessEqual, "<=")
                                   : makeToken(TokenType::Less, "<");
+            case '?':
+                return makeToken(TokenType::Question, "?");
+            case ':':
+                return makeToken(TokenType::Colon, ":");
             case ';':
                 return makeToken(TokenType::Semicolon, ";");
             case ',':

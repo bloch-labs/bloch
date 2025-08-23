@@ -69,6 +69,15 @@ namespace bloch {
             node.elseBranch->accept(*this);
     }
 
+    void SemanticAnalyser::visit(TernaryStatement& node) {
+        if (node.condition)
+            node.condition->accept(*this);
+        if (node.thenBranch)
+            node.thenBranch->accept(*this);
+        if (node.elseBranch)
+            node.elseBranch->accept(*this);
+    }
+
     void SemanticAnalyser::visit(ForStatement& node) {
         beginScope();
         if (node.initializer)

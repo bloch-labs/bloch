@@ -226,3 +226,18 @@ TEST(ParserTest, ParseWhile) {
     ASSERT_NE(cond, nullptr);
     EXPECT_EQ(cond->value, "1");
 }
+
+TEST(ParserTest, ParseTernaryStatement) {
+    const char* src = "1 ? echo(\"a\"); : echo(\"b\");";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 1u);
+    auto* tern = dynamic_cast<TernaryStatement*>(program->statements[0].get());
+    ASSERT_NE(tern, nullptr);
+    auto* cond = dynamic_cast<LiteralExpression*>(tern->condition.get());
+    ASSERT_NE(cond, nullptr);
+    EXPECT_EQ(cond->value, "1");
+}

@@ -1,7 +1,10 @@
 function main() -> void {
-    qubit q;
-    echo("Applying Superposition");
-    h(q);
-    bit result = measure q;
-    echo("Measured " + result);
+    int i = 0;
+    while (i < 10) {
+        qubit q;
+        echo("Applying Superposition");
+        bit result = measure h(q);
+        echo ("Measurement " + (i + 1) + " = " + result);
+        i = i + 1;
+    }
 }

@@ -49,6 +49,8 @@ namespace bloch {
         EqualEqual,
         Bang,
         BangEqual,
+        Question,
+        Colon,
         Semicolon,
         Comma,
         Arrow,
