@@ -22,6 +22,7 @@ namespace bloch {
         void visit(ReturnStatement& node) override;
         void visit(IfStatement& node) override;
         void visit(ForStatement& node) override;
+        void visit(WhileStatement& node) override;
         void visit(EchoStatement& node) override;
         void visit(ResetStatement& node) override;
         void visit(MeasureStatement& node) override;

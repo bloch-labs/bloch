@@ -29,7 +29,7 @@ TEST(RuntimeTest, GeneratesQasm) {
     EXPECT_NE(qasm.find("measure q[0]"), std::string::npos);
 }
 
-TEST(RuntimeTest, MeasurementsPreservedInLoops) {
+TEST(RuntimeTest, MeasurementsPreservedInForLoops) {
     const char* src =
         "@quantum function flip() -> bit { qubit q; x(q); bit r = measure q; return r; } "
         "function main() -> void { for (int i = 0; i < 3; i = i + 1) { bit b = flip(); } }";
@@ -44,6 +44,23 @@ TEST(RuntimeTest, MeasurementsPreservedInLoops) {
         ASSERT_EQ(kv.second.size(), 3u);
     }
 }
+
+TEST(RuntimeTest, MeasurementsPreservedInWhileLoops) {
+    const char* src =
+        "@quantum function flip() -> bit { qubit q; x(q); bit r = measure q; return r; } "
+        "function main() -> void { int i = 0; while (i < 3) { bit b = flip(); i = i + 1; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    const auto& meas = eval.measurements();
+    ASSERT_EQ(meas.size(), 2u);
+    for (const auto& kv : meas) {
+        ASSERT_EQ(kv.second.size(), 3u);
+    }
+}
+
 
 TEST(RuntimeTest, EchoConcatenatesValues) {
     const char* src =

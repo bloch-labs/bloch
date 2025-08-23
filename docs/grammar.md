@@ -25,6 +25,7 @@ statement      = block
                | "return" [ expression ] ";"
                | "if" "(" expression ")" block [ "else" block ]
                | "for" "(" [ forInit ] expression ";" expression ")" block
+               | "while" "(" expression ")" block
                | "echo" "(" expression ")" ";"
                | "reset" expression ";"
                | "measure" expression ";"

@@ -132,6 +132,17 @@ namespace bloch {
                     eval(fors->increment.get());
             }
             m_env.pop_back();
+        } else if (auto whiles = dynamic_cast<WhileStatement*>(s)) {
+            while (true) {
+                Value c{Value::Type::Bit};
+                if (whiles->condition)
+                    c = eval(whiles->condition.get());
+                if (!(c.intValue || c.bitValue))
+                    break;
+                exec(whiles->body.get());
+                if (m_hasReturn)
+                    break;
+            }
         } else if (auto echo = dynamic_cast<EchoStatement*>(s)) {
             Value v = eval(echo->value.get());
             std::cout << valueToString(v) << std::endl;

@@ -240,6 +240,8 @@ namespace bloch {
             return parseIf();
         if (match(TokenType::For))
             return parseFor();
+        if (match(TokenType::While))
+            return parseWhile();
         if (match(TokenType::Echo))
             return parseEcho();
         if (match(TokenType::Reset))
@@ -338,6 +340,19 @@ namespace bloch {
         stmt->increment = std::move(increment);
         stmt->body = std::move(body);
 
+        return stmt;
+    }
+
+    // while (cond) {...}
+    std::unique_ptr<WhileStatement> Parser::parseWhile() {
+        (void)expect(TokenType::LParen, "Expected '(' after 'while'");
+        auto condition = parseExpression();
+        (void)expect(TokenType::RParen, "Expected ')' after condition");
+        auto body = parseBlock();
+
+        auto stmt = std::make_unique<WhileStatement>();
+        stmt->condition = std::move(condition);
+        stmt->body = std::move(body);
         return stmt;
     }
 
