@@ -25,6 +25,7 @@ namespace bloch {
         If,
         Else,
         For,
+        While,
         Measure,
         Final,
         Reset,

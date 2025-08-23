@@ -211,3 +211,18 @@ TEST(ParserTest, ParseEqualityOperators) {
     ASSERT_NE(neBin, nullptr);
     EXPECT_EQ(neBin->op, "!=");
 }
+
+TEST(ParserTest, ParseWhile) {
+    const char* src = "while (1) { int x = 0; }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 1u);
+    auto* whileStmt = dynamic_cast<WhileStatement*>(program->statements[0].get());
+    ASSERT_NE(whileStmt, nullptr);
+    auto* cond = dynamic_cast<LiteralExpression*>(whileStmt->condition.get());
+    ASSERT_NE(cond, nullptr);
+    EXPECT_EQ(cond->value, "1");
+}

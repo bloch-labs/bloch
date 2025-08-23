@@ -82,6 +82,13 @@ namespace bloch {
         endScope();
     }
 
+    void SemanticAnalyser::visit(WhileStatement& node) {
+        if (node.condition)
+            node.condition->accept(*this);
+        if (node.body)
+            node.body->accept(*this);
+    }
+
     void SemanticAnalyser::visit(EchoStatement& node) {
         if (node.value)
             node.value->accept(*this);

@@ -186,6 +186,7 @@ namespace bloch {
             {"if", TokenType::If},
             {"else", TokenType::Else},
             {"for", TokenType::For},
+            {"while", TokenType::While},
             {"measure", TokenType::Measure},
             {"final", TokenType::Final},
             {"reset", TokenType::Reset},

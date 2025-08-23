@@ -90,6 +90,15 @@ namespace bloch {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // While Statement
+    struct WhileStatement : public Statement {
+        std::unique_ptr<Expression> condition;
+        std::unique_ptr<Statement> body;
+
+        WhileStatement() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Echo Statement
     struct EchoStatement : public Statement {
         std::unique_ptr<Expression> value;
@@ -285,6 +294,7 @@ namespace bloch {
         virtual void visit(ReturnStatement& node) = 0;
         virtual void visit(IfStatement& node) = 0;
         virtual void visit(ForStatement& node) = 0;
+        virtual void visit(WhileStatement& node) = 0;
         virtual void visit(EchoStatement& node) = 0;
         virtual void visit(ResetStatement& node) = 0;
         virtual void visit(MeasureStatement& node) = 0;
@@ -318,6 +328,7 @@ namespace bloch {
     inline void ReturnStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void IfStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ForStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void WhileStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void EchoStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ResetStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MeasureStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }

@@ -49,6 +49,7 @@ namespace bloch {
         [[nodiscard]] std::unique_ptr<ReturnStatement> parseReturn();
         [[nodiscard]] std::unique_ptr<IfStatement> parseIf();
         [[nodiscard]] std::unique_ptr<ForStatement> parseFor();
+        [[nodiscard]] std::unique_ptr<WhileStatement> parseWhile();
         [[nodiscard]] std::unique_ptr<EchoStatement> parseEcho();
         [[nodiscard]] std::unique_ptr<ResetStatement> parseReset();
         [[nodiscard]] std::unique_ptr<MeasureStatement> parseMeasure();
