@@ -84,13 +84,13 @@ TEST(LexerTest, UnterminatedStringThrows) {
 TEST(LexerTest, UnterminatedCharThrows) {
     Lexer lexer("'a");
 
-    EXPECT_THROW(lexer.tokenize(), BlochRuntimeError);
+    EXPECT_THROW((void)lexer.tokenize(), BlochRuntimeError);
 }
 
 TEST(LexerTest, MalformedFloatThrows) {
     Lexer lexer("3.14");
 
-    EXPECT_THROW(lexer.tokenize(), BlochRuntimeError);
+    EXPECT_THROW((void)lexer.tokenize(), BlochRuntimeError);
 }
 
 TEST(LexerTest, LineAndColumnTracking) {

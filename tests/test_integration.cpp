@@ -80,3 +80,26 @@ function main() -> void {
     std::string output = runBloch(src, "coin_flip_test.bloch");
     EXPECT_EQ("10\n", output);
 }
+
+TEST(IntegrationTest, EchoesString) {
+    std::string src = R"(
+function main() -> void {
+    string msg = "hello";
+    echo(msg);
+}
+)";
+    std::string output = runBloch(src, "string_echo_test.bloch");
+    EXPECT_EQ("hello\n", output);
+}
+
+TEST(IntegrationTest, EchoConcatenatesValues) {
+    std::string src = R"(
+function main() -> void {
+    bit b = 1;
+    echo("Measured: " + b);
+    echo(5 + 5);
+}
+)";
+    std::string output = runBloch(src, "echo_concat_test.bloch");
+    EXPECT_EQ("Measured: 1\n10\n", output);
+}

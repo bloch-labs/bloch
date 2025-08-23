@@ -43,6 +43,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #79: fix division by zero bug in `RuntimeEvaluator::eval` to throw a `RuntimeError` instead of crashing when divisor is zero
 - #87: fix bug where `echo()` was printing to the console twice
 - #78: fix bug where looped measurements of the same qubit were overwriting old measurements
+- #94: `echo()` now works with all and mixed data types
 
 ### Removed  
 - #24: remove old `version` starter code
