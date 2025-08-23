@@ -29,7 +29,7 @@ statement      = block
                | "echo" "(" expression ")" ";"
                | "reset" expression ";"
                | "measure" expression ";"
-               | expression "?" statement ":" statement
+               | expression "?" statement ";" ":" statement ";"
                | assignment
                | expressionStatement ;
 
