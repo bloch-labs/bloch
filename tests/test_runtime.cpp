@@ -1,9 +1,9 @@
+#include <sstream>
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
 #include "bloch/semantics/semantic_analyser.hpp"
 #include "test_framework.hpp"
-#include <sstream>
 
 using namespace bloch;
 
