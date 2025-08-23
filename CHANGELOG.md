@@ -26,6 +26,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #71: added codegen and main cli functionality
 - #81: added integration tests
 - #32: added `while` keyword
+- #29: added ternary operator
 
 ### Changed
 - #3: prefix private class members with `m_`

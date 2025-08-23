@@ -1,0 +1,6 @@
+function main() -> void {
+    qubit q;
+    h(q);
+    final bit b = measure q; 
+    b == 1 ? echo("Measured 1"); : echo("Measured 0");
+}

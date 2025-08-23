@@ -252,7 +252,22 @@ namespace bloch {
         if (check(TokenType::Identifier) && checkNext(TokenType::Equals))
             return parseAssignment();
 
-        return parseExpressionStatement();
+        auto expr = parseExpression();
+        if (match(TokenType::Question)) {
+            auto thenBranch = parseStatement();
+            (void)expect(TokenType::Colon, "Expected ':' after true branch");
+            auto elseBranch = parseStatement();
+            auto stmt = std::make_unique<TernaryStatement>();
+            stmt->condition = std::move(expr);
+            stmt->thenBranch = std::move(thenBranch);
+            stmt->elseBranch = std::move(elseBranch);
+            return stmt;
+        }
+
+        (void)expect(TokenType::Semicolon, "Expected ';' after expression");
+        auto stmt = std::make_unique<ExpressionStatement>();
+        stmt->expression = std::move(expr);
+        return stmt;
     }
 
     // {...}

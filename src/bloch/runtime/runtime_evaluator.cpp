@@ -115,6 +115,13 @@ namespace bloch {
             } else {
                 exec(ifs->elseBranch.get());
             }
+        } else if (auto tern = dynamic_cast<TernaryStatement*>(s)) {
+            Value cond = eval(tern->condition.get());
+            if (cond.intValue || cond.bitValue) {
+                exec(tern->thenBranch.get());
+            } else {
+                exec(tern->elseBranch.get());
+            }
         } else if (auto fors = dynamic_cast<ForStatement*>(s)) {
             m_env.push_back({});
             if (fors->initializer)

@@ -123,6 +123,16 @@ namespace bloch {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Ternary Statement
+    struct TernaryStatement : public Statement {
+        std::unique_ptr<Expression> condition;
+        std::unique_ptr<Statement> thenBranch;
+        std::unique_ptr<Statement> elseBranch;
+
+        TernaryStatement() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Assignment
     struct AssignmentStatement : public Statement {
         std::string name;
@@ -298,6 +308,7 @@ namespace bloch {
         virtual void visit(EchoStatement& node) = 0;
         virtual void visit(ResetStatement& node) = 0;
         virtual void visit(MeasureStatement& node) = 0;
+        virtual void visit(TernaryStatement& node) = 0;
         virtual void visit(AssignmentStatement& node) = 0;
 
         virtual void visit(BinaryExpression& node) = 0;
@@ -332,6 +343,7 @@ namespace bloch {
     inline void EchoStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ResetStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MeasureStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void TernaryStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AssignmentStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void BinaryExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void UnaryExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
