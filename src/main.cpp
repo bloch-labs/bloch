@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "bloch/codegen/cpp_generator.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
@@ -12,18 +11,15 @@
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::cerr << "Usage: bloch [--emit-qasm|--emit-cpp] <file.bloch>\n";
+        std::cerr << "Usage: bloch [--emit-qasm] <file.bloch>\n";
         return 1;
     }
     bool emitQasm = false;
-    bool emitCpp = false;
     std::string file;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--emit-qasm")
             emitQasm = true;
-        else if (arg == "--emit-cpp")
-            emitCpp = true;
         else
             file = arg;
     }
@@ -47,21 +43,12 @@ int main(int argc, char** argv) {
         bloch::RuntimeEvaluator evaluator;
         evaluator.execute(*program);
         std::string qasm = evaluator.getQasm();
-        bloch::CppGenerator gen(evaluator.measurements());
-        std::string cpp = gen.generate(*program);
         std::string base = file.substr(0, file.find_last_of('.'));
         std::ofstream qfile(base + ".qasm");
         qfile << qasm;
         qfile.close();
-        std::ofstream cfile(base + ".cpp");
-        cfile << cpp;
-        cfile.close();
         if (emitQasm) {
             std::cout << qasm;
-            return 0;
-        }
-        if (emitCpp) {
-            std::cout << cpp;
             return 0;
         }
     } catch (const std::exception& ex) {

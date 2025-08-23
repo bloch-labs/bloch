@@ -26,7 +26,6 @@ namespace {
 
         fs::path stem = blochFile.stem();
         fs::remove(blochFile);
-        fs::remove(cwd / (stem.string() + ".cpp"));
         fs::remove(cwd / (stem.string() + ".qasm"));
         fs::remove(cwd / (stem.string() + ".out"));
         return result;
