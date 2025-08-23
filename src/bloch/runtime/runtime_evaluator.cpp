@@ -1,8 +1,26 @@
 #include "runtime_evaluator.hpp"
+#include <sstream>
 #include "../error/bloch_runtime_error.hpp"
 #include "../semantics/built_ins.hpp"
 
 namespace bloch {
+
+    static std::string valueToString(const Value& v) {
+        std::ostringstream oss;
+        switch (v.type) {
+            case Value::Type::String:
+                return v.stringValue;
+            case Value::Type::Float:
+                oss << v.floatValue;
+                return oss.str();
+            case Value::Type::Bit:
+                return std::to_string(v.bitValue);
+            case Value::Type::Int:
+                return std::to_string(v.intValue);
+            default:
+                return "";
+        }
+    }
 
     void RuntimeEvaluator::execute(Program& program) {
         for (auto& fn : program.functions) {
@@ -66,6 +84,8 @@ namespace bloch {
                     v.type = Value::Type::Bit;
                 else if (prim->name == "float")
                     v.type = Value::Type::Float;
+                else if (prim->name == "string")
+                    v.type = Value::Type::String;
                 else if (prim->name == "qubit") {
                     v.type = Value::Type::Qubit;
                     v.qubit = allocateTrackedQubit(var->name);
@@ -100,7 +120,7 @@ namespace bloch {
             if (fors->initializer)
                 exec(fors->initializer.get());
             while (true) {
-                Value c = {Value::Type::Bit, 0, 0.0, 0};
+                Value c{Value::Type::Bit};
                 if (fors->condition)
                     c = eval(fors->condition.get());
                 if (!(c.intValue || c.bitValue))
@@ -114,9 +134,7 @@ namespace bloch {
             m_env.pop_back();
         } else if (auto echo = dynamic_cast<EchoStatement*>(s)) {
             Value v = eval(echo->value.get());
-            std::cout << (v.type == Value::Type::Int ? std::to_string(v.intValue)
-                                                     : std::to_string(v.bitValue))
-                      << std::endl;
+            std::cout << valueToString(v) << std::endl;
         } else if (auto reset = dynamic_cast<ResetStatement*>(s)) {
             // ignore
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
@@ -134,11 +152,21 @@ namespace bloch {
             return {};
         if (auto lit = dynamic_cast<LiteralExpression*>(e)) {
             Value v;
-            v.type = Value::Type::Int;
-            v.intValue = std::stoi(lit->value);
             if (lit->literalType == "bit") {
                 v.type = Value::Type::Bit;
                 v.bitValue = std::stoi(lit->value);
+            } else if (lit->literalType == "float") {
+                v.type = Value::Type::Float;
+                v.floatValue = std::stof(lit->value);
+            } else if (lit->literalType == "string") {
+                v.type = Value::Type::String;
+                if (lit->value.size() >= 2)
+                    v.stringValue = lit->value.substr(1, lit->value.size() - 2);
+                else
+                    v.stringValue = "";
+            } else {
+                v.type = Value::Type::Int;
+                v.intValue = std::stoi(lit->value);
             }
             return v;
         } else if (auto var = dynamic_cast<VariableExpression*>(e)) {
@@ -148,20 +176,35 @@ namespace bloch {
             Value r = eval(bin->right.get());
             auto lInt = l.type == Value::Type::Bit ? l.bitValue : l.intValue;
             auto rInt = r.type == Value::Type::Bit ? r.bitValue : r.intValue;
+            double lNum = l.type == Value::Type::Float ? l.floatValue : static_cast<double>(lInt);
+            double rNum = r.type == Value::Type::Float ? r.floatValue : static_cast<double>(rInt);
             if (bin->op == "+") {
+                if (l.type == Value::Type::String || r.type == Value::Type::String) {
+                    return {Value::Type::String, 0, 0.0, 0, valueToString(l) + valueToString(r)};
+                }
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float) {
+                    return {Value::Type::Float, 0, lNum + rNum};
+                }
                 return {Value::Type::Int, lInt + rInt};
             }
             if (bin->op == "-") {
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                    return {Value::Type::Float, 0, lNum - rNum};
                 return {Value::Type::Int, lInt - rInt};
             }
             if (bin->op == "*") {
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                    return {Value::Type::Float, 0, lNum * rNum};
                 return {Value::Type::Int, lInt * rInt};
             }
             if (bin->op == "/") {
-                if (rInt == 0) {
+                if (rNum == 0) {
                     throw std::runtime_error("Division by zero in expression evaluation");
                 }
-                return {Value::Type::Int, lInt / rInt};
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float) {
+                    return {Value::Type::Float, 0, lNum / rNum};
+                }
+                return {Value::Type::Int, static_cast<int>(lNum / rNum)};
             }
             if (bin->op == "%") {
                 if (rInt == 0) {
@@ -171,26 +214,40 @@ namespace bloch {
             }
 
             if (bin->op == ">") {
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                    return {Value::Type::Bit, 0, 0.0, lNum > rNum};
                 return {Value::Type::Bit, 0, 0.0, lInt > rInt};
             }
             if (bin->op == "<") {
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                    return {Value::Type::Bit, 0, 0.0, lNum < rNum};
                 return {Value::Type::Bit, 0, 0.0, lInt < rInt};
             }
             if (bin->op == ">=") {
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                    return {Value::Type::Bit, 0, 0.0, lNum >= rNum};
                 return {Value::Type::Bit, 0, 0.0, lInt >= rInt};
             }
             if (bin->op == "<=") {
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                    return {Value::Type::Bit, 0, 0.0, lNum <= rNum};
                 return {Value::Type::Bit, 0, 0.0, lInt <= rInt};
             }
             if (bin->op == "==") {
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                    return {Value::Type::Bit, 0, 0.0, lNum == rNum};
                 return {Value::Type::Bit, 0, 0.0, lInt == rInt};
             }
             if (bin->op == "!=") {
+                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                    return {Value::Type::Bit, 0, 0.0, lNum != rNum};
                 return {Value::Type::Bit, 0, 0.0, lInt != rInt};
             }
         } else if (auto unary = dynamic_cast<UnaryExpression*>(e)) {
             Value r = eval(unary->right.get());
             if (unary->op == "-") {
+                if (r.type == Value::Type::Float)
+                    return {Value::Type::Float, 0, -r.floatValue};
                 return {Value::Type::Int, -r.intValue};
             }
             return r;
@@ -261,5 +318,4 @@ namespace bloch {
             }
         }
     }
-
 }

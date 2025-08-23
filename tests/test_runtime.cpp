@@ -3,6 +3,7 @@
 #include "bloch/runtime/runtime_evaluator.hpp"
 #include "bloch/semantics/semantic_analyser.hpp"
 #include "test_framework.hpp"
+#include <sstream>
 
 using namespace bloch;
 
@@ -42,4 +43,18 @@ TEST(RuntimeTest, MeasurementsPreservedInLoops) {
     for (const auto& kv : meas) {
         ASSERT_EQ(kv.second.size(), 3u);
     }
+}
+
+TEST(RuntimeTest, EchoConcatenatesValues) {
+    const char* src =
+        "function main() -> void { bit b = 1; echo(\"Measured: \" + b); echo(5 + 5); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("Measured: 1\n10\n", output.str());
 }

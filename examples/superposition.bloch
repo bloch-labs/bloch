@@ -1,6 +1,7 @@
 function main() -> void {
     qubit q;
+    echo("Applying Superposition");
     h(q);
     bit result = measure q;
-    echo(result);
+    echo("Measured " + result);
 }

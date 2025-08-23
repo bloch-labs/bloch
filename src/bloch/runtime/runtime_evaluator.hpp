@@ -11,11 +11,12 @@
 namespace bloch {
 
     struct Value {
-        enum class Type { Int, Float, Bit, Qubit, Void };
+        enum class Type { Int, Float, Bit, String, Qubit, Void };
         Type type = Type::Void;
         int intValue = 0;
         double floatValue = 0.0;
         int bitValue = 0;
+        std::string stringValue;
         int qubit = -1;
     };
 

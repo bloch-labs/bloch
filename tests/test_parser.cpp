@@ -99,7 +99,7 @@ TEST(ParserTest, StateAnnotationIsRejected) {
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
-    EXPECT_THROW(parser.parse(), BlochRuntimeError);
+    EXPECT_THROW((void)parser.parse(), BlochRuntimeError);
 }
 
 TEST(ParserTest, ParseClassicalFunction) {
