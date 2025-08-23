@@ -328,7 +328,7 @@ namespace bloch {
     inline void ReturnStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void IfStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ForStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
-    inline void WhileStatement::accept(ASTVisitor& visitor) {visitor.visit(*this); }
+    inline void WhileStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void EchoStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ResetStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MeasureStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
