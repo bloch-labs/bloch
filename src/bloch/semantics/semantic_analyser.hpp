@@ -31,6 +31,7 @@ namespace bloch {
 
         void visit(BinaryExpression& node) override;
         void visit(UnaryExpression& node) override;
+        void visit(PostfixExpression& node) override;
         void visit(LiteralExpression& node) override;
         void visit(VariableExpression& node) override;
         void visit(CallExpression& node) override;

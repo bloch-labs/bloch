@@ -115,3 +115,14 @@ TEST(LexerTest, SkipsComments) {
     EXPECT_EQ(tokens[2].type, TokenType::Identifier);
     EXPECT_EQ(tokens[2].value, "y");
 }
+
+TEST(LexerTest, IncrementDecrement) {
+    Lexer lexer("i++ j--");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_GE(tokens.size(), 5);
+    EXPECT_EQ(tokens[0].type, TokenType::Identifier);
+    EXPECT_EQ(tokens[1].type, TokenType::PlusPlus);
+    EXPECT_EQ(tokens[2].type, TokenType::Identifier);
+    EXPECT_EQ(tokens[3].type, TokenType::MinusMinus);
+}

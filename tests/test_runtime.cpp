@@ -88,3 +88,17 @@ TEST(RuntimeTest, TernaryExecutesCorrectBranch) {
     std::cout.rdbuf(oldBuf);
     EXPECT_EQ("false\n", output.str());
 }
+
+TEST(RuntimeTest, PostIncrementAndDecrement) {
+    const char* src =
+        "function main() -> void { int a = 5; echo(a++); echo(a); echo(a--); echo(a); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("5\n6\n6\n5\n", output.str());
+}

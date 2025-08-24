@@ -38,7 +38,9 @@ namespace bloch {
         // Operators and Punctuation
         Equals,
         Plus,
+        PlusPlus,
         Minus,
+        MinusMinus,
         Star,
         Slash,
         Percent,

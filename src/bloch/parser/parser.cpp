@@ -529,6 +529,12 @@ namespace bloch {
                 }
                 (void)expect(TokenType::RParen, "Expected ')' after arguments");
                 expr = std::make_unique<CallExpression>(std::move(expr), std::move(args));
+            } else if (match(TokenType::PlusPlus) || match(TokenType::MinusMinus)) {
+                std::string op = previous().value;
+                auto post = std::make_unique<PostfixExpression>(op, std::move(expr));
+                post->line = previous().line;
+                post->column = previous().column;
+                expr = std::move(post);
             } else {
                 break;
             }

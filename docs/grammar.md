@@ -5,11 +5,6 @@ program        = { import | function | statement } ;
 
 import         = "import" identifier ";" ;
 
-class          = "class" identifier "{" { classSection } "}" ;
-classSection   = membersSection | methodsSection ;
-membersSection = "@members" "(" ("\"public\"" | "\"private\"") ")" ":" { variableDeclaration } ;
-methodsSection = "@methods" ":" { function } ;
-
 function       = { annotation } "function" identifier
                   "(" [ parameterList ] ")" "->" type block ;
 
@@ -47,7 +42,7 @@ comparison            = additive { (">" | "<" | ">=" | "<=") additive } ;
 additive              = multiplicative { ("+" | "-") multiplicative } ;
 multiplicative        = unary { ("*" | "/" | "%") unary } ;
 unary                 = "-" unary | call ;
-call                  = primary { "(" [ argumentList ] ")" } ;
+call                  = primary { "(" [ argumentList ] ")" } | "++" | "--" ;
 argumentList          = expression { "," expression } ;
 primary               = literal
                       | "measure" expression
