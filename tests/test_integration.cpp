@@ -26,7 +26,8 @@ namespace {
             }
         };
         std::unique_ptr<FILE, PCloseDeleter> pipe(popen(cmd.c_str(), "r"));
-        if (!pipe) return result;
+        if (!pipe)
+            return result;
         while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
 
         fs::path stem = blochFile.stem();
