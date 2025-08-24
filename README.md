@@ -49,3 +49,14 @@ Bloch is an open-source project and we welcome contributions! Please see [CONTRI
 
 ## 📄 License
 This project is open-source under the Apache 2.0 License. See LICENSE for details.
+
+## 🔒 Why Apache 2.0?
+
+We’ve chosen the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) for Bloch because:
+
+- **Enterprise-friendly**: Permissive license widely trusted by companies, researchers, and investors.
+- **Patent protection**: Includes an explicit patent grant, important for a runtime stack in a rapidly evolving field.
+- **Ecosystem growth**: Encourages broad adoption by academia and industry, without barriers to entry.
+- **Contributions welcome**: While users can adopt freely, improvements to Bloch itself are encouraged via pull requests.
+
+This ensures Bloch remains open, extensible, and widely usable — while Bloch Studio, our SaaS platform, builds on top with commercial features.
