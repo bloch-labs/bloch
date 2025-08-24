@@ -164,6 +164,16 @@ namespace bloch {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Postfix Expression
+    struct PostfixExpression : public Expression {
+        std::string op;
+        std::unique_ptr<Expression> left;
+
+        PostfixExpression(const std::string& op, std::unique_ptr<Expression> left)
+            : op(op), left(std::move(left)) {}
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Literal Expression
     struct LiteralExpression : public Expression {
         std::string value;
@@ -313,6 +323,7 @@ namespace bloch {
 
         virtual void visit(BinaryExpression& node) = 0;
         virtual void visit(UnaryExpression& node) = 0;
+        virtual void visit(PostfixExpression& node) = 0;
         virtual void visit(LiteralExpression& node) = 0;
         virtual void visit(VariableExpression& node) = 0;
         virtual void visit(CallExpression& node) = 0;
@@ -347,6 +358,7 @@ namespace bloch {
     inline void AssignmentStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void BinaryExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void UnaryExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void PostfixExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void LiteralExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VariableExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void CallExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }

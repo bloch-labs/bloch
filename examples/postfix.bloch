@@ -1,0 +1,9 @@
+function main() -> void {
+    int a = 5;
+    echo(a);
+    a++;
+    echo(a);
+    a--;
+    echo(a);
+    echo(a++);
+}

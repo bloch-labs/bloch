@@ -19,9 +19,14 @@ namespace {
         std::string cmd = blochBin.string() + " " + name;
         std::array<char, 128> buffer;
         std::string result;
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
-        if (!pipe)
-            return result;
+        struct PCloseDeleter {
+            void operator()(FILE* f) const {
+                if (f)
+                    pclose(f);
+            }
+        };
+        std::unique_ptr<FILE, PCloseDeleter> pipe(popen(cmd.c_str(), "r"));
+        if (!pipe) return result;
         while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
 
         fs::path stem = blochFile.stem();

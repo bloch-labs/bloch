@@ -269,6 +269,25 @@ namespace bloch {
                 return {Value::Type::Int, -r.intValue};
             }
             return r;
+        } else if (auto post = dynamic_cast<PostfixExpression*>(e)) {
+            if (auto var = dynamic_cast<VariableExpression*>(post->left.get())) {
+                Value current = lookup(var->name);
+                Value updated = current;
+                if (post->op == "++") {
+                    if (current.type == Value::Type::Float)
+                        updated.floatValue += 1.0;
+                    else if (current.type == Value::Type::Int)
+                        updated.intValue += 1;
+                } else if (post->op == "--") {
+                    if (current.type == Value::Type::Float)
+                        updated.floatValue -= 1.0;
+                    else if (current.type == Value::Type::Int)
+                        updated.intValue -= 1;
+                }
+                assign(var->name, updated);
+                return current;
+            }
+            return {};
         } else if (auto callExpr = dynamic_cast<CallExpression*>(e)) {
             if (auto var = dynamic_cast<VariableExpression*>(callExpr->callee.get())) {
                 auto name = var->name;

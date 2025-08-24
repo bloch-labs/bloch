@@ -241,3 +241,25 @@ TEST(ParserTest, ParseTernaryStatement) {
     ASSERT_NE(cond, nullptr);
     EXPECT_EQ(cond->value, "1");
 }
+
+TEST(ParserTest, ParsePostIncrementAndDecrement) {
+    const char* src = "int i = 0; i++; i--;";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 3u);
+
+    auto* incStmt = dynamic_cast<ExpressionStatement*>(program->statements[1].get());
+    ASSERT_NE(incStmt, nullptr);
+    auto* inc = dynamic_cast<PostfixExpression*>(incStmt->expression.get());
+    ASSERT_NE(inc, nullptr);
+    EXPECT_EQ(inc->op, "++");
+
+    auto* decStmt = dynamic_cast<ExpressionStatement*>(program->statements[2].get());
+    ASSERT_NE(decStmt, nullptr);
+    auto* dec = dynamic_cast<PostfixExpression*>(decStmt->expression.get());
+    ASSERT_NE(dec, nullptr);
+    EXPECT_EQ(dec->op, "--");
+}

@@ -147,6 +147,21 @@ namespace bloch {
             node.right->accept(*this);
     }
 
+    void SemanticAnalyser::visit(PostfixExpression& node) {
+        if (auto var = dynamic_cast<VariableExpression*>(node.left.get())) {
+            if (!isDeclared(var->name)) {
+                throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
+                                        "Variable '" + var->name + "' not declared");
+            }
+            if (isFinal(var->name)) {
+                throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
+                                        "Cannot modify final variable '" + var->name + "'");
+            }
+        } else if (node.left) {
+            node.left->accept(*this);
+        }
+    }
+
     void SemanticAnalyser::visit(LiteralExpression&) {}
 
     void SemanticAnalyser::visit(VariableExpression& node) {
