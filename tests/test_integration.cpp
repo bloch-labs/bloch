@@ -101,7 +101,7 @@ function main() -> void {
 TEST(IntegrationTest, EchoConcatenatesValues) {
     std::string src = R"(
 function main() -> void {
-    bit b = 1;
+    bit b = 1b;
     echo("Measured: " + b);
     echo(5 + 5);
 }

@@ -1,16 +1,5 @@
 # Bloch Examples
 
-This directory contains example programs written in Bloch showcasing basic and hybrid quantum algorithms. These samples are meant for reference while the language and compiler are under development.
+This folder contains example programs written in **Bloch**, showcasing key language features and patterns for building quantum–classical workflows. Each example is designed to be runnable with the Bloch CLI and serves as both a tutorial and a testbed for the language.
 
-- **superposition.bloch** – prepares a single qubit in superposition and
-  measures the result.
-- **bell_pair.bloch** – generates an entangled Bell state of two qubits
-  and prints both measurement outcomes.
-- **ghz.bloch** – creates a three qubit GHZ state and measures each
-  qubit.
-- **coin_flip.bloch** – demonstrates an `@quantum` function used inside
-  a classical loop to count heads.
-- **hybrid_control.bloch** – shows a measurement result controlling
-  subsequent quantum gates.
-
-Compilation to OpenQASM or execution is not yet available, but these files demonstrate the intended syntax of the language.
+- **superposition.bloch** – demonstrates integration of quantum and classical flows. Defines an `@quantum` function that prepares a qubit in superposition and measures it. The result is sampled in a loop, counts of 0s and 1s are tracked, and the totals are printed.

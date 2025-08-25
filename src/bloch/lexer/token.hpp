@@ -8,6 +8,7 @@ namespace bloch {
         Identifier,
         IntegerLiteral,
         FloatLiteral,
+        BitLiteral,
         StringLiteral,
         CharLiteral,
 

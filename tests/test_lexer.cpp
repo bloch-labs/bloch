@@ -36,6 +36,15 @@ TEST(LexerTest, FloatLiteral) {
     EXPECT_EQ(tokens[0].value, "3.14f");
 }
 
+TEST(LexerTest, BitLiteral) {
+    Lexer lexer("1b");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_EQ(tokens.size(), 2);
+    EXPECT_EQ(tokens[0].type, TokenType::BitLiteral);
+    EXPECT_EQ(tokens[0].value, "1b");
+}
+
 TEST(LexerTest, KeywordDetection) {
     Lexer lexer("int float return");
     auto tokens = lexer.tokenize();

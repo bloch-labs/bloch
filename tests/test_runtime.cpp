@@ -75,7 +75,7 @@ TEST(RuntimeTest, MeasurementsPreservedInWhileLoops) {
 
 TEST(RuntimeTest, EchoConcatenatesValues) {
     const char* src =
-        "function main() -> void { bit b = 1; echo(\"Measured: \" + b); echo(5 + 5); }";
+        "function main() -> void { bit b = 1b; echo(\"Measured: \" + b); echo(5 + 5); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);

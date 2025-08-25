@@ -78,7 +78,7 @@ TEST(SemanticTest, UseUndeclaredInsideFunctionFails) {
 }
 
 TEST(SemanticTest, QuantumReturnTypeBitAllowed) {
-    const char* src = "@quantum function q() -> bit { return 0; }";
+    const char* src = "@quantum function q() -> bit { return 0b; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_NO_THROW(analyser.analyse(*program));
@@ -141,14 +141,14 @@ TEST(SemanticTest, FinalVariableDeclarationOk) {
 }
 
 TEST(SemanticTest, AssignFromFunctionCall) {
-    const char* src = "function foo() -> bit { return 0; } bit b = foo();";
+    const char* src = "function foo() -> bit { return 0b; } bit b = foo();";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
 TEST(SemanticTest, CallBeforeDeclaration) {
-    const char* src = "bit b = foo(); function foo() -> bit { return 0; }";
+    const char* src = "bit b = foo(); function foo() -> bit { return 0b; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_NO_THROW(analyser.analyse(*program));
