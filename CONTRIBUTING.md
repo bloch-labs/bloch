@@ -43,10 +43,16 @@ git checkout -b feature/02
 git commit -m "#15: fix bug" 
 ```
 
-### 6. Push and Create a Pull Request
+### 6. Add to the CHANGELOG
+- Add an entry to `CHANGELOG.md` describing your change and referencing the issue number eg
+```md
+#100 - Added 100 new `.bloch` code examples
+```
+
+### 7. Push and Create a Pull Request
 - Once you've done this please move the issue to the "In Review" column on the project board
 
-### 7. PR Reviews
+### 8. PR Reviews
 - We’ll review your PR as quickly as possible.
 - Please be open to feedback and changes.
 

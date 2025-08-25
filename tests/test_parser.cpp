@@ -102,6 +102,28 @@ TEST(ParserTest, StateAnnotationIsRejected) {
     EXPECT_THROW((void)parser.parse(), BlochRuntimeError);
 }
 
+TEST(ParserTest, ParseMultipleQubitDeclarations) {
+    Lexer lexer("qubit q, r;");
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 2u);
+    auto* q = dynamic_cast<VariableDeclaration*>(program->statements[0].get());
+    auto* r = dynamic_cast<VariableDeclaration*>(program->statements[1].get());
+    ASSERT_NE(q, nullptr);
+    ASSERT_NE(r, nullptr);
+    EXPECT_EQ(q->name, "q");
+    EXPECT_EQ(r->name, "r");
+}
+
+TEST(ParserTest, RejectMultipleNonQubitDeclarations) {
+    Lexer lexer("int a, b;");
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochRuntimeError);
+}
+
 TEST(ParserTest, ParseClassicalFunction) {
     const char* src = "function add(int a, int b) -> int { return a + b; }";
     Lexer lexer(src);

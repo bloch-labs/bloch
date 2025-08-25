@@ -28,6 +28,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #32: added `while` keyword
 - #29: added ternary operator
 - #55: added post increment and decrement operators `++` and `--`
+- #101: added inline multiple variable declaration for `qubit`
 
 ### Changed
 - #3: prefix private class members with `m_`
