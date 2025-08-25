@@ -1,0 +1,17 @@
+@quantum
+function superposition() -> bit {
+    qubit q;
+    h(q);
+    return measure q;
+}
+
+function main() -> void {
+    int i = 0;
+    int ones = 0;
+    while (i < 9) {
+        bit b = superposition();
+        if (b == 1) {ones = ones + 1;}
+        i = i + 1;
+    }
+echo("Ones: " + ones);
+}
