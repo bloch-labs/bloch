@@ -124,7 +124,6 @@ TEST(ParserTest, RejectMultipleNonQubitDeclarations) {
     EXPECT_THROW((void)parser.parse(), BlochRuntimeError);
 }
 
-
 TEST(ParserTest, ParseClassicalFunction) {
     const char* src = "function add(int a, int b) -> int { return a + b; }";
     Lexer lexer(src);

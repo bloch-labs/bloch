@@ -41,7 +41,6 @@ TEST(RuntimeTest, MultipleQubitDeclarationsAllocateDistinctQubits) {
     EXPECT_NE(qasm.find("h q[1]"), std::string::npos);
 }
 
-
 TEST(RuntimeTest, MeasurementsPreservedInForLoops) {
     const char* src =
         "@quantum function flip() -> bit { qubit q; x(q); bit r = measure q; return r; } "
