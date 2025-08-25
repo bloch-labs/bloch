@@ -16,6 +16,7 @@ namespace bloch {
        private:
         std::vector<Token> m_tokens;
         size_t m_current;
+        std::vector<std::unique_ptr<Statement>> m_extraStatements;
 
         // Token manipulation
         [[nodiscard]] const Token& peek() const;
@@ -37,9 +38,10 @@ namespace bloch {
         [[nodiscard]] std::unique_ptr<FunctionDeclaration> parseFunction();
 
         // Declarations
-        [[nodiscard]] std::unique_ptr<VariableDeclaration> parseVariableDeclaration(bool isFinal);
         [[nodiscard]] std::unique_ptr<VariableDeclaration> parseVariableDeclaration(
-            std::unique_ptr<Type> preParsedType, bool isFinal);
+            bool isFinal, bool allowMultiple = true);
+        [[nodiscard]] std::unique_ptr<VariableDeclaration> parseVariableDeclaration(
+            std::unique_ptr<Type> preParsedType, bool isFinal, bool allowMultiple = true);
         [[nodiscard]] std::unique_ptr<AnnotationNode> parseAnnotation();
         [[nodiscard]] std::vector<std::unique_ptr<AnnotationNode>> parseAnnotations();
 
@@ -78,5 +80,11 @@ namespace bloch {
         // Parameters and Arguments
         [[nodiscard]] std::vector<std::unique_ptr<Parameter>> parseParameterList();
         [[nodiscard]] std::vector<std::unique_ptr<Expression>> parseArgumentList();
+
+        // Helpers
+        [[nodiscard]] std::unique_ptr<Type> cloneType(const Type& type);
+        [[nodiscard]] std::vector<std::unique_ptr<AnnotationNode>> cloneAnnotations(
+            const std::vector<std::unique_ptr<AnnotationNode>>& annotations);
+        void flushExtraStatements(std::vector<std::unique_ptr<Statement>>& dest);
     };
 }

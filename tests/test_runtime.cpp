@@ -29,6 +29,19 @@ TEST(RuntimeTest, GeneratesQasm) {
     EXPECT_NE(qasm.find("measure q[0]"), std::string::npos);
 }
 
+TEST(RuntimeTest, MultipleQubitDeclarationsAllocateDistinctQubits) {
+    const char* src = "function main() -> void { qubit q0, q1; h(q0); h(q1); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    std::string qasm = eval.getQasm();
+    EXPECT_NE(qasm.find("h q[0]"), std::string::npos);
+    EXPECT_NE(qasm.find("h q[1]"), std::string::npos);
+}
+
+
 TEST(RuntimeTest, MeasurementsPreservedInForLoops) {
     const char* src =
         "@quantum function flip() -> bit { qubit q; x(q); bit r = measure q; return r; } "

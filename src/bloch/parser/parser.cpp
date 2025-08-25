@@ -71,6 +71,7 @@ namespace bloch {
                 program->functions.push_back(parseFunction());
             } else {
                 program->statements.push_back(parseStatement());
+                flushExtraStatements(program->statements);
             }
         }
 
@@ -151,12 +152,13 @@ namespace bloch {
     }
 
     // Declarations
-    std::unique_ptr<VariableDeclaration> Parser::parseVariableDeclaration(bool isFinal) {
-        return parseVariableDeclaration(nullptr, isFinal);
+    std::unique_ptr<VariableDeclaration> Parser::parseVariableDeclaration(bool isFinal,
+                                                                          bool allowMultiple) {
+        return parseVariableDeclaration(nullptr, isFinal, allowMultiple);
     }
 
     std::unique_ptr<VariableDeclaration> Parser::parseVariableDeclaration(
-        std::unique_ptr<Type> preParsedType, bool isFinal) {
+        std::unique_ptr<Type> preParsedType, bool isFinal, bool allowMultiple) {
         auto var = std::make_unique<VariableDeclaration>();
         var->isFinal = isFinal;
 
@@ -181,6 +183,30 @@ namespace bloch {
         // Initializer
         if (match(TokenType::Equals)) {
             var->initializer = parseExpression();
+        }
+
+        bool isQubitType = false;
+        if (auto prim = dynamic_cast<PrimitiveType*>(var->varType.get()))
+            isQubitType = prim->name == "qubit";
+
+        bool hasInitializer = var->initializer != nullptr;
+        while (match(TokenType::Comma)) {
+            if (!allowMultiple)
+                reportError("Multiple declarations not allowed in this context");
+            if (!isQubitType)
+                reportError("Only qubit declarations may declare multiple variables");
+            if (hasInitializer)
+                reportError("Cannot initialise multiple qubit declarations");
+            const Token& extraToken =
+                expect(TokenType::Identifier, "Expected variable name after ','");
+            auto extraVar = std::make_unique<VariableDeclaration>();
+            extraVar->isFinal = isFinal;
+            extraVar->annotations = cloneAnnotations(var->annotations);
+            extraVar->varType = cloneType(*var->varType);
+            extraVar->name = extraToken.value;
+            extraVar->line = extraToken.line;
+            extraVar->column = extraToken.column;
+            m_extraStatements.push_back(std::move(extraVar));
         }
 
         (void)expect(TokenType::Semicolon, "Expected ';' after variable declaration");
@@ -279,6 +305,7 @@ namespace bloch {
         block->column = lbrace.column;
         while (!check(TokenType::RBrace) && !isAtEnd()) {
             block->statements.push_back(parseStatement());
+            flushExtraStatements(block->statements);
         }
 
         (void)expect(TokenType::RBrace, "Expected '}' to end block");
@@ -330,7 +357,7 @@ namespace bloch {
 
             if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||
                 check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit)) {
-                initializer = parseVariableDeclaration(isFinal);
+                initializer = parseVariableDeclaration(isFinal, false);
             } else {
                 if (isFinal) {
                     reportError("Expected variable type after 'final'");
@@ -690,5 +717,28 @@ namespace bloch {
         } while (match(TokenType::Comma));
 
         return args;
+    }
+
+    std::unique_ptr<Type> Parser::cloneType(const Type& type) {
+        if (auto prim = dynamic_cast<const PrimitiveType*>(&type))
+            return std::make_unique<PrimitiveType>(prim->name);
+        if (auto array = dynamic_cast<const ArrayType*>(&type))
+            return std::make_unique<ArrayType>(cloneType(*array->elementType));
+        if (dynamic_cast<const VoidType*>(&type))
+            return std::make_unique<VoidType>();
+        return nullptr;
+    }
+
+    std::vector<std::unique_ptr<AnnotationNode>> Parser::cloneAnnotations(
+        const std::vector<std::unique_ptr<AnnotationNode>>& annotations) {
+        std::vector<std::unique_ptr<AnnotationNode>> result;
+        for (const auto& ann : annotations)
+            result.push_back(std::make_unique<AnnotationNode>(ann->name, ann->value));
+        return result;
+    }
+
+    void Parser::flushExtraStatements(std::vector<std::unique_ptr<Statement>>& dest) {
+        for (auto& stmt : m_extraStatements) dest.push_back(std::move(stmt));
+        m_extraStatements.clear();
     }
 }

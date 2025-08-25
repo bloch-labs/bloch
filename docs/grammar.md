@@ -30,7 +30,8 @@ statement      = block
 
 forInit        = ( "final" )? variableDeclaration | expressionStatement ;
 
-variableDeclaration = annotations? type identifier [ "=" expression ] ";" ;
+variableDeclaration = annotations? type identifier { "," identifier } [ "=" expression ] ";" ;
+
 annotations    = annotation { annotation } ;
 
 assignment     = identifier "=" expression ";" ;
