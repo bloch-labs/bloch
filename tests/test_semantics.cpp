@@ -119,6 +119,13 @@ TEST(SemanticTest, NonVoidFunctionNeedsValue) {
     EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
 }
 
+TEST(SemanticTest, NonVoidFunctionMissingReturnFails) {
+    const char* src = "function foo() -> int { int x = 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
+
 TEST(SemanticTest, FinalVariableAssignmentFails) {
     const char* src = "final int x = 1; x = 2;";
     auto program = parseProgram(src);

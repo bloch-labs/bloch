@@ -52,6 +52,7 @@ namespace bloch {
        private:
         SymbolTable m_symbols;
         ValueType m_currentReturnType = ValueType::Unknown;
+        bool m_foundReturn = false;
         std::unordered_set<std::string> m_functions;
 
         struct FunctionInfo {
