@@ -54,4 +54,4 @@ Bloch is an open-source project and we welcome contributions! Please see [CONTRI
 - Contact: [hello@bloch-labs.com](mailto:hello@bloch-labs.com)
 
 ## License
-Bloch is licensed under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license. This permissive license, complete with an explicit patent grant, encourages broad adoption while inviting contributions back to the project.
+Bloch is licensed under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
