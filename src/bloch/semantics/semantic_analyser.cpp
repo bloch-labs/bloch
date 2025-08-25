@@ -47,6 +47,7 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(ReturnStatement& node) {
+        m_foundReturn = true;
         bool isVoid = m_currentReturnType == ValueType::Void;
         if (node.value && isVoid) {
             throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
@@ -297,6 +298,8 @@ namespace bloch {
         }
         m_functionInfo[node.name] = info;
 
+        bool prevFoundReturn = m_foundReturn;
+        m_foundReturn = false;
         beginScope();
         for (auto& param : node.params) {
             if (isDeclared(param->name)) {
@@ -313,8 +316,13 @@ namespace bloch {
         }
         if (node.body)
             node.body->accept(*this);
+        if (m_currentReturnType != ValueType::Void && !m_foundReturn) {
+            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
+                                    "Non-void function must have a 'return' statement.");
+        }
         endScope();
 
+        m_foundReturn = prevFoundReturn;
         m_currentReturnType = prevReturn;
     }
 

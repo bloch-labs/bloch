@@ -27,5 +27,6 @@ cmake_install.cmake
 compile_commands.json
 
 # Examples folder
+/examples
 examples/*.cpp
 examples/*.qasm

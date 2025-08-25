@@ -47,6 +47,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #87: fix bug where `echo()` was printing to the console twice
 - #78: fix bug where looped measurements of the same qubit were overwriting old measurements
 - #94: `echo()` now works with all and mixed data types
+- #93: ensure semantic analysis enforces non-void functions to end with a return statement
 
 ### Removed  
 - #24: remove old `version` starter code
