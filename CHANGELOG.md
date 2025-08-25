@@ -37,6 +37,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #34 Optimise the Lexer and Parser interfaces 
 - #31: use `std::move` to prevent dangling references in the Parser
 - #77: simplifed Parser by making better use of the `expect` function
+- #107: require `b` suffix for `bit` literals to disambiguate from `int`
 
 ### Fixed
 - #11: minor readme bugfixes

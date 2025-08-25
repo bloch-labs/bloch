@@ -52,10 +52,15 @@ primary               = literal
 
 literal               = integerLiteral
                       | floatLiteral
+                      | bitLiteral
                       | stringLiteral
                       | charLiteral ;
 
 type                  = primitiveType [ "[" "]" ] ;
 primitiveType         = "void" | "int" | "float" | "char" | "string"
                       | "bit" | "qubit" ;
+
+integerLiteral        = digit { digit } ;
+floatLiteral          = digit { digit } "." digit { digit } "f" ;
+bitLiteral            = ("0" | "1") "b" ;
 ```

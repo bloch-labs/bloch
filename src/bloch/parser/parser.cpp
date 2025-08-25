@@ -572,7 +572,8 @@ namespace bloch {
 
     std::unique_ptr<Expression> Parser::parsePrimary() {
         if (match(TokenType::IntegerLiteral) || match(TokenType::FloatLiteral) ||
-            match(TokenType::StringLiteral) || match(TokenType::CharLiteral)) {
+            match(TokenType::BitLiteral) || match(TokenType::StringLiteral) ||
+            match(TokenType::CharLiteral)) {
             auto tok = previous();
             std::string litType;
             switch (tok.type) {
@@ -581,6 +582,9 @@ namespace bloch {
                     break;
                 case TokenType::FloatLiteral:
                     litType = "float";
+                    break;
+                case TokenType::BitLiteral:
+                    litType = "bit";
                     break;
                 case TokenType::CharLiteral:
                     litType = "char";
@@ -627,6 +631,8 @@ namespace bloch {
                 return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "int"});
             case TokenType::FloatLiteral:
                 return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "float"});
+            case TokenType::BitLiteral:
+                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "bit"});
             case TokenType::CharLiteral:
                 return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "char"});
             case TokenType::StringLiteral:

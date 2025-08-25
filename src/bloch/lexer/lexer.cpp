@@ -165,6 +165,20 @@ namespace bloch {
                                  std::string(m_source.substr(start, m_position - start)));
             }
         }
+
+        if (peek() == 'b') {
+            std::string_view digits = m_source.substr(start, m_position - start);
+            if (digits != "0" && digits != "1") {
+                reportError("Bit literal must be '0b' or '1b'");
+                (void)advance();
+                return makeToken(TokenType::Unknown,
+                                 std::string(m_source.substr(start, m_position - start)));
+            }
+            (void)advance();
+            return makeToken(TokenType::BitLiteral,
+                             std::string(m_source.substr(start, m_position - start)));
+        }
+
         return makeToken(TokenType::IntegerLiteral,
                          std::string(m_source.substr(start, m_position - start)));
     }
