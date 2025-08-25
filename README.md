@@ -1,22 +1,22 @@
-# Bloch — A Modern Quantum Programming Language
-**Bloch** is a strongly typed, interpreted quantum programming language designed for hybrid classical-quantum computation. It combines classical control with OpenQASM-compatible quantum semantics, enabling intuitive yet powerful quantum algorithm development.
+# Bloch — A Modern Open-Source Quantum Programming Language
+> ⚠️ **Active development:** APIs, syntax, and tooling are still evolving and subject to change.
 
-Bloch provides developers with intuitive syntax, robust tooling, and runtime generation of OpenQASM for execution on real or simulated quantum hardware.
+Bloch is a modern, strongly typed, interpreted quantum programming language from [Bloch Labs](https://bloch-labs.com). Paired with our upcoming **Bloch Studio** web IDE and circuit builder, it aims to unify the quantum development stack—offering a clean, language‑first, and vendor‑agnostic workflow that scales from research experiments to production circuits. By open-sourcing the core language, we invite the community to help build a sustainable, hardware-agnostic foundation for tomorrow’s quantum applications.
 
-## 📚 Docs
+## Demo
+_Coming soon!_
+
+## Docs
 > ⚠ **Note:** docs are still under construction.
 
 See `/docs` for
-- [Grammar](docs/grammar.md)
+- [Language grammar](docs/grammar.md)
 - Standard library
-- [How the runtime works](docs/compiler.md)
-- [Example programs](examples/README.md)
+- [Runtime internals](docs/compiler.md)
+- Explore [examples](examples/README.md)
+- [Official VSCode extension](https://github.com/bloch-labs/bloch-vscode)
 
-## 🚀 Usage
-
-> ⚠ **Note:** Bloch is still under active development. Usage instructions will be provided once the runtime reaches a runnable MVP.
-
-## 🛠 Developer Instructions
+## Quick Start and Contributing
 
 ### Prerequisites
 
@@ -24,9 +24,9 @@ See `/docs` for
 - CMake ≥ 3.15
 - Git
 
-### Build
+### Clone and Build
 
-Clone the repo:
+Clone and build the repo:
 
 ```bash
 git clone https://github.com/bloch-lang/bloch.git
@@ -44,19 +44,14 @@ make
 ctest
 ```
 
-## 🤝 Contributing
+### Contributing
 Bloch is an open-source project and we welcome contributions! Please see [CONTRIBUTING.md](https://github.com/bloch-lang/bloch/blob/master/CONTRIBUTING.md) for guidelines on how to get involved.
 
-## 📄 License
-This project is open-source under the Apache 2.0 License. See LICENSE for details.
+## Community & Updates
 
-## 🔒 Why Apache 2.0?
+- Website & blog: [bloch-labs.com](https://bloch-labs.com)
+- X/Twitter: [@blochlabs](https://x.com/blochlabs) · [@bloch_akshay](https://x.com/bloch_akshay)
+- Contact: [hello@bloch-labs.com](mailto:hello@bloch-labs.com)
 
-We’ve chosen the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) for Bloch because:
-
-- **Enterprise-friendly**: Permissive license widely trusted by companies, researchers, and investors.
-- **Patent protection**: Includes an explicit patent grant, important for a runtime stack in a rapidly evolving field.
-- **Ecosystem growth**: Encourages broad adoption by academia and industry, without barriers to entry.
-- **Contributions welcome**: While users can adopt freely, improvements to Bloch itself are encouraged via pull requests.
-
-This ensures Bloch remains open, extensible, and widely usable — while Bloch Studio, our SaaS platform, builds on top with commercial features.
+## License
+Bloch is licensed under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license. This permissive license, complete with an explicit patent grant, encourages broad adoption while inviting contributions back to the project.
