@@ -317,10 +317,11 @@ namespace bloch {
         if (node.body)
             node.body->accept(*this);
         if (m_currentReturnType != ValueType::Void && !m_foundReturn) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column, "Non-void function must have a 'return' statement.");
+            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
+                                    "Non-void function must have a 'return' statement.");
         }
         endScope();
-        
+
         m_foundReturn = prevFoundReturn;
         m_currentReturnType = prevReturn;
     }
