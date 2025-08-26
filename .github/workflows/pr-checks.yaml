@@ -1,9 +1,8 @@
-name: Build and Test
-
+name: PR Checks
 on:
   pull_request:
     branches:
-      - master
+      - 'release/*'
 
 jobs:
   build-and-test:

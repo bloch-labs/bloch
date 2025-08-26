@@ -3,7 +3,7 @@ name: Check for Changelog Update
 on:
   pull_request:
     branches:
-      - master
+      - 'release/*'
 
 jobs:
   check-changelog:
