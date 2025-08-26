@@ -26,18 +26,18 @@ namespace bloch {
         for (auto& fn : program.functions) {
             m_functions[fn->name] = fn.get();
         }
-        // assume main exists
         auto it = m_functions.find("main");
         if (it != m_functions.end()) {
             call(it->second, {});
         }
+        warnUnmeasured();
     }
 
     Value RuntimeEvaluator::lookup(const std::string& name) {
         for (auto it = m_env.rbegin(); it != m_env.rend(); ++it) {
             auto fit = it->find(name);
             if (fit != it->end())
-                return fit->second;
+                return fit->second.value;
         }
         return {};
     }
@@ -46,17 +46,18 @@ namespace bloch {
         for (auto it = m_env.rbegin(); it != m_env.rend(); ++it) {
             auto fit = it->find(name);
             if (fit != it->end()) {
-                fit->second = v;
+                fit->second.value = v;
+                fit->second.initialized = true;
                 return;
             }
         }
-        m_env.back()[name] = v;
+        m_env.back()[name] = {v, false, true};
     }
 
     Value RuntimeEvaluator::call(FunctionDeclaration* fn, const std::vector<Value>& args) {
-        m_env.push_back({});
+        beginScope();
         for (size_t i = 0; i < fn->params.size() && i < args.size(); ++i) {
-            m_env.back()[fn->params[i]->name] = args[i];
+            m_env.back()[fn->params[i]->name] = {args[i], false, true};
         }
         bool prevReturn = m_hasReturn;
         m_hasReturn = false;
@@ -67,7 +68,7 @@ namespace bloch {
                     break;
             }
         Value ret = m_returnValue;
-        m_env.pop_back();
+        endScope();
         m_hasReturn = prevReturn;
         return ret;
     }
@@ -91,17 +92,20 @@ namespace bloch {
                     v.qubit = allocateTrackedQubit(var->name);
                 }
             }
-            if (var->initializer)
+            bool initialized = false;
+            if (var->initializer) {
                 v = eval(var->initializer.get());
-            m_env.back()[var->name] = v;
+                initialized = true;
+            }
+            m_env.back()[var->name] = {v, var->isTracked, initialized};
         } else if (auto block = dynamic_cast<BlockStatement*>(s)) {
-            m_env.push_back({});
+            beginScope();
             for (auto& st : block->statements) {
                 exec(st.get());
                 if (m_hasReturn)
                     break;
             }
-            m_env.pop_back();
+            endScope();
         } else if (auto exprs = dynamic_cast<ExpressionStatement*>(s)) {
             eval(exprs->expression.get());
         } else if (auto ret = dynamic_cast<ReturnStatement*>(s)) {
@@ -123,9 +127,8 @@ namespace bloch {
                 exec(tern->elseBranch.get());
             }
         } else if (auto fors = dynamic_cast<ForStatement*>(s)) {
-            m_env.push_back({});
-            if (fors->initializer)
-                exec(fors->initializer.get());
+            beginScope(); 
+            if (fors->initializer) exec(fors->initializer.get());
             while (true) {
                 Value c{Value::Type::Bit};
                 if (fors->condition)
@@ -138,7 +141,7 @@ namespace bloch {
                 if (fors->increment)
                     eval(fors->increment.get());
             }
-            m_env.pop_back();
+            endScope();
         } else if (auto whiles = dynamic_cast<WhileStatement*>(s)) {
             while (true) {
                 Value c{Value::Type::Bit};
@@ -152,7 +155,8 @@ namespace bloch {
             }
         } else if (auto echo = dynamic_cast<EchoStatement*>(s)) {
             Value v = eval(echo->value.get());
-            std::cout << valueToString(v) << std::endl;
+            if (m_echoEnabled)
+                std::cout << valueToString(v) << std::endl;
         } else if (auto reset = dynamic_cast<ResetStatement*>(s)) {
             // ignore
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
@@ -354,5 +358,20 @@ namespace bloch {
                           << " was left unmeasured. No classical value will be returned.\n";
             }
         }
+    }
+
+    void RuntimeEvaluator::beginScope() { m_env.push_back({}); }
+
+    void RuntimeEvaluator::endScope() {
+        if (m_env.empty())
+            return;
+        for (auto& kv : m_env.back()) {
+            if (kv.second.tracked) {
+                std::string key =
+                    kv.second.initialized ? valueToString(kv.second.value) : "__unassigned__";
+                m_trackedCounts[kv.first][key]++;
+            }
+        }
+        m_env.pop_back();
     }
 }

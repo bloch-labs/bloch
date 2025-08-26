@@ -7,7 +7,8 @@
 #include "test_framework.hpp"
 
 namespace {
-    std::string runBloch(const std::string& source, const std::string& name) {
+    std::string runBloch(const std::string& source, const std::string& name,
+                         const std::string& options = "") {
         namespace fs = std::filesystem;
         fs::path cwd = fs::current_path();
         fs::path blochFile = cwd / name;
@@ -16,7 +17,10 @@ namespace {
         ofs.close();
 
         fs::path blochBin = cwd.parent_path() / "bin" / "bloch";
-        std::string cmd = blochBin.string() + " " + name;
+        std::string cmd = blochBin.string();
+        if (!options.empty())
+            cmd += " " + options;
+        cmd += " " + name + " 2>&1";
         std::array<char, 128> buffer;
         std::string result;
         struct PCloseDeleter {
@@ -108,4 +112,36 @@ function main() -> void {
 )";
     std::string output = runBloch(src, "echo_concat_test.bloch");
     EXPECT_EQ("Measured: 1\n10\n", output);
+}
+
+TEST(IntegrationTest, TrackedSingleShot) {
+    std::string src = R"(
+function main() -> void {
+    @tracked int x = 1;
+    echo(x);
+}
+)";
+    std::string output = runBloch(src, "tracked_single.bloch", "--shots=1");
+    EXPECT_NE(output.find("1\nShots: 1"), std::string::npos);
+    EXPECT_NE(output.find("value | count | prob"), std::string::npos);
+    std::string compact = output;
+    compact.erase(std::remove(compact.begin(), compact.end(), ' '), compact.end());
+    EXPECT_NE(compact.find("1|1|1.000"), std::string::npos);
+}
+
+TEST(IntegrationTest, TrackedMultiShotAggregates) {
+    std::string src = R"(
+function main() -> void {
+    @tracked int x = 1;
+    echo(x);
+}
+)";
+    std::string output = runBloch(src, "tracked_multi.bloch", "--shots=3");
+    EXPECT_NE(output.find("[INFO] suppressing echo; to view them use --echo=all"),
+              std::string::npos);
+    EXPECT_NE(output.find("Shots: 3"), std::string::npos);
+    EXPECT_NE(output.find("value | count | prob"), std::string::npos);
+    std::string compact2 = output;
+    compact2.erase(std::remove(compact2.begin(), compact2.end(), ' '), compact2.end());
+    EXPECT_NE(compact2.find("1|3|1.000"), std::string::npos);
 }
