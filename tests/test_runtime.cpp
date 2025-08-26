@@ -115,7 +115,6 @@ TEST(RuntimeTest, PostIncrementAndDecrement) {
     EXPECT_EQ("5\n6\n6\n5\n", output.str());
 }
 
-
 TEST(RuntimeTest, TracksVariableSingleShot) {
     const char* src = "function main() -> void { @tracked int x = 1; }";
     auto program = parseProgram(src);
@@ -137,8 +136,7 @@ TEST(RuntimeTest, TracksVariableMultipleShots) {
         RuntimeEvaluator eval;
         eval.execute(*program);
         for (const auto& vk : eval.trackedCounts())
-            for (const auto& vv : vk.second)
-                agg[vk.first][vv.first] += vv.second;
+            for (const auto& vv : vk.second) agg[vk.first][vv.first] += vv.second;
     }
     ASSERT_EQ(agg["x"]["1"], 5);
 }

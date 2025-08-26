@@ -29,8 +29,7 @@ namespace bloch {
                                         "@tracked variables must be bit or int");
             }
             if (!node.initializer) {
-                std::cerr << "[WARN] tracked variable '" << node.name
-                          << "' may be uninitialized\n";
+                std::cerr << "[WARN] tracked variable '" << node.name << "' may be uninitialized\n";
             }
         }
         if (node.initializer) {

@@ -127,8 +127,9 @@ namespace bloch {
                 exec(tern->elseBranch.get());
             }
         } else if (auto fors = dynamic_cast<ForStatement*>(s)) {
-            beginScope(); 
-            if (fors->initializer) exec(fors->initializer.get());
+            beginScope();
+            if (fors->initializer)
+                exec(fors->initializer.get());
             while (true) {
                 Value c{Value::Type::Bit};
                 if (fors->condition)
