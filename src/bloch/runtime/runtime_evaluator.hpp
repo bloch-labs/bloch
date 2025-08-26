@@ -31,10 +31,17 @@ namespace bloch {
        private:
         QasmSimulator m_sim;
         std::unordered_map<std::string, FunctionDeclaration*> m_functions;
-        std::vector<std::unordered_map<std::string, Value>> m_env;
+        struct VarEntry {
+            Value value;
+            bool tracked = false;
+            bool initialized = false;
+        };
+        std::vector<std::unordered_map<std::string, VarEntry>> m_env;
         Value m_returnValue;
         bool m_hasReturn = false;
         std::unordered_map<const Expression*, std::vector<int>> m_measurements;
+        std::unordered_map<std::string, std::unordered_map<std::string, int>> m_trackedCounts;
+        bool m_echoEnabled = true;
         struct QubitInfo {
             std::string name;
             bool measured;
@@ -49,6 +56,12 @@ namespace bloch {
         int allocateTrackedQubit(const std::string& name);
         void markMeasured(int index);
         void warnUnmeasured() const;
+        void beginScope();
+        void endScope();
+
+       public:
+        void setEcho(bool enabled) { m_echoEnabled = enabled; }
+        const auto& trackedCounts() const { return m_trackedCounts; }
     };
 
 }

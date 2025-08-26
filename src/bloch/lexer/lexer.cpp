@@ -215,6 +215,7 @@ namespace bloch {
             // Annotation Values
             {"quantum", TokenType::Quantum},
             {"adjoint", TokenType::Adjoint},
+            {"tracked", TokenType::Tracked},
 
             // Built ins
             {"echo", TokenType::Echo}};

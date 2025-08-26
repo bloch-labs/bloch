@@ -164,6 +164,10 @@ namespace bloch {
 
         // Annotations
         var->annotations = parseAnnotations();
+        for (auto& ann : var->annotations) {
+            if (ann->name == "tracked")
+                var->isTracked = true;
+        }
 
         if (preParsedType) {
             var->varType = std::move(preParsedType);
@@ -214,14 +218,14 @@ namespace bloch {
         return var;
     }
 
-    // @quantum, @adjoint
+    // @quantum, @adjoint, @tracked
     std::unique_ptr<AnnotationNode> Parser::parseAnnotation() {
         (void)expect(TokenType::At, "Expected '@' to begin annotation");
 
-        if (!check(TokenType::Quantum) && !check(TokenType::Adjoint)) {
+        if (!check(TokenType::Quantum) && !check(TokenType::Adjoint) &&
+            !check(TokenType::Tracked)) {
             reportError("Unknown annotation");
         }
-
         auto nameToken = advance();
         auto annotation = std::make_unique<AnnotationNode>();
         annotation->name = nameToken.value;

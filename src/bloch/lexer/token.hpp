@@ -35,6 +35,7 @@ namespace bloch {
         At,
         Quantum,
         Adjoint,
+        Tracked,
 
         // Operators and Punctuation
         Equals,
