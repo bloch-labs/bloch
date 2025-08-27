@@ -244,3 +244,10 @@ TEST(SemanticTest, FunctionArgumentTypeMatchPasses) {
     SemanticAnalyser analyser;
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
+
+TEST(SemanticTest, PostfixOperatorThrowsErrorWhenNotOnInt) {
+    const char* src = "string s = \"hello\"; s++;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+}
