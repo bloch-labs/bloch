@@ -114,3 +114,61 @@ TEST(RuntimeTest, PostIncrementAndDecrement) {
     std::cout.rdbuf(oldBuf);
     EXPECT_EQ("5\n6\n6\n5\n", output.str());
 }
+
+TEST(RuntimeTest, TracksVariableSingleShot) {
+    const char* src = "function main() -> void { @tracked int x = 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    const auto& counts = eval.trackedCounts();
+    ASSERT_EQ(counts.at("x").at("1"), 1);
+}
+
+TEST(RuntimeTest, TracksVariableMultipleShots) {
+    const char* src = "function main() -> void { @tracked int x = 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    std::unordered_map<std::string, std::unordered_map<std::string, int>> agg;
+    for (int i = 0; i < 5; ++i) {
+        RuntimeEvaluator eval;
+        eval.execute(*program);
+        for (const auto& vk : eval.trackedCounts())
+            for (const auto& vv : vk.second) agg[vk.first][vv.first] += vv.second;
+    }
+    ASSERT_EQ(agg["x"]["1"], 5);
+}
+
+TEST(RuntimeTest, EchoModes) {
+    const char* src = "function main() -> void { echo(1); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.setEcho(false);
+    std::ostringstream out;
+    auto* old = std::cout.rdbuf(out.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(old);
+    EXPECT_EQ("", out.str());
+    RuntimeEvaluator eval2;
+    eval2.setEcho(true);
+    out.str("");
+    old = std::cout.rdbuf(out.rdbuf());
+    eval2.execute(*program);
+    std::cout.rdbuf(old);
+    EXPECT_EQ("1\n", out.str());
+}
+
+TEST(RuntimeTest, UninitializedTrackedVariable) {
+    const char* src = "function main() -> void { @tracked int x; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    const auto& counts = eval.trackedCounts();
+    ASSERT_EQ(counts.at("x").at("__unassigned__"), 1);
+}

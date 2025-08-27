@@ -1,4 +1,5 @@
 #include "semantic_analyser.hpp"
+#include <iostream>
 #include "built_ins.hpp"
 
 namespace bloch {
@@ -22,6 +23,15 @@ namespace bloch {
         else if (dynamic_cast<VoidType*>(node.varType.get()))
             type = ValueType::Void;
         declare(node.name, node.isFinal, type);
+        if (node.isTracked) {
+            if (type != ValueType::Bit && type != ValueType::Int) {
+                throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
+                                        "@tracked variables must be bit or int");
+            }
+            if (!node.initializer) {
+                std::cerr << "[WARN] tracked variable '" << node.name << "' may be uninitialized\n";
+            }
+        }
         if (node.initializer) {
             if (auto call = dynamic_cast<CallExpression*>(node.initializer.get())) {
                 if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {

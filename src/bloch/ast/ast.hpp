@@ -40,6 +40,7 @@ namespace bloch {
         std::unique_ptr<Expression> initializer;
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
         bool isFinal = false;
+        bool isTracked = false;
 
         VariableDeclaration() = default;
         void accept(ASTVisitor& visitor) override;

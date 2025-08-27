@@ -29,6 +29,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #29: added ternary operator
 - #55: added post increment and decrement operators `++` and `--`
 - #101: added inline multiple variable declaration for `qubit`
+- #104: added `--shots` CLI option and `@tracked` annotation
 
 ### Changed
 - #3: prefix private class members with `m_`
