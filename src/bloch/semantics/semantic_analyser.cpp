@@ -178,9 +178,9 @@ namespace bloch {
         } else if (node.left) {
             // Only variables are valid lvalues for postfix operators
             node.left->accept(*this);
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Postfix operator '" + node.op +
-                                        "' can only be applied to a variable");
+            throw BlochRuntimeError(
+                "Bloch Semantic Error", node.line, node.column,
+                "Postfix operator '" + node.op + "' can only be applied to a variable");
         }
     }
 
