@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-#include "../error/bloch_runtime_error.hpp"
+#include "../error/bloch_error.hpp"
 
 namespace bloch {
     Parser::Parser(std::vector<Token> tokens) : m_tokens(std::move(tokens)), m_current(0) {}
@@ -57,7 +57,7 @@ namespace bloch {
     // Error
     void Parser::reportError(const std::string& msg) {
         const Token& token = peek();
-        throw BlochRuntimeError("Bloch Parser Error", token.line, token.column, msg);
+        throw BlochError(token.line, token.column, msg);
     }
 
     // Main parse function

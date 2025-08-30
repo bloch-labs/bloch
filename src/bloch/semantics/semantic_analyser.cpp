@@ -12,8 +12,7 @@ namespace bloch {
 
     void SemanticAnalyser::visit(VariableDeclaration& node) {
         if (isDeclared(node.name)) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Variable '" + node.name + "' redeclared");
+            throw BlochError(node.line, node.column, "Variable '" + node.name + "' redeclared");
         }
         ValueType type = ValueType::Unknown;
         if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get()))
@@ -23,19 +22,19 @@ namespace bloch {
         declare(node.name, node.isFinal, type);
         if (node.isTracked) {
             if (type != ValueType::Bit && type != ValueType::Int) {
-                throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                        "@tracked variables must be bit or int");
+                throw BlochError(node.line, node.column, "@tracked variables must be bit or int");
             }
             if (!node.initializer) {
-                std::cerr << "[WARN] tracked variable '" << node.name << "' may be uninitialized\n";
+                blochWarning(node.line, node.column,
+                             "tracked variable '" + node.name + "' may be unitialised.");
             }
         }
         if (node.initializer) {
             if (auto call = dynamic_cast<CallExpression*>(node.initializer.get())) {
                 if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
                     if (returnsVoid(callee->name)) {
-                        throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                                "Cannot assign result of void function");
+                        throw BlochError(node.line, node.column,
+                                         "Cannot assign result of void function");
                     }
                 }
             }
@@ -58,12 +57,10 @@ namespace bloch {
         m_foundReturn = true;
         bool isVoid = m_currentReturnType == ValueType::Void;
         if (node.value && isVoid) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Void function cannot return a value");
+            throw BlochError(node.line, node.column, "Void function cannot return a value");
         }
         if (!node.value && !isVoid) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Non-void function must return a value");
+            throw BlochError(node.line, node.column, "Non-void function must return a value");
         }
         if (node.value)
             node.value->accept(*this);
@@ -124,19 +121,18 @@ namespace bloch {
 
     void SemanticAnalyser::visit(AssignmentStatement& node) {
         if (!isDeclared(node.name)) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Variable '" + node.name + "' not declared");
+            throw BlochError(node.line, node.column, "Variable '" + node.name + "' not declared");
         }
         if (isFinal(node.name)) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Cannot assign to final variable '" + node.name + "'");
+            throw BlochError(node.line, node.column,
+                             "Cannot assign to final variable '" + node.name + "'");
         }
         if (node.value) {
             if (auto call = dynamic_cast<CallExpression*>(node.value.get())) {
                 if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
                     if (returnsVoid(callee->name)) {
-                        throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                                "Cannot assign result of void function");
+                        throw BlochError(node.line, node.column,
+                                         "Cannot assign result of void function");
                     }
                 }
             }
@@ -159,25 +155,25 @@ namespace bloch {
     void SemanticAnalyser::visit(PostfixExpression& node) {
         if (auto var = dynamic_cast<VariableExpression*>(node.left.get())) {
             if (!isDeclared(var->name)) {
-                throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                        "Variable '" + var->name + "' not declared");
+                throw BlochError(node.line, node.column,
+                                 "Variable '" + var->name + "' not declared");
             }
             if (isFinal(var->name)) {
-                throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                        "Cannot modify final variable '" + var->name + "'");
+                throw BlochError(node.line, node.column,
+                                 "Cannot modify final variable '" + var->name + "'");
             }
             // Postfix operators are only valid for integer variables
             ValueType t = getVariableType(var->name);
             if (t != ValueType::Int) {
-                throw BlochRuntimeError(
-                    "Bloch Semantic Error", node.line, node.column,
+                throw BlochError(
+                    node.line, node.column,
                     "Postfix operator '" + node.op + "' requires variable of type 'int'");
             }
         } else if (node.left) {
             // Only variables are valid lvalues for postfix operators
             node.left->accept(*this);
-            throw BlochRuntimeError(
-                "Bloch Semantic Error", node.line, node.column,
+            throw BlochError(
+                node.line, node.column,
                 "Postfix operator '" + node.op + "' can only be applied to a variable");
         }
     }
@@ -186,22 +182,21 @@ namespace bloch {
 
     void SemanticAnalyser::visit(VariableExpression& node) {
         if (!isDeclared(node.name)) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Variable '" + node.name + "' not declared");
+            throw BlochError(node.line, node.column, "Variable '" + node.name + "' not declared");
         }
     }
 
     void SemanticAnalyser::visit(CallExpression& node) {
         if (auto var = dynamic_cast<VariableExpression*>(node.callee.get())) {
             if (!isDeclared(var->name) && !isFunctionDeclared(var->name)) {
-                throw BlochRuntimeError("Bloch Semantic Error", var->line, var->column,
-                                        "Variable '" + var->name + "' not declared");
+                throw BlochError(var->line, var->column,
+                                 "Variable '" + var->name + "' not declared");
             }
             size_t expected = getFunctionParamCount(var->name);
             if (expected != node.arguments.size()) {
-                throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                        "Function '" + var->name + "' expects " +
-                                            std::to_string(expected) + " argument(s)");
+                throw BlochError(node.line, node.column,
+                                 "Function '" + var->name + "' expects " +
+                                     std::to_string(expected) + " argument(s)");
             }
             auto types = getFunctionParamTypes(var->name);
             for (size_t i = 0; i < node.arguments.size() && i < types.size(); ++i) {
@@ -212,18 +207,16 @@ namespace bloch {
                 if (auto argVar = dynamic_cast<VariableExpression*>(arg.get())) {
                     ValueType actual = getVariableType(argVar->name);
                     if (actual != ValueType::Unknown && actual != expectedType) {
-                        throw BlochRuntimeError(
-                            "Bloch Semantic Error", argVar->line, argVar->column,
-                            "Argument " + std::to_string(i + 1) + " of '" + var->name +
-                                "' expects type '" + typeToString(expectedType) + "'");
+                        throw BlochError(argVar->line, argVar->column,
+                                         "Argument " + std::to_string(i + 1) + " of '" + var->name +
+                                             "' expects type '" + typeToString(expectedType) + "'");
                     }
                 } else if (auto argLit = dynamic_cast<LiteralExpression*>(arg.get())) {
                     ValueType actual = typeFromString(argLit->literalType);
                     if (actual != ValueType::Unknown && actual != expectedType) {
-                        throw BlochRuntimeError(
-                            "Bloch Semantic Error", argLit->line, argLit->column,
-                            "Argument " + std::to_string(i + 1) + " of '" + var->name +
-                                "' expects type '" + typeToString(expectedType) + "'");
+                        throw BlochError(argLit->line, argLit->column,
+                                         "Argument " + std::to_string(i + 1) + " of '" + var->name +
+                                             "' expects type '" + typeToString(expectedType) + "'");
                     }
                 }
             }
@@ -252,19 +245,18 @@ namespace bloch {
 
     void SemanticAnalyser::visit(AssignmentExpression& node) {
         if (!isDeclared(node.name)) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Variable '" + node.name + "' not declared");
+            throw BlochError(node.line, node.column, "Variable '" + node.name + "' not declared");
         }
         if (isFinal(node.name)) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Cannot assign to final variable '" + node.name + "'");
+            throw BlochError(node.line, node.column,
+                             "Cannot assign to final variable '" + node.name + "'");
         }
         if (node.value) {
             if (auto call = dynamic_cast<CallExpression*>(node.value.get())) {
                 if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
                     if (returnsVoid(callee->name)) {
-                        throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                                "Cannot assign result of void function");
+                        throw BlochError(node.line, node.column,
+                                         "Cannot assign result of void function");
                     }
                 }
             }
@@ -293,8 +285,8 @@ namespace bloch {
                     valid = true;
             }
             if (!valid) {
-                throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                        "@quantum functions must return 'bit' or 'void'");
+                throw BlochError(node.line, node.column,
+                                 "@quantum functions must return 'bit' or 'void'");
             }
         }
         ValueType prevReturn = m_currentReturnType;
@@ -322,8 +314,8 @@ namespace bloch {
         beginScope();
         for (auto& param : node.params) {
             if (isDeclared(param->name)) {
-                throw BlochRuntimeError("Bloch Semantic Error", param->line, param->column,
-                                        "Parameter '" + param->name + "' redeclared");
+                throw BlochError(param->line, param->column,
+                                 "Parameter '" + param->name + "' redeclared");
             }
             ValueType type = ValueType::Unknown;
             if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get()))
@@ -336,8 +328,8 @@ namespace bloch {
         if (node.body)
             node.body->accept(*this);
         if (m_currentReturnType != ValueType::Void && !m_foundReturn) {
-            throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
-                                    "Non-void function must have a 'return' statement.");
+            throw BlochError(node.line, node.column,
+                             "Non-void function must have a 'return' statement.");
         }
         endScope();
 
@@ -348,8 +340,7 @@ namespace bloch {
     void SemanticAnalyser::visit(Program& node) {
         for (auto& fn : node.functions) {
             if (isFunctionDeclared(fn->name)) {
-                throw BlochRuntimeError("Bloch Semantic Error", fn->line, fn->column,
-                                        "Function '" + fn->name + "' redeclared");
+                throw BlochError(fn->line, fn->column, "Function '" + fn->name + "' redeclared");
             }
             declareFunction(fn->name);
         }

@@ -14,7 +14,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #22: implement else statements 
 - #23: add keyword to lexer
 - #20: added Apache License
-- #21 Create docs for compiler architecture and grammar
+- #21 create docs for compiler architecture and grammar
 - #44: implement built-in gate functions
 - #19: add example `.bloch` files
 - #48: implement a type system
@@ -36,10 +36,11 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #3: prefix private class members with `m_`
 - #2: refactor to allow bloch-lang comments to start with `//`
 - #16: refactor parser to remove redundant code
-- #34 Optimise the Lexer and Parser interfaces 
+- #34 optimise the Lexer and Parser interfaces 
 - #31: use `std::move` to prevent dangling references in the Parser
 - #77: simplifed Parser by making better use of the `expect` function
 - #107: require `b` suffix for `bit` literals to disambiguate from `int`
+- #116: refactored error reporting for better user experience
 
 ### Fixed
 - #11: minor readme bugfixes
@@ -60,6 +61,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #75: removed class functionality as not MVP
 - #95: removed cpp codegen, Bloch is now fully interpreted
 - #111: removed `import` logic, not MVP
+- #112: removed `@adjoint` as not MVP
 
 
 

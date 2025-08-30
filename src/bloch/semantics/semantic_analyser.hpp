@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "../ast/ast.hpp"
-#include "../error/bloch_runtime_error.hpp"
+#include "../error/bloch_error.hpp"
 #include "type_system.hpp"
 
 namespace bloch {

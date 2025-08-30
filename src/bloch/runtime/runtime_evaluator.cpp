@@ -1,6 +1,6 @@
 #include "runtime_evaluator.hpp"
 #include <sstream>
-#include "../error/bloch_runtime_error.hpp"
+#include "../error/bloch_error.hpp"
 #include "../semantics/built_ins.hpp"
 
 namespace bloch {
@@ -23,6 +23,7 @@ namespace bloch {
     }
 
     void RuntimeEvaluator::execute(Program& program) {
+        m_echoBuffer.clear();
         for (auto& fn : program.functions) {
             m_functions[fn->name] = fn.get();
         }
@@ -30,7 +31,10 @@ namespace bloch {
         if (it != m_functions.end()) {
             call(it->second, {});
         }
-        warnUnmeasured();
+        // Ensure warnings appear before any normal echo output
+        if (m_warnOnExit)
+            warnUnmeasured();
+        flushEchoes();
     }
 
     Value RuntimeEvaluator::lookup(const std::string& name) {
@@ -157,7 +161,7 @@ namespace bloch {
         } else if (auto echo = dynamic_cast<EchoStatement*>(s)) {
             Value v = eval(echo->value.get());
             if (m_echoEnabled)
-                std::cout << valueToString(v) << std::endl;
+                m_echoBuffer.push_back(valueToString(v));
         } else if (dynamic_cast<ResetStatement*>(s)) {
             // ignore
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
@@ -355,8 +359,9 @@ namespace bloch {
     void RuntimeEvaluator::warnUnmeasured() const {
         for (const auto& q : m_qubits) {
             if (!q.measured) {
-                std::cerr << "Warning: Qubit " << q.name
-                          << " was left unmeasured. No classical value will be returned.\n";
+                blochWarning(0, 0,
+                             "Qubit " + q.name +
+                                 " was left unmeasured. No classical value will be returned.");
             }
         }
     }
@@ -374,5 +379,12 @@ namespace bloch {
             }
         }
         m_env.pop_back();
+    }
+
+    void RuntimeEvaluator::flushEchoes() {
+        for (const auto& line : m_echoBuffer) {
+            std::cout << line << std::endl;
+        }
+        m_echoBuffer.clear();
     }
 }

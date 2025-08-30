@@ -1,4 +1,4 @@
-#include "bloch/error/bloch_runtime_error.hpp"
+#include "bloch/error/bloch_error.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "test_framework.hpp"
 
@@ -87,19 +87,19 @@ TEST(LexerTest, CharLiteral) {
 TEST(LexerTest, UnterminatedStringThrows) {
     Lexer lexer("\"hello");
 
-    EXPECT_THROW({ (void)lexer.tokenize(); }, BlochRuntimeError);
+    EXPECT_THROW({ (void)lexer.tokenize(); }, BlochError);
 }
 
 TEST(LexerTest, UnterminatedCharThrows) {
     Lexer lexer("'a");
 
-    EXPECT_THROW((void)lexer.tokenize(), BlochRuntimeError);
+    EXPECT_THROW((void)lexer.tokenize(), BlochError);
 }
 
 TEST(LexerTest, MalformedFloatThrows) {
     Lexer lexer("3.14");
 
-    EXPECT_THROW((void)lexer.tokenize(), BlochRuntimeError);
+    EXPECT_THROW((void)lexer.tokenize(), BlochError);
 }
 
 TEST(LexerTest, LineAndColumnTracking) {
