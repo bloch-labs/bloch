@@ -137,7 +137,7 @@ function main() -> void {
 }
 )";
     std::string output = runBloch(src, "tracked_multi.bloch", "--shots=3");
-    EXPECT_NE(output.find("[INFO] suppressing echo; to view them use --echo=all"),
+    EXPECT_NE(output.find("[INFO]: suppressing echo; to view them use --echo=all"),
               std::string::npos);
     EXPECT_NE(output.find("Shots: 3"), std::string::npos);
     EXPECT_NE(output.find("value | count | prob"), std::string::npos);
