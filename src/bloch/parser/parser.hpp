@@ -34,7 +34,6 @@ namespace bloch {
         void reportError(const std::string& msg);
 
         // Top level
-        [[nodiscard]] std::unique_ptr<ImportStatement> parseImport();
         [[nodiscard]] std::unique_ptr<FunctionDeclaration> parseFunction();
 
         // Declarations

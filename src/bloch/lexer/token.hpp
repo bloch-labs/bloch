@@ -21,7 +21,6 @@ namespace bloch {
         Bit,
         Void,
         Function,
-        Import,
         Return,
         If,
         Else,

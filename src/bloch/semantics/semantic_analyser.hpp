@@ -15,7 +15,6 @@ namespace bloch {
        public:
         void analyse(Program& program);
 
-        void visit(ImportStatement&) override;
         void visit(VariableDeclaration& node) override;
         void visit(BlockStatement& node) override;
         void visit(ExpressionStatement& node) override;

@@ -202,7 +202,6 @@ namespace bloch {
             // Keywords
             {"void", TokenType::Void},
             {"function", TokenType::Function},
-            {"import", TokenType::Import},
             {"return", TokenType::Return},
             {"if", TokenType::If},
             {"else", TokenType::Else},

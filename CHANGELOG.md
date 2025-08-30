@@ -59,6 +59,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #80: removed `logical<>` primitive type as not MVP
 - #75: removed class functionality as not MVP
 - #95: removed cpp codegen, Bloch is now fully interpreted
+- #111: removed `import` logic, not MVP
 
 
 

@@ -3,16 +3,6 @@
 
 using namespace bloch;
 
-TEST(ASTTest, ProgramConstruction) {
-    Program prog;
-    auto imp = std::make_unique<ImportStatement>();
-    imp->module = "bloch.core.math";
-    prog.imports.push_back(std::move(imp));
-
-    ASSERT_EQ(prog.imports.size(), 1);
-    EXPECT_EQ(prog.imports[0]->module, "bloch.core.math");
-}
-
 TEST(ASTTest, FunctionDeclarationBasics) {
     FunctionDeclaration func;
     func.name = "foo";

@@ -1,7 +1,7 @@
 # Bloch Grammar (EBNF)
 
 ```
-program        = { import | function | statement } ;
+program        = { function | statement } ;
 
 import         = "import" identifier ";" ;
 

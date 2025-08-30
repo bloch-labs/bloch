@@ -9,23 +9,24 @@ We’re building an exciting quantum programming language, and contributions fro
 This guide explains how to propose changes, which branches to target, and how our CI/CD and release flow works.
 
 ## TL;DR
-- Open PRs against the correct **release branch** (not `master`) e.g. `release/1.0.x`.
-- The correct release branch is determined by the milestone on the issue
-- Maintainers will cut release candidates (RCs) from the release branchs; final tags live on `master`.
+- Open PRs against `develop` for BAU feature development.
+- If fixing bugs identified in a release candidate (RC) then open a PR against the appropriate `release-v*` branch.
+- Maintainers will cut release candidates from`develop`; stable and released code tags live on `master`.
 
 ## Branches
 
 - **`master`**  
   Stable, **released** code only. Every commit here corresponds to a published tag (e.g. `v1.0.3`, `v1.1.0`).
 
-- **`release/1.0.x`**  
-  Development and stabilisation for [v1.0.x](https://github.com/bloch-labs/bloch/milestone/5).
+- **`develop`**
+  This is the main development branch. All PRs should be merged here in BAU development
 
-- **`release/1.1.x`**  
-  Development and stabilisation for [v1.1.x](https://github.com/bloch-labs/bloch/milestone/6).
+- **`release-v1.0.x`**  
+  Release candidates and fixes for [v1.0.x](https://github.com/bloch-labs/bloch/milestone/5).
 
 - **`feature/xx`, `bugfix/xx`, `refactor/xx`, `docs/xx`, `tests/xx`**  
   Short-lived branches for your work, these follow the convention *issue-type/issue-number*.
+  These should be merged into `develop `
 
 - **`hotfix/*`** (maintainers)  
   Emergency fixes based off `master`.
@@ -39,7 +40,7 @@ cd bloch
 
 ### Create a Branch
 ```bash
-git checkout release/*        # choose appropriate release branch
+git checkout develop          # develop is the default branch
 git checkout -b feature/xx    # label with ticket number  
 ```
 
@@ -60,14 +61,14 @@ git commit -m "#15: fix bug"
 ### Open a PR with 
 - Clear title and description, reference the issue number in your title e.g. `#15: fixing some bugs`
 - Target the correct release branch
-> Do not target `master` with your PR, only RC tags and hotfixes (maintainers) are merged directly to `master`
+> Please make sure to target `develop`, this should be automatic. Do not target `master` with your PR, only RC tags and hotfixes (maintainers) are merged directly to `master`
 
 ### PR Reviews
 - We’ll review your PR as quickly as possible.
 - Please be open to feedback and changes.
 
 ### Versioning & releases (how your PR ships)
-- Maintainers create RC tags (e.g. `v1.0.3-rc.1`) on `release/*` branches to trigger pre-release builds.
+- Maintainers create RC tags (e.g. `v1.0.3-rc.1`) on `release-v*` branches to trigger pre-release builds.
 - When an RC is good, maintainers merge the release branch into `master` and create a final tag (e.g. `v1.0.3`). Official binaries are published from that tag.
 
 ## ✅ Code Style

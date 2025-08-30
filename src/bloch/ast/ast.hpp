@@ -25,14 +25,6 @@ namespace bloch {
     struct AnnotationNode;
     struct Parameter;
 
-    // Import Statement
-    struct ImportStatement : public Statement {
-        std::string module;
-
-        ImportStatement() = default;
-        void accept(ASTVisitor& visitor) override;
-    };
-
     // Variable Declaration
     struct VariableDeclaration : public Statement {
         std::string name;
@@ -294,7 +286,6 @@ namespace bloch {
 
     // Program
     struct Program : public ASTNode {
-        std::vector<std::unique_ptr<ImportStatement>> imports;
         std::vector<std::unique_ptr<FunctionDeclaration>> functions;
         std::vector<std::unique_ptr<Statement>> statements;
 
@@ -308,7 +299,6 @@ namespace bloch {
        public:
         virtual ~ASTVisitor() = default;
 
-        virtual void visit(ImportStatement& node) = 0;
         virtual void visit(VariableDeclaration& node) = 0;
         virtual void visit(BlockStatement& node) = 0;
         virtual void visit(ExpressionStatement& node) = 0;
@@ -344,7 +334,6 @@ namespace bloch {
     };
 
     // Inline accept implementations
-    inline void ImportStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VariableDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void BlockStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ExpressionStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
