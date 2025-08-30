@@ -47,7 +47,7 @@ namespace bloch {
     bool Parser::checkFunctionAnnotation() const {
         if (!check(TokenType::At))
             return false;
-        if (!checkNext(TokenType::Quantum) && !checkNext(TokenType::Adjoint))
+        if (!checkNext(TokenType::Quantum))
             return false;
         return true;
     }
@@ -85,14 +85,17 @@ namespace bloch {
         // Parse annotations
         while (check(TokenType::At)) {
             (void)advance();
-            if (match(TokenType::Quantum) || match(TokenType::Adjoint)) {
+            if (match(TokenType::Quantum)) {
                 std::string name = previous().value;
                 std::string value = "";
                 func->annotations.push_back(
                     std::make_unique<AnnotationNode>(AnnotationNode{name, value}));
                 func->hasQuantumAnnotation = true;
             } else {
-                reportError("Expected annotation name after '@'");
+                const Token& invalid = peek();
+                std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
+                reportError(std::string("\"") + "@" + invalidName +
+                            "\" is not a valid Bloch annotation");
             }
         }
 
@@ -203,13 +206,15 @@ namespace bloch {
         return var;
     }
 
-    // @quantum, @adjoint, @tracked
+    // @quantum, @tracked
     std::unique_ptr<AnnotationNode> Parser::parseAnnotation() {
         (void)expect(TokenType::At, "Expected '@' to begin annotation");
 
-        if (!check(TokenType::Quantum) && !check(TokenType::Adjoint) &&
-            !check(TokenType::Tracked)) {
-            reportError("Unknown annotation");
+        if (!check(TokenType::Quantum) && !check(TokenType::Tracked)) {
+            const Token& invalid = peek();
+            std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
+            reportError(std::string("\"") + "@" + invalidName +
+                        "\" is not a valid Bloch annotation");
         }
         auto nameToken = advance();
         auto annotation = std::make_unique<AnnotationNode>();

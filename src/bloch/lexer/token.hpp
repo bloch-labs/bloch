@@ -33,7 +33,6 @@ namespace bloch {
         // Annotations
         At,
         Quantum,
-        Adjoint,
         Tracked,
 
         // Operators and Punctuation

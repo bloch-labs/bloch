@@ -16,7 +16,7 @@ namespace bloch {
         int intValue = 0;
         double floatValue = 0.0;
         int bitValue = 0;
-        std::string stringValue;
+        std::string stringValue = "";
         int qubit = -1;
     };
 
