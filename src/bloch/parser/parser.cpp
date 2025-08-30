@@ -65,9 +65,7 @@ namespace bloch {
         auto program = std::make_unique<Program>();
 
         while (!isAtEnd()) {
-            if (check(TokenType::Import)) {
-                program->imports.push_back(parseImport());
-            } else if (check(TokenType::Function) || checkFunctionAnnotation()) {
+            if (check(TokenType::Function) || checkFunctionAnnotation()) {
                 program->functions.push_back(parseFunction());
             } else {
                 program->statements.push_back(parseStatement());
@@ -79,19 +77,6 @@ namespace bloch {
     }
 
     // Top level
-
-    // import module;
-    std::unique_ptr<ImportStatement> Parser::parseImport() {
-        (void)expect(TokenType::Import, "Expected 'import' keyword");
-
-        auto stmt = std::make_unique<ImportStatement>();
-        const Token& moduleToken =
-            expect(TokenType::Identifier, "Expected module name after 'import'");
-        stmt->module = moduleToken.value;
-        (void)expect(TokenType::Semicolon, "Expected ';' after import statement");
-
-        return stmt;
-    }
 
     // Function Declaration
     std::unique_ptr<FunctionDeclaration> Parser::parseFunction() {

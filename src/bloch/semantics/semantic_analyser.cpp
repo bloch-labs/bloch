@@ -10,8 +10,6 @@ namespace bloch {
         endScope();
     }
 
-    void SemanticAnalyser::visit(ImportStatement&) {}
-
     void SemanticAnalyser::visit(VariableDeclaration& node) {
         if (isDeclared(node.name)) {
             throw BlochRuntimeError("Bloch Semantic Error", node.line, node.column,
@@ -355,7 +353,6 @@ namespace bloch {
             }
             declareFunction(fn->name);
         }
-        for (auto& imp : node.imports) imp->accept(*this);
         for (auto& fn : node.functions) fn->accept(*this);
         for (auto& stmt : node.statements) stmt->accept(*this);
     }

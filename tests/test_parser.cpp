@@ -5,16 +5,6 @@
 
 using namespace bloch;
 
-TEST(ParserTest, ParseImport) {
-    Lexer lexer("import math;");
-    auto tokens = lexer.tokenize();
-    Parser parser(std::move(tokens));
-    auto program = parser.parse();
-
-    ASSERT_EQ(program->imports.size(), 1u);
-    EXPECT_EQ(program->imports[0]->module, "math");
-}
-
 TEST(ParserTest, ParseVariableDeclaration) {
     Lexer lexer("int x;");
     auto tokens = lexer.tokenize();
