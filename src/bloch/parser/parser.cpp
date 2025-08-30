@@ -94,7 +94,8 @@ namespace bloch {
             } else {
                 const Token& invalid = peek();
                 std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
-                reportError(std::string("\"") + "@" + invalidName + "\" is not a valid Bloch annotation");
+                reportError(std::string("\"") + "@" + invalidName +
+                            "\" is not a valid Bloch annotation");
             }
         }
 
@@ -209,11 +210,11 @@ namespace bloch {
     std::unique_ptr<AnnotationNode> Parser::parseAnnotation() {
         (void)expect(TokenType::At, "Expected '@' to begin annotation");
 
-        if (!check(TokenType::Quantum) &&
-            !check(TokenType::Tracked)) {
+        if (!check(TokenType::Quantum) && !check(TokenType::Tracked)) {
             const Token& invalid = peek();
             std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
-            reportError(std::string("\"") + "@" + invalidName + "\" is not a valid Bloch annotation");
+            reportError(std::string("\"") + "@" + invalidName +
+                        "\" is not a valid Bloch annotation");
         }
         auto nameToken = advance();
         auto annotation = std::make_unique<AnnotationNode>();
