@@ -1,4 +1,4 @@
-#include "bloch/error/bloch_runtime_error.hpp"
+#include "bloch/error/bloch_error.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
 #include "bloch/semantics/semantic_analyser.hpp"
@@ -22,7 +22,7 @@ TEST(SemanticTest, VariableMustBeDeclared) {
 TEST(SemanticTest, UseUndeclaredVariableFails) {
     auto program = parseProgram("x = 5;");
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, ErrorHasLineColumn) {
@@ -31,7 +31,7 @@ TEST(SemanticTest, ErrorHasLineColumn) {
     bool threw = false;
     try {
         analyser.analyse(*program);
-    } catch (const BlochRuntimeError& err) {
+    } catch (const BlochError& err) {
         threw = true;
         EXPECT_GT(err.line, 0);
         EXPECT_GT(err.column, 0);
@@ -42,13 +42,13 @@ TEST(SemanticTest, ErrorHasLineColumn) {
 TEST(SemanticTest, RedeclaredVariableFails) {
     auto program = parseProgram("int x; int x;");
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, InnerVariableNotVisibleOutside) {
     auto program = parseProgram("{ int y; } y = 1;");
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, OuterVariableVisibleInsideBlock) {
@@ -60,7 +60,7 @@ TEST(SemanticTest, OuterVariableVisibleInsideBlock) {
 TEST(SemanticTest, RedeclareInInnerBlockFails) {
     auto program = parseProgram("int x; { int x; }");
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, FunctionScopeUsesParameters) {
@@ -74,7 +74,7 @@ TEST(SemanticTest, UseUndeclaredInsideFunctionFails) {
     const char* src = "function foo() -> void { x = 1; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, QuantumReturnTypeBitAllowed) {
@@ -88,49 +88,49 @@ TEST(SemanticTest, QuantumReturnTypeInvalidInt) {
     const char* src = "@quantum function q() -> int { return 0; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, QuantumReturnTypeInvalidString) {
     const char* src = "@quantum function q() -> string { return \"hello\"; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, QuantumReturnTypeInvalidChar) {
     const char* src = "@quantum function q() -> char { return \'c\'; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, VoidFunctionReturnValueFails) {
     const char* src = "function foo() -> void { return 1; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, NonVoidFunctionNeedsValue) {
     const char* src = "function foo() -> int { return; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, NonVoidFunctionMissingReturnFails) {
     const char* src = "function foo() -> int { int x = 1; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, FinalVariableAssignmentFails) {
     const char* src = "final int x = 1; x = 2;";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, FinalVariableDeclarationOk) {
@@ -158,14 +158,14 @@ TEST(SemanticTest, CallUndefinedFunctionFails) {
     const char* src = "bit b = foo();";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, DuplicateFunctionDeclarationFails) {
     const char* src = "function foo() -> void { } function foo() -> void { }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, BuiltinGateCallIsValid) {
@@ -179,35 +179,35 @@ TEST(SemanticTest, BuiltinGateWrongArgCount) {
     const char* src = "qubit q; h();";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, AssignFromVoidFunctionFails) {
     const char* src = "function foo() -> void { } int x = foo();";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, AssignFromVoidBuiltinFails) {
     const char* src = "qubit q; qubit r = h(q);";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, BuiltinGateWrongArgType) {
     const char* src = "string s = \"hello\"; qubit q; h(s);";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, BuiltinGateLiteralArgTypeMismatchFails) {
     const char* src = "qubit q; rx(q, 1);";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, BuiltinGateLiteralArgTypeMatchPasses) {
@@ -221,14 +221,14 @@ TEST(SemanticTest, FunctionArgumentTypeMismatchFails) {
     const char* src = "function foo(int a) -> void { } foo(1.2f);";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, FunctionArgumentVariableTypeMismatchFails) {
     const char* src = "function foo(float a) -> void { } int x; foo(x);";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, FunctionArgumentVariableTypeMatchPasses) {
@@ -249,5 +249,5 @@ TEST(SemanticTest, PostfixOperatorThrowsErrorWhenNotOnInt) {
     const char* src = "string s = \"hello\"; s++;";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochRuntimeError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }

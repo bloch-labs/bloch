@@ -1,5 +1,4 @@
 @quantum
-@adjoint
 function measure_hadamard(qubit q) -> bit {
     h(q);
     return measure q;

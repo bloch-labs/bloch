@@ -6,7 +6,6 @@
 #include <sstream>
 #include <string_view>
 #include <unordered_map>
-#include "../error/bloch_runtime_error.hpp"
 
 namespace bloch {
     Lexer::Lexer(const std::string_view source) noexcept
@@ -74,9 +73,7 @@ namespace bloch {
         }
     }
 
-    void Lexer::reportError(const std::string& msg) {
-        throw BlochRuntimeError("Bloch Lexer Error", m_line, m_column, msg);
-    }
+    void Lexer::reportError(const std::string& msg) { throw BlochError(m_line, m_column, msg); }
 
     Token Lexer::makeToken(TokenType type, const std::string& value) {
         return Token{type, value, m_line, m_column - static_cast<int>(value.length())};

@@ -1,8 +1,9 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
-#include "../error/bloch_runtime_error.hpp"
+#include "../error/bloch_error.hpp"
 #include "token.hpp"
 
 namespace bloch {

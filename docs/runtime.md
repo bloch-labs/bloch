@@ -9,7 +9,7 @@ Bloch processes source files written in the Bloch language and executes them dir
 2. **Parser**
    Consumes the token stream to build an Abstract Syntax Tree (AST). Parsing follows the grammar defined in `grammar.md` and produces nodes such as `Program`, `FunctionDeclaration`, and `Expression` classes located in `src/bloch/ast`.
 3. **Semantic Analysis**
-   Traverses the AST to check for correctness. The analyser validates variable declarations, scope rules, function return types and other language constraints. Errors are reported using `BlochRuntimeError` with line and column details.
+   Traverses the AST to check for correctness. The analyser validates variable declarations, scope rules, function return types and other language constraints. Errors are reported using `BlochError` with line and column details.
 4. **Runtime Evaluator**
    The `RuntimeEvaluator` walks the AST to interpret the program, invoking the simulator for quantum operations, collecting measurements, and producing OpenQASM as needed.
 

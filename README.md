@@ -20,8 +20,8 @@ See `/docs` for
 
 ### Prerequisites
 
-- C++17-compatible compiler (e.g. GCC, Clang)
-- CMake ≥ 3.15
+- C++20-compatible compiler (e.g. GCC ≥ 10, Clang ≥ 10, or MSVC 19.28+)
+- CMake ≥ 3.16
 - Git
 
 ### Clone and Build

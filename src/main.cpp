@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "bloch/error/bloch_error.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
@@ -46,7 +47,7 @@ int main(int argc, char** argv) {
     }
     bool echoAll = echoOpt.empty() ? (!shotsProvided || shots == 1) : (echoOpt == "all");
     if (shotsProvided && shots > 1 && echoOpt.empty())
-        std::clog << "[INFO] suppressing echo; to view them use --echo=all\n";
+        bloch::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
 
     std::ifstream in(file);
     if (!in) {
@@ -68,6 +69,9 @@ int main(int argc, char** argv) {
             for (int s = 0; s < shots; ++s) {
                 bloch::RuntimeEvaluator evaluator;
                 evaluator.setEcho(echoAll);
+                // Suppress per-shot warnings; only show for last shot
+                if (s < shots - 1)
+                    evaluator.setWarnOnExit(false);
                 evaluator.execute(*program);
                 if (s == shots - 1)
                     qasm = evaluator.getQasm();
@@ -81,11 +85,18 @@ int main(int argc, char** argv) {
             std::ofstream qfile(base + ".qasm");
             qfile << qasm;
             qfile.close();
+
+            // Warn if nothing was tracked, but still print run header and timing
+            if (aggregate.empty())
+                bloch::blochWarning(0, 0,
+                                    "No tracked variables. Use @tracked to collect statistics.");
+
+            std::cout << "Shots: " << shots << "\n";
+            std::cout << "Backend: Bloch Ideal Simulator\n";
+            std::cout << std::fixed << std::setprecision(3);
+            std::cout << "Elapsed: " << elapsed << "s\n\n";
+
             if (!aggregate.empty()) {
-                std::cout << "Shots: " << shots << "\n";
-                std::cout << "Backend: qasm_simulator\n";
-                std::cout << std::fixed << std::setprecision(3);
-                std::cout << "Elapsed: " << elapsed << "s\n\n";
                 for (auto& var : aggregate) {
                     std::cout << var.first << "\n";
                     std::vector<std::pair<std::string, int>> vals(var.second.begin(),
@@ -104,8 +115,6 @@ int main(int argc, char** argv) {
                     }
                     std::cout << "\n";
                 }
-            } else {
-                std::cerr << "No tracked variables. Use @tracked to collect statistics.\n";
             }
             if (emitQasm) {
                 std::cout << qasm;
@@ -126,6 +135,9 @@ int main(int argc, char** argv) {
             }
         }
     } catch (const std::exception& ex) {
+        // Print a clear stop message, then the actual error
+        std::cerr << bloch::format(bloch::MessageLevel::Error, 0, 0,
+                                   "Stopping program execution...");
         std::cerr << ex.what() << std::endl;
         return 1;
     }

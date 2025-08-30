@@ -1,4 +1,4 @@
-#include "bloch/error/bloch_runtime_error.hpp"
+#include "bloch/error/bloch_error.hpp"
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
 #include "test_framework.hpp"
@@ -89,7 +89,7 @@ TEST(ParserTest, StateAnnotationIsRejected) {
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
-    EXPECT_THROW((void)parser.parse(), BlochRuntimeError);
+    EXPECT_THROW((void)parser.parse(), BlochError);
 }
 
 TEST(ParserTest, ParseMultipleQubitDeclarations) {
@@ -111,7 +111,7 @@ TEST(ParserTest, RejectMultipleNonQubitDeclarations) {
     Lexer lexer("int a, b;");
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
-    EXPECT_THROW((void)parser.parse(), BlochRuntimeError);
+    EXPECT_THROW((void)parser.parse(), BlochError);
 }
 
 TEST(ParserTest, ParseClassicalFunction) {

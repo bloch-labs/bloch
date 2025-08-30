@@ -42,6 +42,10 @@ namespace bloch {
         std::unordered_map<const Expression*, std::vector<int>> m_measurements;
         std::unordered_map<std::string, std::unordered_map<std::string, int>> m_trackedCounts;
         bool m_echoEnabled = true;
+        bool m_warnOnExit = true;
+        // Buffer for echo outputs so logs (INFO/WARNING/ERROR)
+        // can be displayed first before normal program output.
+        std::vector<std::string> m_echoBuffer;
         struct QubitInfo {
             std::string name;
             bool measured;
@@ -58,9 +62,11 @@ namespace bloch {
         void warnUnmeasured() const;
         void beginScope();
         void endScope();
+        void flushEchoes();
 
        public:
         void setEcho(bool enabled) { m_echoEnabled = enabled; }
+        void setWarnOnExit(bool enabled) { m_warnOnExit = enabled; }
         const auto& trackedCounts() const { return m_trackedCounts; }
     };
 
