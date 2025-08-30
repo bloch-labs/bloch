@@ -8,7 +8,7 @@ import         = "import" identifier ";" ;
 function       = { annotation } "function" identifier
                   "(" [ parameterList ] ")" "->" type block ;
 
-annotation     = "@" ( "quantum" | "adjoint" ) ;
+annotation     = "@" "quantum" ;
 
 parameterList  = parameter { "," parameter } ;
 parameter      = type identifier ;

@@ -158,7 +158,7 @@ namespace bloch {
             Value v = eval(echo->value.get());
             if (m_echoEnabled)
                 std::cout << valueToString(v) << std::endl;
-        } else if (auto reset = dynamic_cast<ResetStatement*>(s)) {
+        } else if (dynamic_cast<ResetStatement*>(s)) {
             // ignore
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
             Value q = eval(meas->qubit.get());
