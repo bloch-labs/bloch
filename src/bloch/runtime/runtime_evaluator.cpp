@@ -220,7 +220,10 @@ namespace bloch {
             v.type = Value::Type::BitArray;
             for (auto& el : arr->elements) {
                 Value ev = eval(el.get());
-                if (ev.type != Value::Type::Bit) {throw BlochError(arr->line, arr->column, "Array literals only support bit elements");}
+                if (ev.type != Value::Type::Bit) {
+                    throw BlochError(arr->line, arr->column,
+                                     "Array literals only support bit elements");
+                }
                 v.bitArray.push_back(ev.bitValue ? 1 : 0);
             }
             return v;
@@ -252,7 +255,8 @@ namespace bloch {
             }
             if (bin->op == "/") {
                 if (rNum == 0) {
-                    throw BlochError(bin->line, bin->column, "Division by zero in expression evaluation");
+                    throw BlochError(bin->line, bin->column,
+                                     "Division by zero in expression evaluation");
                 }
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float) {
                     return {Value::Type::Float, 0, lNum / rNum};
@@ -261,7 +265,8 @@ namespace bloch {
             }
             if (bin->op == "%") {
                 if (rInt == 0) {
-                    throw BlochError(bin->line, bin->column, "Modulo by zero in expression evaluation");
+                    throw BlochError(bin->line, bin->column,
+                                     "Modulo by zero in expression evaluation");
                 }
                 return {Value::Type::Int, lInt % rInt};
             }
@@ -310,7 +315,10 @@ namespace bloch {
                 if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
                     return {Value::Type::Bit, 0, 0.0, l.bitValue & r.bitValue};
                 if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
-                    if (l.bitArray.size() != r.bitArray.size()) {throw BlochError(bin->line, bin->column, "Bit arrays must be same length for '&'");}
+                    if (l.bitArray.size() != r.bitArray.size()) {
+                        throw BlochError(bin->line, bin->column,
+                                         "Bit arrays must be same length for '&'");
+                    }
                     Value v;
                     v.type = Value::Type::BitArray;
                     v.bitArray.resize(l.bitArray.size());
@@ -334,13 +342,17 @@ namespace bloch {
                         v.bitArray[i] = l.bitValue & r.bitArray[i];
                     return v;
                 }
-                throw BlochError(bin->line, bin->column, "Bitwise '&' requires bit or bit[] operands");
+                throw BlochError(bin->line, bin->column,
+                                 "Bitwise '&' requires bit or bit[] operands");
             }
             if (bin->op == "|") {
                 if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
                     return {Value::Type::Bit, 0, 0.0, l.bitValue | r.bitValue};
                 if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
-                    if (l.bitArray.size() != r.bitArray.size()) {throw BlochError(bin->line, bin->column, "Bit arrays must be same length for '|'");}
+                    if (l.bitArray.size() != r.bitArray.size()) {
+                        throw BlochError(bin->line, bin->column,
+                                         "Bit arrays must be same length for '|'");
+                    }
                     Value v;
                     v.type = Value::Type::BitArray;
                     v.bitArray.resize(l.bitArray.size());
@@ -364,13 +376,17 @@ namespace bloch {
                         v.bitArray[i] = l.bitValue | r.bitArray[i];
                     return v;
                 }
-                throw BlochError(bin->line, bin->column, "Bitwise '|' requires bit or bit[] operands");
+                throw BlochError(bin->line, bin->column,
+                                 "Bitwise '|' requires bit or bit[] operands");
             }
             if (bin->op == "^") {
                 if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
                     return {Value::Type::Bit, 0, 0.0, l.bitValue ^ r.bitValue};
                 if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
-                    if (l.bitArray.size() != r.bitArray.size()) {throw BlochError(bin->line, bin->column, "Bit arrays must be same length for '^'");}
+                    if (l.bitArray.size() != r.bitArray.size()) {
+                        throw BlochError(bin->line, bin->column,
+                                         "Bit arrays must be same length for '^'");
+                    }
                     Value v;
                     v.type = Value::Type::BitArray;
                     v.bitArray.resize(l.bitArray.size());
@@ -394,7 +410,8 @@ namespace bloch {
                         v.bitArray[i] = l.bitValue ^ r.bitArray[i];
                     return v;
                 }
-                throw BlochError(bin->line, bin->column, "Bitwise '^' requires bit or bit[] operands");
+                throw BlochError(bin->line, bin->column,
+                                 "Bitwise '^' requires bit or bit[] operands");
             }
         } else if (auto unary = dynamic_cast<UnaryExpression*>(e)) {
             Value r = eval(unary->right.get());
@@ -404,7 +421,9 @@ namespace bloch {
                 return {Value::Type::Int, -r.intValue};
             }
             if (unary->op == "!") {
-                if (r.type == Value::Type::BitArray) {throw BlochError(bin->line, bin->column, "Logical '!' unsupported for bit[]");}
+                if (r.type == Value::Type::BitArray) {
+                    throw BlochError(bin->line, bin->column, "Logical '!' unsupported for bit[]");
+                }
                 bool rb = r.type == Value::Type::Float
                               ? r.floatValue != 0.0
                               : (r.type == Value::Type::Bit ? r.bitValue != 0 : r.intValue != 0);
@@ -421,7 +440,8 @@ namespace bloch {
                         v.bitArray[i] = r.bitArray[i] ? 0 : 1;
                     return v;
                 }
-                throw BlochError(bin->line, bin->column, "Bitwise '~' requires bit or bit[] operand");
+                throw BlochError(bin->line, bin->column,
+                                 "Bitwise '~' requires bit or bit[] operand");
             }
             return r;
         } else if (auto post = dynamic_cast<PostfixExpression*>(e)) {

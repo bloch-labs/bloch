@@ -277,8 +277,7 @@ TEST(ParserTest, ParsePostIncrementAndDecrement) {
 }
 
 TEST(ParserTest, ParseLogicalAndBitwiseExpressions) {
-    const char* src =
-        "bit a = 1b && 0b || 1b; int b = 1 & 2 | 3 ^ 4; bit c = ~0b; bit d = !1b;";
+    const char* src = "bit a = 1b && 0b || 1b; int b = 1 & 2 | 3 ^ 4; bit c = ~0b; bit d = !1b;";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
@@ -316,6 +315,6 @@ TEST(ParserTest, ParseLogicalAndBitwiseExpressions) {
     auto* d = dynamic_cast<VariableDeclaration*>(program->statements[3].get());
     ASSERT_NE(d, nullptr);
     auto* unaryBang = dynamic_cast<UnaryExpression*>(d->initializer.get());
-   ASSERT_NE(unaryBang, nullptr);
-   EXPECT_EQ(unaryBang->op, "!");
+    ASSERT_NE(unaryBang, nullptr);
+    EXPECT_EQ(unaryBang->op, "!");
 }

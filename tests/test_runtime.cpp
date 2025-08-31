@@ -188,7 +188,8 @@ TEST(RuntimeTest, ResetClearsQubit) {
 
 TEST(RuntimeTest, LogicalAndBitwiseOperations) {
     const char* src =
-        "function main() -> void { echo(1b & 0b); echo(1b | 0b); echo(1b ^ 1b); echo(~0b); echo(!1b); echo(1b && 0b); echo(0b || 1b); }";
+        "function main() -> void { echo(1b & 0b); echo(1b | 0b); echo(1b ^ 1b); echo(~0b); "
+        "echo(!1b); echo(1b && 0b); echo(0b || 1b); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
@@ -212,5 +213,6 @@ TEST(RuntimeTest, BitArrayBitwiseOperations) {
     auto* oldBuf = std::cout.rdbuf(output.rdbuf());
     eval.execute(*program);
     std::cout.rdbuf(oldBuf);
-    EXPECT_EQ("{1b, 0b, 0b, 1b}\n{0b, 0b, 1b, 0b}\n{1b, 1b, 1b, 0b}\n{1b, 1b, 0b, 0b}\n", output.str());
+    EXPECT_EQ("{1b, 0b, 0b, 1b}\n{0b, 0b, 1b, 0b}\n{1b, 1b, 1b, 0b}\n{1b, 1b, 0b, 0b}\n",
+              output.str());
 }
