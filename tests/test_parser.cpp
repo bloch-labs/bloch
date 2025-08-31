@@ -275,3 +275,47 @@ TEST(ParserTest, ParsePostIncrementAndDecrement) {
     ASSERT_NE(dec, nullptr);
     EXPECT_EQ(dec->op, "--");
 }
+
+TEST(ParserTest, ParseLogicalAndBitwiseExpressions) {
+    const char* src =
+        "bit a = 1b && 0b || 1b; int b = 1 & 2 | 3 ^ 4; bit c = ~0b; bit d = !1b;";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 4u);
+
+    auto* a = dynamic_cast<VariableDeclaration*>(program->statements[0].get());
+    ASSERT_NE(a, nullptr);
+    auto* binOr = dynamic_cast<BinaryExpression*>(a->initializer.get());
+    ASSERT_NE(binOr, nullptr);
+    EXPECT_EQ(binOr->op, "||");
+    auto* leftAnd = dynamic_cast<BinaryExpression*>(binOr->left.get());
+    ASSERT_NE(leftAnd, nullptr);
+    EXPECT_EQ(leftAnd->op, "&&");
+
+    auto* b = dynamic_cast<VariableDeclaration*>(program->statements[1].get());
+    ASSERT_NE(b, nullptr);
+    auto* binOr2 = dynamic_cast<BinaryExpression*>(b->initializer.get());
+    ASSERT_NE(binOr2, nullptr);
+    EXPECT_EQ(binOr2->op, "|");
+    auto* leftAnd2 = dynamic_cast<BinaryExpression*>(binOr2->left.get());
+    ASSERT_NE(leftAnd2, nullptr);
+    EXPECT_EQ(leftAnd2->op, "&");
+    auto* rightXor = dynamic_cast<BinaryExpression*>(binOr2->right.get());
+    ASSERT_NE(rightXor, nullptr);
+    EXPECT_EQ(rightXor->op, "^");
+
+    auto* c = dynamic_cast<VariableDeclaration*>(program->statements[2].get());
+    ASSERT_NE(c, nullptr);
+    auto* unaryTilde = dynamic_cast<UnaryExpression*>(c->initializer.get());
+    ASSERT_NE(unaryTilde, nullptr);
+    EXPECT_EQ(unaryTilde->op, "~");
+
+    auto* d = dynamic_cast<VariableDeclaration*>(program->statements[3].get());
+    ASSERT_NE(d, nullptr);
+    auto* unaryBang = dynamic_cast<UnaryExpression*>(d->initializer.get());
+   ASSERT_NE(unaryBang, nullptr);
+   EXPECT_EQ(unaryBang->op, "!");
+}

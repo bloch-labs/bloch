@@ -97,6 +97,16 @@ namespace bloch {
             case '+':
                 return match('+') ? makeToken(TokenType::PlusPlus, "++")
                                   : makeToken(TokenType::Plus, "+");
+            case '&':
+                return match('&') ? makeToken(TokenType::AmpersandAmpersand, "&&")
+                                  : makeToken(TokenType::Ampersand, "&");
+            case '|':
+                return match('|') ? makeToken(TokenType::PipePipe, "||")
+                                  : makeToken(TokenType::Pipe, "|");
+            case '^':
+                return makeToken(TokenType::Caret, "^");
+            case '~':
+                return makeToken(TokenType::Tilde, "~");
             case '-':
                 if (match('>'))
                     return makeToken(TokenType::Arrow, "->");

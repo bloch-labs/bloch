@@ -35,6 +35,7 @@ namespace bloch {
         void visit(VariableExpression& node) override;
         void visit(CallExpression& node) override;
         void visit(IndexExpression& node) override;
+        void visit(ArrayLiteralExpression& node) override;
         void visit(ParenthesizedExpression& node) override;
         void visit(MeasureExpression& node) override;
         void visit(AssignmentExpression& node) override;

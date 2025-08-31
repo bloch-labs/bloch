@@ -185,3 +185,32 @@ TEST(RuntimeTest, ResetClearsQubit) {
     ASSERT_EQ(meas.size(), 1u);
     EXPECT_EQ(meas.begin()->second[0], 0);
 }
+
+TEST(RuntimeTest, LogicalAndBitwiseOperations) {
+    const char* src =
+        "function main() -> void { echo(1b & 0b); echo(1b | 0b); echo(1b ^ 1b); echo(~0b); echo(!1b); echo(1b && 0b); echo(0b || 1b); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("0\n1\n0\n1\n0\n0\n1\n", output.str());
+}
+
+TEST(RuntimeTest, BitArrayBitwiseOperations) {
+    const char* src =
+        "function main() -> void { bit[] a = {0b, 1b, 1b, 0b}; bit[] b = {1b, 0b, 1b, 0b}; "
+        "echo(~a); echo(a & b); echo(a | b); echo(a ^ b); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("{1b, 0b, 0b, 1b}\n{0b, 0b, 1b, 0b}\n{1b, 1b, 1b, 0b}\n{1b, 1b, 0b, 0b}\n", output.str());
+}

@@ -453,7 +453,7 @@ namespace bloch {
     std::unique_ptr<Expression> Parser::parseExpression() { return parseAssignmentExpression(); }
 
     std::unique_ptr<Expression> Parser::parseAssignmentExpression() {
-        auto expr = parseEquality();
+        auto expr = parseLogicalOr();
 
         if (match(TokenType::Equals)) {
             // Must be a variable on the left-hand side
@@ -469,6 +469,71 @@ namespace bloch {
             } else {
                 reportError("Invalid assignment target");
             }
+        }
+
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseLogicalOr() {
+        auto expr = parseLogicalAnd();
+
+        while (match(TokenType::PipePipe)) {
+            std::string op = previous().value;
+            auto right = parseLogicalAnd();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseLogicalAnd() {
+        auto expr = parseBitwiseOr();
+
+        while (match(TokenType::AmpersandAmpersand)) {
+            std::string op = previous().value;
+            auto right = parseBitwiseOr();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseBitwiseOr() {
+        auto expr = parseBitwiseXor();
+
+        while (match(TokenType::Pipe)) {
+            std::string op = previous().value;
+            auto right = parseBitwiseXor();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseBitwiseXor() {
+        auto expr = parseBitwiseAnd();
+
+        while (match(TokenType::Caret)) {
+            std::string op = previous().value;
+            auto right = parseBitwiseAnd();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseBitwiseAnd() {
+        auto expr = parseEquality();
+
+        while (match(TokenType::Ampersand)) {
+            std::string op = previous().value;
+            auto right = parseEquality();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
         }
 
         return expr;
@@ -528,7 +593,7 @@ namespace bloch {
     }
 
     std::unique_ptr<Expression> Parser::parseUnary() {
-        if (match(TokenType::Minus)) {
+        if (match(TokenType::Minus) || match(TokenType::Bang) || match(TokenType::Tilde)) {
             std::string op = previous().value;
             auto right = parseUnary();
             return std::make_unique<UnaryExpression>(UnaryExpression{op, std::move(right)});
@@ -605,6 +670,14 @@ namespace bloch {
             return expr;
         }
 
+        if (match(TokenType::LBrace)) {
+            auto start = previous();
+            auto expr = parseArrayLiteral();
+            expr->line = start.line;
+            expr->column = start.column;
+            return expr;
+        }
+
         if (match(TokenType::LParen)) {
             auto expr = parseExpression();
             (void)expect(TokenType::RParen, "Expected ')' after expression");
@@ -614,6 +687,17 @@ namespace bloch {
 
         reportError("Expected expression");
         return nullptr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseArrayLiteral() {
+        std::vector<std::unique_ptr<Expression>> elements;
+        if (!check(TokenType::RBrace)) {
+            do {
+                elements.push_back(parseExpression());
+            } while (match(TokenType::Comma));
+        }
+        (void)expect(TokenType::RBrace, "Expected '}' after array literal");
+        return std::make_unique<ArrayLiteralExpression>(std::move(elements));
     }
 
     // Literals

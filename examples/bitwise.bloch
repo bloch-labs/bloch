@@ -1,0 +1,8 @@
+function main() -> void { 
+    bit[] a = {0b, 1b, 1b, 0b}; 
+    bit[] b = {1b, 0b, 1b, 0b};
+    echo(~a); 
+    echo(a & b); 
+    echo(a | b); 
+    echo(a ^ b); 
+}

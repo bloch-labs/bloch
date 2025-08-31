@@ -15,6 +15,15 @@ namespace bloch {
                 return oss.str();
             case Value::Type::Bit:
                 return std::to_string(v.bitValue);
+            case Value::Type::BitArray:
+                oss << "{";
+                for (size_t i = 0; i < v.bitArray.size(); ++i) {
+                    if (i)
+                        oss << ", ";
+                    oss << v.bitArray[i] << 'b';
+                }
+                oss << "}";
+                return oss.str();
             case Value::Type::Int:
                 return std::to_string(v.intValue);
             default:
@@ -95,6 +104,11 @@ namespace bloch {
                 else if (prim->name == "qubit") {
                     v.type = Value::Type::Qubit;
                     v.qubit = allocateTrackedQubit(var->name);
+                }
+            } else if (auto arr = dynamic_cast<ArrayType*>(var->varType.get())) {
+                if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
+                    if (elem->name == "bit")
+                        v.type = Value::Type::BitArray;
                 }
             }
             bool initialized = false;
@@ -201,6 +215,15 @@ namespace bloch {
             return v;
         } else if (auto var = dynamic_cast<VariableExpression*>(e)) {
             return lookup(var->name);
+        } else if (auto arr = dynamic_cast<ArrayLiteralExpression*>(e)) {
+            Value v;
+            v.type = Value::Type::BitArray;
+            for (auto& el : arr->elements) {
+                Value ev = eval(el.get());
+                if (ev.type != Value::Type::Bit) {throw BlochError(arr->line, arr->column, "Array literals only support bit elements");}
+                v.bitArray.push_back(ev.bitValue ? 1 : 0);
+            }
+            return v;
         } else if (auto bin = dynamic_cast<BinaryExpression*>(e)) {
             Value l = eval(bin->left.get());
             Value r = eval(bin->right.get());
@@ -229,7 +252,7 @@ namespace bloch {
             }
             if (bin->op == "/") {
                 if (rNum == 0) {
-                    throw std::runtime_error("Division by zero in expression evaluation");
+                    throw BlochError(bin->line, bin->column, "Division by zero in expression evaluation");
                 }
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float) {
                     return {Value::Type::Float, 0, lNum / rNum};
@@ -238,7 +261,7 @@ namespace bloch {
             }
             if (bin->op == "%") {
                 if (rInt == 0) {
-                    throw std::runtime_error("Modulo by zero in expression evaluation");
+                    throw BlochError(bin->line, bin->column, "Modulo by zero in expression evaluation");
                 }
                 return {Value::Type::Int, lInt % rInt};
             }
@@ -273,12 +296,132 @@ namespace bloch {
                     return {Value::Type::Bit, 0, 0.0, lNum != rNum};
                 return {Value::Type::Bit, 0, 0.0, lInt != rInt};
             }
+            if (bin->op == "&&") {
+                bool lb = l.type == Value::Type::Float ? lNum != 0.0 : lInt != 0;
+                bool rb = r.type == Value::Type::Float ? rNum != 0.0 : rInt != 0;
+                return {Value::Type::Bit, 0, 0.0, lb && rb};
+            }
+            if (bin->op == "||") {
+                bool lb = l.type == Value::Type::Float ? lNum != 0.0 : lInt != 0;
+                bool rb = r.type == Value::Type::Float ? rNum != 0.0 : rInt != 0;
+                return {Value::Type::Bit, 0, 0.0, lb || rb};
+            }
+            if (bin->op == "&") {
+                if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
+                    return {Value::Type::Bit, 0, 0.0, l.bitValue & r.bitValue};
+                if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
+                    if (l.bitArray.size() != r.bitArray.size()) {throw BlochError(bin->line, bin->column, "Bit arrays must be same length for '&'");}
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(l.bitArray.size());
+                    for (size_t i = 0; i < l.bitArray.size(); ++i)
+                        v.bitArray[i] = l.bitArray[i] & r.bitArray[i];
+                    return v;
+                }
+                if (l.type == Value::Type::BitArray && r.type == Value::Type::Bit) {
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(l.bitArray.size());
+                    for (size_t i = 0; i < l.bitArray.size(); ++i)
+                        v.bitArray[i] = l.bitArray[i] & r.bitValue;
+                    return v;
+                }
+                if (l.type == Value::Type::Bit && r.type == Value::Type::BitArray) {
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(r.bitArray.size());
+                    for (size_t i = 0; i < r.bitArray.size(); ++i)
+                        v.bitArray[i] = l.bitValue & r.bitArray[i];
+                    return v;
+                }
+                throw BlochError(bin->line, bin->column, "Bitwise '&' requires bit or bit[] operands");
+            }
+            if (bin->op == "|") {
+                if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
+                    return {Value::Type::Bit, 0, 0.0, l.bitValue | r.bitValue};
+                if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
+                    if (l.bitArray.size() != r.bitArray.size()) {throw BlochError(bin->line, bin->column, "Bit arrays must be same length for '|'");}
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(l.bitArray.size());
+                    for (size_t i = 0; i < l.bitArray.size(); ++i)
+                        v.bitArray[i] = l.bitArray[i] | r.bitArray[i];
+                    return v;
+                }
+                if (l.type == Value::Type::BitArray && r.type == Value::Type::Bit) {
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(l.bitArray.size());
+                    for (size_t i = 0; i < l.bitArray.size(); ++i)
+                        v.bitArray[i] = l.bitArray[i] | r.bitValue;
+                    return v;
+                }
+                if (l.type == Value::Type::Bit && r.type == Value::Type::BitArray) {
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(r.bitArray.size());
+                    for (size_t i = 0; i < r.bitArray.size(); ++i)
+                        v.bitArray[i] = l.bitValue | r.bitArray[i];
+                    return v;
+                }
+                throw BlochError(bin->line, bin->column, "Bitwise '|' requires bit or bit[] operands");
+            }
+            if (bin->op == "^") {
+                if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
+                    return {Value::Type::Bit, 0, 0.0, l.bitValue ^ r.bitValue};
+                if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
+                    if (l.bitArray.size() != r.bitArray.size()) {throw BlochError(bin->line, bin->column, "Bit arrays must be same length for '^'");}
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(l.bitArray.size());
+                    for (size_t i = 0; i < l.bitArray.size(); ++i)
+                        v.bitArray[i] = l.bitArray[i] ^ r.bitArray[i];
+                    return v;
+                }
+                if (l.type == Value::Type::BitArray && r.type == Value::Type::Bit) {
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(l.bitArray.size());
+                    for (size_t i = 0; i < l.bitArray.size(); ++i)
+                        v.bitArray[i] = l.bitArray[i] ^ r.bitValue;
+                    return v;
+                }
+                if (l.type == Value::Type::Bit && r.type == Value::Type::BitArray) {
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(r.bitArray.size());
+                    for (size_t i = 0; i < r.bitArray.size(); ++i)
+                        v.bitArray[i] = l.bitValue ^ r.bitArray[i];
+                    return v;
+                }
+                throw BlochError(bin->line, bin->column, "Bitwise '^' requires bit or bit[] operands");
+            }
         } else if (auto unary = dynamic_cast<UnaryExpression*>(e)) {
             Value r = eval(unary->right.get());
             if (unary->op == "-") {
                 if (r.type == Value::Type::Float)
                     return {Value::Type::Float, 0, -r.floatValue};
                 return {Value::Type::Int, -r.intValue};
+            }
+            if (unary->op == "!") {
+                if (r.type == Value::Type::BitArray) {throw BlochError(bin->line, bin->column, "Logical '!' unsupported for bit[]");}
+                bool rb = r.type == Value::Type::Float
+                              ? r.floatValue != 0.0
+                              : (r.type == Value::Type::Bit ? r.bitValue != 0 : r.intValue != 0);
+                return {Value::Type::Bit, 0, 0.0, !rb};
+            }
+            if (unary->op == "~") {
+                if (r.type == Value::Type::Bit)
+                    return {Value::Type::Bit, 0, 0.0, r.bitValue ? 0 : 1};
+                if (r.type == Value::Type::BitArray) {
+                    Value v;
+                    v.type = Value::Type::BitArray;
+                    v.bitArray.resize(r.bitArray.size());
+                    for (size_t i = 0; i < r.bitArray.size(); ++i)
+                        v.bitArray[i] = r.bitArray[i] ? 0 : 1;
+                    return v;
+                }
+                throw BlochError(bin->line, bin->column, "Bitwise '~' requires bit or bit[] operand");
             }
             return r;
         } else if (auto post = dynamic_cast<PostfixExpression*>(e)) {
