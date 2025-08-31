@@ -128,7 +128,7 @@ namespace bloch {
 
     // Assignment
     struct AssignmentStatement : public Statement {
-        std::string name;
+        std::unique_ptr<Expression> target;
         std::unique_ptr<Expression> value;
 
         AssignmentStatement() = default;
@@ -232,11 +232,12 @@ namespace bloch {
 
     // Assignment Expression
     struct AssignmentExpression : public Expression {
-        std::string name;
+        std::unique_ptr<Expression> target;
         std::unique_ptr<Expression> value;
 
-        AssignmentExpression(std::string name, std::unique_ptr<Expression> value)
-            : name(std::move(name)), value(std::move(value)) {}
+        AssignmentExpression(std::unique_ptr<Expression> target, std::unique_ptr<Expression> value)
+            : target(std::move(target)), value(std::move(value)) {}
+
         void accept(ASTVisitor& visitor) override;
     };
 
@@ -250,8 +251,10 @@ namespace bloch {
 
     struct ArrayType : public Type {
         std::unique_ptr<Type> elementType;
+        int size = -1;  // -1 indicates and unspecified size at runtime
 
-        ArrayType(std::unique_ptr<Type> elementType) : elementType(std::move(elementType)) {}
+        ArrayType(std::unique_ptr<Type> elementType, int size = -1)
+            : elementType(std::move(elementType)), size(size) {}
         void accept(ASTVisitor& visitor) override;
     };
 

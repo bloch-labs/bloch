@@ -15,12 +15,13 @@ namespace bloch {
                 return oss.str();
             case Value::Type::Bit:
                 return std::to_string(v.bitValue);
-            case Value::Type::BitArray:
+            case Value::Type::Array:
                 oss << "{";
-                for (size_t i = 0; i < v.bitArray.size(); ++i) {
-                    if (i)
+                for (size_t i = 0; i < v.array.size(); ++i) {
+                    if (i) {
                         oss << ", ";
-                    oss << v.bitArray[i] << 'b';
+                    }
+                    oss << valueToString(v.array[i]);
                 }
                 oss << "}";
                 return oss.str();
@@ -107,12 +108,45 @@ namespace bloch {
                 }
             } else if (auto arr = dynamic_cast<ArrayType*>(var->varType.get())) {
                 if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
-                    if (elem->name == "bit")
-                        v.type = Value::Type::BitArray;
+                    v.type = Value::Type::Array;
+                    if (elem->name == "int")
+                        v.arrayElementType = Value::Type::Int;
+                    else if (elem->name == "bit")
+                        v.arrayElementType = Value::Type::Bit;
+                    else if (elem->name == "float")
+                        v.arrayElementType = Value::Type::Float;
+                    else if (elem->name == "string")
+                        v.arrayElementType = Value::Type::String;
+                    else if (elem->name == "qubit")
+                        v.arrayElementType = Value::Type::Qubit;
+                    if (arr->size >= 0) {
+                        for (int i = 0; i < arr->size; ++i) {
+                            Value ev;
+                            ev.type = v.arrayElementType;
+                            if (ev.type == Value::Type::Int)
+                                ev.intValue = 0;
+                            else if (ev.type == Value::Type::Bit)
+                                ev.bitValue = 0;
+                            else if (ev.type == Value::Type::Float)
+                                ev.floatValue = 0.0;
+                            else if (ev.type == Value::Type::String)
+                                ev.stringValue = "";
+                            else if (ev.type == Value::Type::Qubit)
+                                ev.qubit =
+                                    allocateTrackedQubit(var->name + "[" + std::to_string(i) + "]");
+                            v.array.push_back(ev);
+                        }
+                    }
                 }
             }
-            bool initialized = false;
+            // arrays considered initialized
+            bool initialized = v.type == Value::Type::Array;
             if (var->initializer) {
+                if (v.type == Value::Type::Array && v.arrayElementType == Value::Type::Qubit) {
+                    throw BlochError(var->line, var->column,
+                                     "Qubit arrays cannot be initialised. All qubits in the array "
+                                     "will initialiase to '|0>'");
+                }
                 v = eval(var->initializer.get());
                 initialized = true;
             }
@@ -187,7 +221,33 @@ namespace bloch {
             markMeasured(q.qubit);
         } else if (auto assignStmt = dynamic_cast<AssignmentStatement*>(s)) {
             Value val = eval(assignStmt->value.get());
-            assign(assignStmt->name, val);
+            if (auto var = dynamic_cast<VariableExpression*>(assignStmt->target.get())) {
+                assign(var->name, val);
+            } else if (auto idxTarget = dynamic_cast<IndexExpression*>(assignStmt->target.get())) {
+                auto collVar = dynamic_cast<VariableExpression*>(idxTarget->collection.get());
+                if (!collVar)
+                    throw BlochError(assignStmt->line, assignStmt->column,
+                                     "Invalid assignment target");
+                Value idxv = eval(idxTarget->index.get());
+                int i = idxv.type == Value::Type::Bit ? idxv.bitValue : idxv.intValue;
+                for (auto it = m_env.rbegin(); it != m_env.rend(); ++it) {
+                    auto fit = it->find(collVar->name);
+                    if (fit != it->end()) {
+                        if (fit->second.value.type != Value::Type::Array) {
+                            throw BlochError(assignStmt->line, assignStmt->column,
+                                             "Indexing requires array");
+                        }
+                        auto& arr = fit->second.value.array;
+                        if (i < 0 || i >= static_cast<int>(arr.size())) {
+                            throw BlochError(assignStmt->line, assignStmt->column,
+                                             "Array index out of bounds");
+                        }
+                        arr[i] = val;
+                        fit->second.initialized = true;
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -217,14 +277,22 @@ namespace bloch {
             return lookup(var->name);
         } else if (auto arr = dynamic_cast<ArrayLiteralExpression*>(e)) {
             Value v;
-            v.type = Value::Type::BitArray;
-            for (auto& el : arr->elements) {
-                Value ev = eval(el.get());
-                if (ev.type != Value::Type::Bit) {
-                    throw BlochError(arr->line, arr->column,
-                                     "Array literals only support bit elements");
+            v.type = Value::Type::Array;
+            if (!arr->elements.empty()) {
+                Value first = eval(arr->elements[0].get());
+                if (first.type == Value::Type::Qubit) {
+                    throw BlochError(arr->line, arr->column, "Qubit arrays cannot be initialised");
                 }
-                v.bitArray.push_back(ev.bitValue ? 1 : 0);
+                v.arrayElementType = first.type;
+                v.array.push_back(first);
+                for (size_t i = 1; i < arr->elements.size(); ++i) {
+                    Value ev = eval(arr->elements[i].get());
+                    if (ev.type != first.type) {
+                        throw BlochError(arr->line, arr->column,
+                                         "Array literal elements must have same type");
+                    }
+                    v.array.push_back(ev);
+                }
             }
             return v;
         } else if (auto bin = dynamic_cast<BinaryExpression*>(e)) {
@@ -314,32 +382,42 @@ namespace bloch {
             if (bin->op == "&") {
                 if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
                     return {Value::Type::Bit, 0, 0.0, l.bitValue & r.bitValue};
-                if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
-                    if (l.bitArray.size() != r.bitArray.size()) {
+                if (l.type == Value::Type::Array && r.type == Value::Type::Array &&
+                    l.arrayElementType == Value::Type::Bit &&
+                    r.arrayElementType == Value::Type::Bit) {
+                    if (l.array.size() != r.array.size()) {
                         throw BlochError(bin->line, bin->column,
                                          "Bit arrays must be same length for '&'");
                     }
                     Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(l.bitArray.size());
-                    for (size_t i = 0; i < l.bitArray.size(); ++i)
-                        v.bitArray[i] = l.bitArray[i] & r.bitArray[i];
+                    v.type = Value::Type::Array;
+                    v.arrayElementType = Value::Type::Bit;
+                    v.array.resize(l.array.size());
+                    for (size_t i = 0; i < l.array.size(); ++i)
+                        v.array[i].type = Value::Type::Bit,
+                        v.array[i].bitValue = l.array[i].bitValue & r.array[i].bitValue;
                     return v;
                 }
-                if (l.type == Value::Type::BitArray && r.type == Value::Type::Bit) {
+                if (l.type == Value::Type::Array && l.arrayElementType == Value::Type::Bit &&
+                    r.type == Value::Type::Bit) {
                     Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(l.bitArray.size());
-                    for (size_t i = 0; i < l.bitArray.size(); ++i)
-                        v.bitArray[i] = l.bitArray[i] & r.bitValue;
+                    v.type = Value::Type::Array;
+                    v.arrayElementType = Value::Type::Bit;
+                    v.array.resize(l.array.size());
+                    for (size_t i = 0; i < l.array.size(); ++i)
+                        v.array[i].type = Value::Type::Bit,
+                        v.array[i].bitValue = l.array[i].bitValue & r.bitValue;
                     return v;
                 }
-                if (l.type == Value::Type::Bit && r.type == Value::Type::BitArray) {
+                if (l.type == Value::Type::Bit && r.type == Value::Type::Array &&
+                    r.arrayElementType == Value::Type::Bit) {
                     Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(r.bitArray.size());
-                    for (size_t i = 0; i < r.bitArray.size(); ++i)
-                        v.bitArray[i] = l.bitValue & r.bitArray[i];
+                    v.type = Value::Type::Array;
+                    v.arrayElementType = Value::Type::Bit;
+                    v.array.resize(r.array.size());
+                    for (size_t i = 0; i < r.array.size(); ++i)
+                        v.array[i].type = Value::Type::Bit,
+                        v.array[i].bitValue = l.bitValue & r.array[i].bitValue;
                     return v;
                 }
                 throw BlochError(bin->line, bin->column,
@@ -348,32 +426,42 @@ namespace bloch {
             if (bin->op == "|") {
                 if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
                     return {Value::Type::Bit, 0, 0.0, l.bitValue | r.bitValue};
-                if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
-                    if (l.bitArray.size() != r.bitArray.size()) {
+                if (l.type == Value::Type::Array && r.type == Value::Type::Array &&
+                    l.arrayElementType == Value::Type::Bit &&
+                    r.arrayElementType == Value::Type::Bit) {
+                    if (l.array.size() != r.array.size()) {
                         throw BlochError(bin->line, bin->column,
                                          "Bit arrays must be same length for '|'");
                     }
                     Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(l.bitArray.size());
-                    for (size_t i = 0; i < l.bitArray.size(); ++i)
-                        v.bitArray[i] = l.bitArray[i] | r.bitArray[i];
+                    v.type = Value::Type::Array;
+                    v.arrayElementType = Value::Type::Bit;
+                    v.array.resize(l.array.size());
+                    for (size_t i = 0; i < l.array.size(); ++i)
+                        v.array[i].type = Value::Type::Bit,
+                        v.array[i].bitValue = l.array[i].bitValue | r.array[i].bitValue;
                     return v;
                 }
-                if (l.type == Value::Type::BitArray && r.type == Value::Type::Bit) {
+                if (l.type == Value::Type::Array && l.arrayElementType == Value::Type::Bit &&
+                    r.type == Value::Type::Bit) {
                     Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(l.bitArray.size());
-                    for (size_t i = 0; i < l.bitArray.size(); ++i)
-                        v.bitArray[i] = l.bitArray[i] | r.bitValue;
+                    v.type = Value::Type::Array;
+                    v.arrayElementType = Value::Type::Bit;
+                    v.array.resize(l.array.size());
+                    for (size_t i = 0; i < l.array.size(); ++i)
+                        v.array[i].type = Value::Type::Bit,
+                        v.array[i].bitValue = l.array[i].bitValue | r.bitValue;
                     return v;
                 }
-                if (l.type == Value::Type::Bit && r.type == Value::Type::BitArray) {
+                if (l.type == Value::Type::Bit && r.type == Value::Type::Array &&
+                    r.arrayElementType == Value::Type::Bit) {
                     Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(r.bitArray.size());
-                    for (size_t i = 0; i < r.bitArray.size(); ++i)
-                        v.bitArray[i] = l.bitValue | r.bitArray[i];
+                    v.type = Value::Type::Array;
+                    v.arrayElementType = Value::Type::Bit;
+                    v.array.resize(r.array.size());
+                    for (size_t i = 0; i < r.array.size(); ++i)
+                        v.array[i].type = Value::Type::Bit,
+                        v.array[i].bitValue = l.bitValue | r.array[i].bitValue;
                     return v;
                 }
                 throw BlochError(bin->line, bin->column,
@@ -382,180 +470,236 @@ namespace bloch {
             if (bin->op == "^") {
                 if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
                     return {Value::Type::Bit, 0, 0.0, l.bitValue ^ r.bitValue};
-                if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
-                    if (l.bitArray.size() != r.bitArray.size()) {
-                        throw BlochError(bin->line, bin->column,
-                                         "Bit arrays must be same length for '^'");
+                if (l.type == Value::Type::Array && r.type == Value::Type::Array &&
+                    l.arrayElementType == Value::Type::Bit &&
+                    r.arrayElementType == Value::Type::Bit) {
+                    if (l.array.size() != r.array.size()) {
+                        {
+                            throw BlochError(bin->line, bin->column,
+                                             "Bit arrays must be same length for '^'");
+                        }
+                        Value v;
+                        v.type = Value::Type::Array;
+                        v.arrayElementType = Value::Type::Bit;
+                        v.array.resize(l.array.size());
+                        for (size_t i = 0; i < l.array.size(); ++i)
+                            v.array[i].type = Value::Type::Bit,
+                            v.array[i].bitValue = l.array[i].bitValue ^ r.array[i].bitValue;
+                        return v;
                     }
-                    Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(l.bitArray.size());
-                    for (size_t i = 0; i < l.bitArray.size(); ++i)
-                        v.bitArray[i] = l.bitArray[i] ^ r.bitArray[i];
-                    return v;
-                }
-                if (l.type == Value::Type::BitArray && r.type == Value::Type::Bit) {
-                    Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(l.bitArray.size());
-                    for (size_t i = 0; i < l.bitArray.size(); ++i)
-                        v.bitArray[i] = l.bitArray[i] ^ r.bitValue;
-                    return v;
-                }
-                if (l.type == Value::Type::Bit && r.type == Value::Type::BitArray) {
-                    Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(r.bitArray.size());
-                    for (size_t i = 0; i < r.bitArray.size(); ++i)
-                        v.bitArray[i] = l.bitValue ^ r.bitArray[i];
-                    return v;
-                }
-                throw BlochError(bin->line, bin->column,
-                                 "Bitwise '^' requires bit or bit[] operands");
-            }
-        } else if (auto unary = dynamic_cast<UnaryExpression*>(e)) {
-            Value r = eval(unary->right.get());
-            if (unary->op == "-") {
-                if (r.type == Value::Type::Float)
-                    return {Value::Type::Float, 0, -r.floatValue};
-                return {Value::Type::Int, -r.intValue};
-            }
-            if (unary->op == "!") {
-                if (r.type == Value::Type::BitArray) {
-                    throw BlochError(bin->line, bin->column, "Logical '!' unsupported for bit[]");
-                }
-                bool rb = r.type == Value::Type::Float
-                              ? r.floatValue != 0.0
-                              : (r.type == Value::Type::Bit ? r.bitValue != 0 : r.intValue != 0);
-                return {Value::Type::Bit, 0, 0.0, !rb};
-            }
-            if (unary->op == "~") {
-                if (r.type == Value::Type::Bit)
-                    return {Value::Type::Bit, 0, 0.0, r.bitValue ? 0 : 1};
-                if (r.type == Value::Type::BitArray) {
-                    Value v;
-                    v.type = Value::Type::BitArray;
-                    v.bitArray.resize(r.bitArray.size());
-                    for (size_t i = 0; i < r.bitArray.size(); ++i)
-                        v.bitArray[i] = r.bitArray[i] ? 0 : 1;
-                    return v;
-                }
-                throw BlochError(bin->line, bin->column,
-                                 "Bitwise '~' requires bit or bit[] operand");
-            }
-            return r;
-        } else if (auto post = dynamic_cast<PostfixExpression*>(e)) {
-            if (auto var = dynamic_cast<VariableExpression*>(post->left.get())) {
-                Value current = lookup(var->name);
-                Value updated = current;
-                if (post->op == "++") {
-                    if (current.type == Value::Type::Float)
-                        updated.floatValue += 1.0;
-                    else if (current.type == Value::Type::Int)
-                        updated.intValue += 1;
-                } else if (post->op == "--") {
-                    if (current.type == Value::Type::Float)
-                        updated.floatValue -= 1.0;
-                    else if (current.type == Value::Type::Int)
-                        updated.intValue -= 1;
-                }
-                assign(var->name, updated);
-                return current;
-            }
-            return {};
-        } else if (auto callExpr = dynamic_cast<CallExpression*>(e)) {
-            if (auto var = dynamic_cast<VariableExpression*>(callExpr->callee.get())) {
-                auto name = var->name;
-                auto builtin = builtInGates.find(name);
-                std::vector<Value> args;
-                for (auto& a : callExpr->arguments) args.push_back(eval(a.get()));
-                if (builtin != builtInGates.end()) {
-                    if (name == "h")
-                        m_sim.h(args[0].qubit);
-                    else if (name == "x")
-                        m_sim.x(args[0].qubit);
-                    else if (name == "y")
-                        m_sim.y(args[0].qubit);
-                    else if (name == "z")
-                        m_sim.z(args[0].qubit);
-                    else if (name == "rx")
-                        m_sim.rx(args[0].qubit, args[1].floatValue);
-                    else if (name == "ry")
-                        m_sim.ry(args[0].qubit, args[1].floatValue);
-                    else if (name == "rz")
-                        m_sim.rz(args[0].qubit, args[1].floatValue);
-                    else if (name == "cx")
-                        m_sim.cx(args[0].qubit, args[1].qubit);
-                    return {};  // void
-                }
-                auto fit = m_functions.find(name);
-                if (fit != m_functions.end()) {
-                    auto res = call(fit->second, args);
-                    if (fit->second->hasQuantumAnnotation && res.type == Value::Type::Bit) {
-                        m_measurements[e].push_back(res.bitValue);
+                    if (l.type == Value::Type::Array && l.arrayElementType == Value::Type::Bit &&
+                        r.type == Value::Type::Bit) {
+                        Value v;
+                        v.type = Value::Type::Array;
+                        v.arrayElementType = Value::Type::Bit;
+                        v.array.resize(l.array.size());
+                        for (size_t i = 0; i < l.array.size(); ++i)
+                            v.array[i].type = Value::Type::Bit,
+                            v.array[i].bitValue = l.array[i].bitValue ^ r.bitValue;
+                        return v;
                     }
-                    return res;
+                    if (l.type == Value::Type::Bit && r.type == Value::Type::Array &&
+                        r.arrayElementType == Value::Type::Bit) {
+                        Value v;
+                        v.type = Value::Type::Array;
+                        v.arrayElementType = Value::Type::Bit;
+                        v.array.resize(r.array.size());
+                        for (size_t i = 0; i < r.array.size(); ++i)
+                            v.array[i].type = Value::Type::Bit,
+                            v.array[i].bitValue = l.bitValue ^ r.array[i].bitValue;
+                        return v;
+                    }
+                    throw BlochError(bin->line, bin->column,
+                                     "Bitwise '^' requires bit or bit[] operands");
                 }
+            } else if (auto unary = dynamic_cast<UnaryExpression*>(e)) {
+                Value r = eval(unary->right.get());
+                if (unary->op == "-") {
+                    if (r.type == Value::Type::Float)
+                        return {Value::Type::Float, 0, -r.floatValue};
+                    return {Value::Type::Int, -r.intValue};
+                }
+                if (unary->op == "!") {
+                    if (r.type == Value::Type::Array) {
+                        throw BlochError(unary->line, unary->column,
+                                         "Logical '!' unsupported for arrays");
+                    }
+                    bool rb =
+                        r.type == Value::Type::Float
+                            ? r.floatValue != 0.0
+                            : (r.type == Value::Type::Bit ? r.bitValue != 0 : r.intValue != 0);
+                    return {Value::Type::Bit, 0, 0.0, !rb};
+                }
+                if (unary->op == "~") {
+                    if (r.type == Value::Type::Bit)
+                        return {Value::Type::Bit, 0, 0.0, r.bitValue ? 0 : 1};
+                    if (r.type == Value::Type::Array && r.arrayElementType == Value::Type::Bit) {
+                        Value v;
+                        v.type = Value::Type::Array;
+                        v.arrayElementType = Value::Type::Bit;
+                        v.array.resize(r.array.size());
+                        for (size_t i = 0; i < r.array.size(); ++i) {
+                            v.array[i].type = Value::Type::Bit;
+                            v.array[i].bitValue = r.array[i].bitValue ? 0 : 1;
+                        }
+                        return v;
+                    }
+                    throw BlochError(unary->line, unary->column,
+                                     "Bitwise '~' requires bit or bit[] operand");
+                }
+                return r;
+            } else if (auto post = dynamic_cast<PostfixExpression*>(e)) {
+                if (auto var = dynamic_cast<VariableExpression*>(post->left.get())) {
+                    Value current = lookup(var->name);
+                    Value updated = current;
+                    if (post->op == "++") {
+                        if (current.type == Value::Type::Float)
+                            updated.floatValue += 1.0;
+                        else if (current.type == Value::Type::Int)
+                            updated.intValue += 1;
+                    } else if (post->op == "--") {
+                        if (current.type == Value::Type::Float)
+                            updated.floatValue -= 1.0;
+                        else if (current.type == Value::Type::Int)
+                            updated.intValue -= 1;
+                    }
+                    assign(var->name, updated);
+                    return current;
+                }
+                return {};
+            } else if (auto callExpr = dynamic_cast<CallExpression*>(e)) {
+                if (auto var = dynamic_cast<VariableExpression*>(callExpr->callee.get())) {
+                    auto name = var->name;
+                    auto builtin = builtInGates.find(name);
+                    std::vector<Value> args;
+                    for (auto& a : callExpr->arguments) args.push_back(eval(a.get()));
+                    if (builtin != builtInGates.end()) {
+                        if (name == "h")
+                            m_sim.h(args[0].qubit);
+                        else if (name == "x")
+                            m_sim.x(args[0].qubit);
+                        else if (name == "y")
+                            m_sim.y(args[0].qubit);
+                        else if (name == "z")
+                            m_sim.z(args[0].qubit);
+                        else if (name == "rx")
+                            m_sim.rx(args[0].qubit, args[1].floatValue);
+                        else if (name == "ry")
+                            m_sim.ry(args[0].qubit, args[1].floatValue);
+                        else if (name == "rz")
+                            m_sim.rz(args[0].qubit, args[1].floatValue);
+                        else if (name == "cx")
+                            m_sim.cx(args[0].qubit, args[1].qubit);
+                        return {};  // void
+                    }
+                    auto fit = m_functions.find(name);
+                    if (fit != m_functions.end()) {
+                        auto res = call(fit->second, args);
+                        if (fit->second->hasQuantumAnnotation && res.type == Value::Type::Bit) {
+                            m_measurements[e].push_back(res.bitValue);
+                        }
+                        return res;
+                    }
+                }
+            } else if (auto index = dynamic_cast<IndexExpression*>(e)) {
+                Value coll = eval(index->collection.get());
+                Value idxv = eval(index->index.get());
+                int i = idxv.type == Value::Type::Bit ? idxv.bitValue : idxv.intValue;
+                if (coll.type != Value::Type::Array) {
+                    throw BlochError(index->line, index->column, "Indexing requires array");
+                }
+                if (i < 0 || i >= static_cast<int>(coll.array.size())) {
+                    throw BlochError(index->line, index->column, "Array index out of bounds");
+                }
+                return coll.array[i];
+            } else if (auto meas = dynamic_cast<MeasureExpression*>(e)) {
+                Value q = eval(meas->qubit.get());
+                int bit = m_sim.measure(q.qubit);
+                markMeasured(q.qubit);
+                m_measurements[e].push_back(bit);
+                return {Value::Type::Bit, 0, 0.0, bit};
+            } else if (auto assignExpr = dynamic_cast<AssignmentExpression*>(e)) {
+                Value v = eval(assignExpr->value.get());
+                if (auto var = dynamic_cast<VariableExpression*>(assignExpr->target.get())) {
+                    assign(var->name, v);
+                } else if (auto idxTarget =
+                               dynamic_cast<IndexExpression*>(assignExpr->target.get())) {
+                    auto collVar = dynamic_cast<VariableExpression*>(idxTarget->collection.get());
+                    if (!collVar)
+                        throw BlochError(assignExpr->line, assignExpr->column,
+                                         "Invalid assignment target");
+                    Value idxv = eval(idxTarget->index.get());
+                    int i = idxv.type == Value::Type::Bit ? idxv.bitValue : idxv.intValue;
+                    for (auto it = m_env.rbegin(); it != m_env.rend(); ++it) {
+                        auto fit = it->find(collVar->name);
+                        if (fit != it->end()) {
+                            if (fit->second.value.type != Value::Type::Array) {
+                                throw BlochError(assignExpr->line, assignExpr->column,
+                                                 "Indexing requires array");
+                            }
+                            auto& arr = fit->second.value.array;
+                            if (i < 0 || i >= static_cast<int>(arr.size())) {
+                                throw BlochError(assignExpr->line, assignExpr->column,
+                                                 "Array index out of bounds");
+                            }
+                            arr[i] = v;
+                            fit->second.initialized = true;
+                            return v;
+                        }
+                    }
+                }
+                return v;
             }
-        } else if (auto idx = dynamic_cast<MeasureExpression*>(e)) {
-            Value q = eval(idx->qubit.get());
-            int bit = m_sim.measure(q.qubit);
-            markMeasured(q.qubit);
-            m_measurements[e].push_back(bit);
-            return {Value::Type::Bit, 0, 0.0, bit};
-        } else if (auto assignExpr = dynamic_cast<AssignmentExpression*>(e)) {
-            Value v = eval(assignExpr->value.get());
-            assign(assignExpr->name, v);
-            return v;
         }
+
         return {};
-    }
+        }
 
-    int RuntimeEvaluator::allocateTrackedQubit(const std::string& name) {
-        int idx = m_sim.allocateQubit();
-        m_qubits.push_back({name, false});
-        return idx;
-    }
+        int RuntimeEvaluator::allocateTrackedQubit(const std::string& name) {
+            int idx = m_sim.allocateQubit();
+            m_qubits.push_back({name, false});
+            return idx;
+        }
 
-    void RuntimeEvaluator::markMeasured(int index) {
-        if (index >= 0 && index < static_cast<int>(m_qubits.size()))
-            m_qubits[index].measured = true;
-    }
+        void RuntimeEvaluator::markMeasured(int index) {
+            if (index >= 0 && index < static_cast<int>(m_qubits.size()))
+                m_qubits[index].measured = true;
+        }
 
-    void RuntimeEvaluator::unmarkMeasured(int index) {
-        if (index >= 0 && index < static_cast<int>(m_qubits.size()))
-            m_qubits[index].measured = false;
-    }
+        void RuntimeEvaluator::unmarkMeasured(int index) {
+            if (index >= 0 && index < static_cast<int>(m_qubits.size()))
+                m_qubits[index].measured = false;
+        }
 
-    void RuntimeEvaluator::warnUnmeasured() const {
-        for (const auto& q : m_qubits) {
-            if (!q.measured) {
-                blochWarning(0, 0,
-                             "Qubit " + q.name +
-                                 " was left unmeasured. No classical value will be returned.");
+        void RuntimeEvaluator::warnUnmeasured() const {
+            for (const auto& q : m_qubits) {
+                if (!q.measured) {
+                    blochWarning(0, 0,
+                                 "Qubit " + q.name +
+                                     " was left unmeasured. No classical value will be returned.");
+                }
             }
         }
-    }
 
-    void RuntimeEvaluator::beginScope() { m_env.push_back({}); }
+        void RuntimeEvaluator::beginScope() { m_env.push_back({}); }
 
-    void RuntimeEvaluator::endScope() {
-        if (m_env.empty())
-            return;
-        for (auto& kv : m_env.back()) {
-            if (kv.second.tracked) {
-                std::string key =
-                    kv.second.initialized ? valueToString(kv.second.value) : "__unassigned__";
-                m_trackedCounts[kv.first][key]++;
+        void RuntimeEvaluator::endScope() {
+            if (m_env.empty())
+                return;
+            for (auto& kv : m_env.back()) {
+                if (kv.second.tracked) {
+                    std::string key =
+                        kv.second.initialized ? valueToString(kv.second.value) : "__unassigned__";
+                    m_trackedCounts[kv.first][key]++;
+                }
             }
+            m_env.pop_back();
         }
-        m_env.pop_back();
-    }
 
-    void RuntimeEvaluator::flushEchoes() {
-        for (const auto& line : m_echoBuffer) {
-            std::cout << line << std::endl;
+        void RuntimeEvaluator::flushEchoes() {
+            for (const auto& line : m_echoBuffer) {
+                std::cout << line << std::endl;
+            }
+            m_echoBuffer.clear();
         }
-        m_echoBuffer.clear();
     }
-}

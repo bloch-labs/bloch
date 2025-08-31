@@ -1,5 +1,6 @@
 #include <array>
 #include <cstdio>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -16,8 +17,13 @@ namespace {
         ofs << source;
         ofs.close();
 
+        std::string cmd;
+#ifdef BLOCH_BIN_PATH
+        cmd = std::string(BLOCH_BIN_PATH);
+#else
         fs::path blochBin = cwd.parent_path() / "bin" / "bloch";
-        std::string cmd = blochBin.string();
+        cmd = blochBin.string();
+#endif
         if (!options.empty())
             cmd += " " + options;
         cmd += " " + name + " 2>&1";
@@ -144,4 +150,19 @@ function main() -> void {
     std::string compact2 = output;
     compact2.erase(std::remove(compact2.begin(), compact2.end(), ' '), compact2.end());
     EXPECT_NE(compact2.find("1|3|1.000"), std::string::npos);
+}
+
+TEST(IntegrationTest, ArrayOperationsAndEcho) {
+    std::string src = R"(
+function main() -> void { 
+    bit[] a = {0b, 1b, 1b, 0b};
+    int[] b = {1,2,3};
+    echo(b[0]);
+    echo(b);
+    b[0] = b[0] + 1;
+    echo(b);
+}
+)";
+    std::string output = runBloch(src, "array_ops.bloch");
+    EXPECT_EQ("1\n{1, 2, 3}\n{2, 2, 3}\n", output);
 }

@@ -54,7 +54,6 @@ namespace bloch {
         [[nodiscard]] std::unique_ptr<EchoStatement> parseEcho();
         [[nodiscard]] std::unique_ptr<ResetStatement> parseReset();
         [[nodiscard]] std::unique_ptr<MeasureStatement> parseMeasure();
-        [[nodiscard]] std::unique_ptr<AssignmentStatement> parseAssignment();
         [[nodiscard]] std::unique_ptr<ExpressionStatement> parseExpressionStatement();
 
         // Expressions
@@ -80,7 +79,7 @@ namespace bloch {
         // Types
         [[nodiscard]] std::unique_ptr<Type> parseType();
         [[nodiscard]] std::unique_ptr<Type> parsePrimitiveType();
-        [[nodiscard]] std::unique_ptr<Type> parseArrayType(std::unique_ptr<Type> elementType);
+        [[nodiscard]] std::unique_ptr<Type> parseArrayType(std::unique_ptr<Type> elementType, int size);
 
         // Parameters and Arguments
         [[nodiscard]] std::vector<std::unique_ptr<Parameter>> parseParameterList();

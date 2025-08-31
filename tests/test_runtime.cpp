@@ -216,3 +216,17 @@ TEST(RuntimeTest, BitArrayBitwiseOperations) {
     EXPECT_EQ("{1b, 0b, 0b, 1b}\n{0b, 0b, 1b, 0b}\n{1b, 1b, 1b, 0b}\n{1b, 1b, 0b, 0b}\n",
               output.str());
 }
+
+TEST(RuntimeTest, IntArrayIndexing) {
+    const char* src =
+        "function main() -> void { int[] a = {1,2,3}; a[1] = 5; echo(a[0]); echo(a[1]); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("1\n5\n", output.str());
+}

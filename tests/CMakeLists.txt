@@ -14,4 +14,7 @@ target_link_libraries(bloch_tests
     bloch_lib
 )
 
+# Provide absolute path to the CLI binary for integration tests
+target_compile_definitions(bloch_tests PRIVATE BLOCH_BIN_PATH="${CMAKE_BINARY_DIR}/bin/bloch")
+
 add_test(NAME bloch_tests COMMAND bloch_tests)

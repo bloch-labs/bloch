@@ -120,12 +120,31 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(AssignmentStatement& node) {
-        if (!isDeclared(node.name)) {
-            throw BlochError(node.line, node.column, "Variable '" + node.name + "' not declared");
-        }
-        if (isFinal(node.name)) {
-            throw BlochError(node.line, node.column,
-                             "Cannot assign to final variable '" + node.name + "'");
+        if (node.target) {
+            if (auto var = dynamic_cast<VariableExpression*>(node.target.get())) {
+                if (!isDeclared(var->name)) {
+                    throw BlochError(node.line, node.column,
+                                     "Variable '" + var->name + "' not declared");
+                }
+                if (isFinal(var->name)) {
+                    throw BlochError(node.line, node.column,
+                                     "Cannot assign to final variable '" + var->name + "'");
+                }
+            } else if (auto idx = dynamic_cast<IndexExpression*>(node.target.get())) {
+                if (auto collVar = dynamic_cast<VariableExpression*>(idx->collection.get())) {
+                    if (!isDeclared(collVar->name)) {
+                        throw BlochError(node.line, node.column,
+                                         "Variable '" + collVar->name + "' not declared");
+                    }
+                    if (isFinal(collVar->name)) {
+                        throw BlochError(node.line, node.column,
+                                         "Cannot assign to final variable '" + collVar->name + "'");
+                    }
+                }
+                idx->accept(*this);
+            } else {
+                throw BlochError(node.line, node.column, "Invalid assignment target");
+            }
         }
         if (node.value) {
             if (auto call = dynamic_cast<CallExpression*>(node.value.get())) {
@@ -251,12 +270,31 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(AssignmentExpression& node) {
-        if (!isDeclared(node.name)) {
-            throw BlochError(node.line, node.column, "Variable '" + node.name + "' not declared");
-        }
-        if (isFinal(node.name)) {
-            throw BlochError(node.line, node.column,
-                             "Cannot assign to final variable '" + node.name + "'");
+        if (node.target) {
+            if (auto var = dynamic_cast<VariableExpression*>(node.target.get())) {
+                if (!isDeclared(var->name)) {
+                    throw BlochError(node.line, node.column,
+                                     "Variable '" + var->name + "' not declared");
+                }
+                if (isFinal(var->name)) {
+                    throw BlochError(node.line, node.column,
+                                     "Cannot assign to final variable '" + var->name + "'");
+                }
+            } else if (auto idx = dynamic_cast<IndexExpression*>(node.target.get())) {
+                if (auto collVar = dynamic_cast<VariableExpression*>(idx->collection.get())) {
+                    if (!isDeclared(collVar->name)) {
+                        throw BlochError(node.line, node.column,
+                                         "Variable '" + collVar->name + "' not declared");
+                    }
+                    if (isFinal(collVar->name)) {
+                        throw BlochError(node.line, node.column,
+                                         "Cannot assign to final variable '" + collVar->name + "'");
+                    }
+                }
+                idx->accept(*this);
+            } else {
+                throw BlochError(node.line, node.column, "Invalid assignment target");
+            }
         }
         if (node.value) {
             if (auto call = dynamic_cast<CallExpression*>(node.value.get())) {
