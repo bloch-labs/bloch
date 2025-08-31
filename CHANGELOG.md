@@ -31,6 +31,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #101: added inline multiple variable declaration for `qubit`
 - #104: added `--shots` CLI option and `@tracked` annotation
 - #103: added semantic checking to `++` and `--` operators
+- #54: added logical and bitwise operators
 
 ### Changed
 - #3: prefix private class members with `m_`

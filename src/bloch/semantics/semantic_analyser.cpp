@@ -226,6 +226,13 @@ namespace bloch {
         for (auto& arg : node.arguments) arg->accept(*this);
     }
 
+    void SemanticAnalyser::visit(ArrayLiteralExpression& node) {
+        for (auto& elem : node.elements) {
+            if (elem)
+                elem->accept(*this);
+        }
+    }
+
     void SemanticAnalyser::visit(IndexExpression& node) {
         if (node.collection)
             node.collection->accept(*this);

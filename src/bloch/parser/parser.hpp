@@ -60,6 +60,11 @@ namespace bloch {
         // Expressions
         [[nodiscard]] std::unique_ptr<Expression> parseExpression();
         [[nodiscard]] std::unique_ptr<Expression> parseAssignmentExpression();
+        [[nodiscard]] std::unique_ptr<Expression> parseLogicalOr();
+        [[nodiscard]] std::unique_ptr<Expression> parseLogicalAnd();
+        [[nodiscard]] std::unique_ptr<Expression> parseBitwiseOr();
+        [[nodiscard]] std::unique_ptr<Expression> parseBitwiseXor();
+        [[nodiscard]] std::unique_ptr<Expression> parseBitwiseAnd();
         [[nodiscard]] std::unique_ptr<Expression> parseEquality();
         [[nodiscard]] std::unique_ptr<Expression> parseComparison();
         [[nodiscard]] std::unique_ptr<Expression> parseAdditive();
@@ -67,6 +72,7 @@ namespace bloch {
         [[nodiscard]] std::unique_ptr<Expression> parseUnary();
         [[nodiscard]] std::unique_ptr<Expression> parseCall();
         [[nodiscard]] std::unique_ptr<Expression> parsePrimary();
+        [[nodiscard]] std::unique_ptr<Expression> parseArrayLiteral();
 
         // Literals
         [[nodiscard]] std::unique_ptr<Expression> parseLiteral();

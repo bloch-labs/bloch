@@ -38,17 +38,24 @@ assignment     = identifier "=" expression ";" ;
 expressionStatement = expression ";" ;
 
 expression            = assignmentExpression ;
-assignmentExpression  = comparison [ "=" assignmentExpression ] ;
+assignmentExpression  = logicalOr [ "=" assignmentExpression ] ;
+logicalOr             = logicalAnd { "||" logicalAnd } ;
+logicalAnd            = bitwiseOr { "&&" bitwiseOr } ;
+bitwiseOr             = bitwiseXor { "|" bitwiseXor } ;
+bitwiseXor            = bitwiseAnd { "^" bitwiseAnd } ;
+bitwiseAnd            = equality { "&" equality } ;
+equality              = comparison { ("==" | "!=") comparison } ;
 comparison            = additive { (">" | "<" | ">=" | "<=") additive } ;
 additive              = multiplicative { ("+" | "-") multiplicative } ;
 multiplicative        = unary { ("*" | "/" | "%") unary } ;
-unary                 = "-" unary | call ;
+unary                 = ("-" | "!" | "~") unary | call ;
 call                  = primary { "(" [ argumentList ] ")" } | "++" | "--" ;
 argumentList          = expression { "," expression } ;
 primary               = literal
                       | "measure" expression
                       | identifier
-                      | "(" expression ")" ;
+                      | "(" expression ")"
+                      | "{" [ expression { "," expression } ] "}" ;
 
 literal               = integerLiteral
                       | floatLiteral

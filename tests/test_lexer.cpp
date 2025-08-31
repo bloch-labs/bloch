@@ -135,3 +135,16 @@ TEST(LexerTest, IncrementDecrement) {
     EXPECT_EQ(tokens[2].type, TokenType::Identifier);
     EXPECT_EQ(tokens[3].type, TokenType::MinusMinus);
 }
+
+TEST(LexerTest, LogicalAndBitwiseOperators) {
+    Lexer lexer("&& || & | ^ ~ !");
+    auto tokens = lexer.tokenize();
+
+    EXPECT_EQ(tokens[0].type, TokenType::AmpersandAmpersand);
+    EXPECT_EQ(tokens[1].type, TokenType::PipePipe);
+    EXPECT_EQ(tokens[2].type, TokenType::Ampersand);
+    EXPECT_EQ(tokens[3].type, TokenType::Pipe);
+    EXPECT_EQ(tokens[4].type, TokenType::Caret);
+    EXPECT_EQ(tokens[5].type, TokenType::Tilde);
+    EXPECT_EQ(tokens[6].type, TokenType::Bang);
+}

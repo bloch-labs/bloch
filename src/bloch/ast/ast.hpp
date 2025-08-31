@@ -205,6 +205,15 @@ namespace bloch {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Array Literal Expression
+    struct ArrayLiteralExpression : public Expression {
+        std::vector<std::unique_ptr<Expression>> elements;
+
+        ArrayLiteralExpression(std::vector<std::unique_ptr<Expression>> elems)
+            : elements(std::move(elems)) {}
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Parenthesized Expression
     struct ParenthesizedExpression : public Expression {
         std::unique_ptr<Expression> expression;
@@ -319,6 +328,7 @@ namespace bloch {
         virtual void visit(VariableExpression& node) = 0;
         virtual void visit(CallExpression& node) = 0;
         virtual void visit(IndexExpression& node) = 0;
+        virtual void visit(ArrayLiteralExpression& node) = 0;
         virtual void visit(ParenthesizedExpression& node) = 0;
         virtual void visit(MeasureExpression& node) = 0;
         virtual void visit(AssignmentExpression& node) = 0;
@@ -353,6 +363,7 @@ namespace bloch {
     inline void VariableExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void CallExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void IndexExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void ArrayLiteralExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ParenthesizedExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MeasureExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AssignmentExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
