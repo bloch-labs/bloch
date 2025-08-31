@@ -269,6 +269,9 @@ namespace bloch {
         if (match(TokenType::Measure))
             return parseMeasure();
 
+        if (check(TokenType::Identifier) && checkNext(TokenType::Equals))
+            return parseAssignment();
+
         auto expr = parseExpression();
         if (match(TokenType::Question)) {
             auto thenBranch = parseStatement();
@@ -414,6 +417,25 @@ namespace bloch {
         auto stmt = std::make_unique<MeasureStatement>();
         stmt->qubit = parseExpression();
         (void)expect(TokenType::Semicolon, "Expected ';' after measure target");
+        return stmt;
+    }
+
+    // x = expr;
+    std::unique_ptr<AssignmentStatement> Parser::parseAssignment() {
+        if (!check(TokenType::Identifier)) {
+            reportError("Expected variable name in assignment");
+        }
+
+        const Token& nameToken = advance();
+        (void)expect(TokenType::Equals, "Expected '=' in assignment");
+
+        auto stmt = std::make_unique<AssignmentStatement>();
+        stmt->target = parseExpression();
+        stmt->line = nameToken.line;
+        stmt->column = nameToken.column;
+        stmt->value = parseExpression();
+
+        (void)expect(TokenType::Semicolon, "Expected ';' after assignment");
         return stmt;
     }
 
