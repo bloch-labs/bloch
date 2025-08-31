@@ -65,12 +65,13 @@ namespace bloch {
         }
         bool prevReturn = m_hasReturn;
         m_hasReturn = false;
-        if (fn->body)
+        if (fn->body) {
             for (auto& stmt : fn->body->statements) {
                 exec(stmt.get());
                 if (m_hasReturn)
                     break;
             }
+        }
         Value ret = m_returnValue;
         endScope();
         m_hasReturn = prevReturn;
@@ -162,8 +163,10 @@ namespace bloch {
             Value v = eval(echo->value.get());
             if (m_echoEnabled)
                 m_echoBuffer.push_back(valueToString(v));
-        } else if (dynamic_cast<ResetStatement*>(s)) {
-            // ignore
+        } else if (auto reset = dynamic_cast<ResetStatement*>(s)) {
+            Value q = eval(reset->target.get());
+            m_sim.reset(q.qubit);
+            unmarkMeasured(q.qubit);
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
             Value q = eval(meas->qubit.get());
             m_sim.measure(q.qubit);
@@ -354,6 +357,11 @@ namespace bloch {
     void RuntimeEvaluator::markMeasured(int index) {
         if (index >= 0 && index < static_cast<int>(m_qubits.size()))
             m_qubits[index].measured = true;
+    }
+
+    void RuntimeEvaluator::unmarkMeasured(int index) {
+        if (index >= 0 && index < static_cast<int>(m_qubits.size()))
+            m_qubits[index].measured = false;
     }
 
     void RuntimeEvaluator::warnUnmeasured() const {

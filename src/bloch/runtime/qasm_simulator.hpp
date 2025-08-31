@@ -18,6 +18,7 @@ namespace bloch {
         void ry(int q, double theta);
         void rz(int q, double theta);
         void cx(int control, int target);
+        void reset(int q);
         int measure(int q);
         std::string getQasm() const;
 

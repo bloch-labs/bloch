@@ -97,6 +97,22 @@ namespace bloch {
         m_ops += "cx q[" + std::to_string(control) + "],q[" + std::to_string(target) + "];\n";
     }
 
+    void QasmSimulator::reset(int q) {
+        size_t bit = size_t{1} << q;
+        double norm = 0.0;
+        for (size_t i = 0; i < m_state.size(); ++i) {
+            if (!(i & bit))
+                norm += std::norm(m_state[i]);
+            else
+                m_state[i] = 0;
+        }
+        norm = std::sqrt(norm);
+        for (size_t i = 0; i < m_state.size(); ++i)
+            if (!(i & bit))
+                m_state[i] /= norm;
+        m_ops += "reset q[" + std::to_string(q) + "];\n";
+    }
+
     int QasmSimulator::measure(int q) {
         size_t bit = size_t{1} << q;
         double p1 = 0;

@@ -172,3 +172,16 @@ TEST(RuntimeTest, UninitializedTrackedVariable) {
     const auto& counts = eval.trackedCounts();
     ASSERT_EQ(counts.at("x").at("__unassigned__"), 1);
 }
+
+TEST(RuntimeTest, ResetClearsQubit) {
+    const char* src =
+        "@quantum function main() -> bit { qubit q; x(q); reset q; bit r = measure q; return r; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    const auto& meas = eval.measurements();
+    ASSERT_EQ(meas.size(), 1u);
+    EXPECT_EQ(meas.begin()->second[0], 0);
+}
