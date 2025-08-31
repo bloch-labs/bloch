@@ -653,53 +653,53 @@ namespace bloch {
         }
 
         return {};
-        }
+    }
 
-        int RuntimeEvaluator::allocateTrackedQubit(const std::string& name) {
-            int idx = m_sim.allocateQubit();
-            m_qubits.push_back({name, false});
-            return idx;
-        }
+    int RuntimeEvaluator::allocateTrackedQubit(const std::string& name) {
+        int idx = m_sim.allocateQubit();
+        m_qubits.push_back({name, false});
+        return idx;
+    }
 
-        void RuntimeEvaluator::markMeasured(int index) {
-            if (index >= 0 && index < static_cast<int>(m_qubits.size()))
-                m_qubits[index].measured = true;
-        }
+    void RuntimeEvaluator::markMeasured(int index) {
+        if (index >= 0 && index < static_cast<int>(m_qubits.size()))
+            m_qubits[index].measured = true;
+    }
 
-        void RuntimeEvaluator::unmarkMeasured(int index) {
-            if (index >= 0 && index < static_cast<int>(m_qubits.size()))
-                m_qubits[index].measured = false;
-        }
+    void RuntimeEvaluator::unmarkMeasured(int index) {
+        if (index >= 0 && index < static_cast<int>(m_qubits.size()))
+            m_qubits[index].measured = false;
+    }
 
-        void RuntimeEvaluator::warnUnmeasured() const {
-            for (const auto& q : m_qubits) {
-                if (!q.measured) {
-                    blochWarning(0, 0,
-                                 "Qubit " + q.name +
-                                     " was left unmeasured. No classical value will be returned.");
-                }
+    void RuntimeEvaluator::warnUnmeasured() const {
+        for (const auto& q : m_qubits) {
+            if (!q.measured) {
+                blochWarning(0, 0,
+                             "Qubit " + q.name +
+                                 " was left unmeasured. No classical value will be returned.");
             }
-        }
-
-        void RuntimeEvaluator::beginScope() { m_env.push_back({}); }
-
-        void RuntimeEvaluator::endScope() {
-            if (m_env.empty())
-                return;
-            for (auto& kv : m_env.back()) {
-                if (kv.second.tracked) {
-                    std::string key =
-                        kv.second.initialized ? valueToString(kv.second.value) : "__unassigned__";
-                    m_trackedCounts[kv.first][key]++;
-                }
-            }
-            m_env.pop_back();
-        }
-
-        void RuntimeEvaluator::flushEchoes() {
-            for (const auto& line : m_echoBuffer) {
-                std::cout << line << std::endl;
-            }
-            m_echoBuffer.clear();
         }
     }
+
+    void RuntimeEvaluator::beginScope() { m_env.push_back({}); }
+
+    void RuntimeEvaluator::endScope() {
+        if (m_env.empty())
+            return;
+        for (auto& kv : m_env.back()) {
+            if (kv.second.tracked) {
+                std::string key =
+                    kv.second.initialized ? valueToString(kv.second.value) : "__unassigned__";
+                m_trackedCounts[kv.first][key]++;
+            }
+        }
+        m_env.pop_back();
+    }
+
+    void RuntimeEvaluator::flushEchoes() {
+        for (const auto& line : m_echoBuffer) {
+            std::cout << line << std::endl;
+        }
+        m_echoBuffer.clear();
+    }
+}

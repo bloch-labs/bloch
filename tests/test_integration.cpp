@@ -1,6 +1,7 @@
+#include <algorithm>
 #include <array>
 #include <cstdio>
-#include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -26,21 +27,16 @@ namespace {
 #endif
         if (!options.empty())
             cmd += " " + options;
-        cmd += " " + name + " 2>&1";
-        std::array<char, 128> buffer;
-        std::string result;
-        struct PCloseDeleter {
-            void operator()(FILE* f) const {
-                if (f)
-                    pclose(f);
-            }
-        };
-        std::unique_ptr<FILE, PCloseDeleter> pipe(popen(cmd.c_str(), "r"));
-        if (!pipe)
-            return result;
-        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
-
+        // Pass absolute path to avoid CTest working directory issues
+        cmd += " " + blochFile.string() + " 2>&1";
+        // Capture output via a temporary file to avoid pipe hangs
         fs::path stem = blochFile.stem();
+        fs::path outFile = cwd / (stem.string() + ".out");
+        std::string fullCmd = cmd + " > \"" + outFile.string() + "\" 2>&1";
+        (void)std::system(fullCmd.c_str());
+        std::ifstream ifs(outFile);
+        std::string result((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+
         fs::remove(blochFile);
         fs::remove(cwd / (stem.string() + ".qasm"));
         fs::remove(cwd / (stem.string() + ".out"));

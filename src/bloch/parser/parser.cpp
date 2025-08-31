@@ -451,366 +451,368 @@ namespace bloch {
         return expr;
     }
 
-std::unique_ptr<Expression> Parser::parseLogicalOr() {
-    auto expr = parseLogicalAnd();
+    std::unique_ptr<Expression> Parser::parseLogicalOr() {
+        auto expr = parseLogicalAnd();
 
-    while (match(TokenType::PipePipe)) {
-        std::string op = previous().value;
-        auto right = parseLogicalAnd();
-        expr = std::make_unique<BinaryExpression>(
-            BinaryExpression{op, std::move(expr), std::move(right)});
-    }
-
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parseLogicalAnd() {
-    auto expr = parseBitwiseOr();
-
-    while (match(TokenType::AmpersandAmpersand)) {
-        std::string op = previous().value;
-        auto right = parseBitwiseOr();
-        expr = std::make_unique<BinaryExpression>(
-            BinaryExpression{op, std::move(expr), std::move(right)});
-    }
-
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parseBitwiseOr() {
-    auto expr = parseBitwiseXor();
-
-    while (match(TokenType::Pipe)) {
-        std::string op = previous().value;
-        auto right = parseBitwiseXor();
-        expr = std::make_unique<BinaryExpression>(
-            BinaryExpression{op, std::move(expr), std::move(right)});
-    }
-
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parseBitwiseXor() {
-    auto expr = parseBitwiseAnd();
-
-    while (match(TokenType::Caret)) {
-        std::string op = previous().value;
-        auto right = parseBitwiseAnd();
-        expr = std::make_unique<BinaryExpression>(
-            BinaryExpression{op, std::move(expr), std::move(right)});
-    }
-
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parseBitwiseAnd() {
-    auto expr = parseEquality();
-
-    while (match(TokenType::Ampersand)) {
-        std::string op = previous().value;
-        auto right = parseEquality();
-        expr = std::make_unique<BinaryExpression>(
-            BinaryExpression{op, std::move(expr), std::move(right)});
-    }
-
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parseEquality() {
-    auto expr = parseComparison();
-
-    while (match(TokenType::EqualEqual) || match(TokenType::BangEqual)) {
-        std::string op = previous().value;
-        auto right = parseComparison();
-        expr = std::make_unique<BinaryExpression>(
-            BinaryExpression{op, std::move(expr), std::move(right)});
-    }
-
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parseComparison() {
-    auto expr = parseAdditive();
-
-    while (match(TokenType::Greater) || match(TokenType::Less) || match(TokenType::GreaterEqual) ||
-           match(TokenType::LessEqual)) {
-        std::string op = previous().value;
-        auto right = parseAdditive();
-        expr = std::make_unique<BinaryExpression>(
-            BinaryExpression{op, std::move(expr), std::move(right)});
-    }
-
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parseAdditive() {
-    auto expr = parseMultiplicative();
-
-    while (match(TokenType::Plus) || match(TokenType::Minus)) {
-        std::string op = previous().value;
-        auto right = parseMultiplicative();
-        expr = std::make_unique<BinaryExpression>(
-            BinaryExpression{op, std::move(expr), std::move(right)});
-    }
-
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parseMultiplicative() {
-    auto expr = parseUnary();
-
-    while (match(TokenType::Star) || match(TokenType::Slash) || match(TokenType::Percent)) {
-        std::string op = previous().value;
-        auto right = parseUnary();
-        expr = std::make_unique<BinaryExpression>(
-            BinaryExpression{op, std::move(expr), std::move(right)});
-    }
-
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parseUnary() {
-    if (match(TokenType::Minus) || match(TokenType::Bang) || match(TokenType::Tilde)) {
-        std::string op = previous().value;
-        auto right = parseUnary();
-        return std::make_unique<UnaryExpression>(UnaryExpression{op, std::move(right)});
-    }
-
-    return parseCall();
-}
-
-std::unique_ptr<Expression> Parser::parseCall() {
-    auto expr = parsePrimary();
-
-    while (true) {
-        if (match(TokenType::LParen)) {
-            std::vector<std::unique_ptr<Expression>> args;
-            if (!check(TokenType::RParen)) {
-                do {
-                    args.push_back(parseExpression());
-                } while (match(TokenType::Comma));
-            }
-            (void)expect(TokenType::RParen, "Expected ')' after arguments");
-            expr = std::make_unique<CallExpression>(std::move(expr), std::move(args));
-        } else if (match(TokenType::LBracket)) {
-            auto idx = parseExpression();
-            (void)expect(TokenType::RBracket, "Expected ']' after index");
-            auto ie = std::make_unique<IndexExpression>();
-            ie->collection = std::move(expr);
-            ie->index = std::move(idx);
-            expr = std::move(ie);
-        } else if (match(TokenType::PlusPlus) || match(TokenType::MinusMinus)) {
+        while (match(TokenType::PipePipe)) {
             std::string op = previous().value;
-            auto post = std::make_unique<PostfixExpression>(op, std::move(expr));
-            post->line = previous().line;
-            post->column = previous().column;
-            expr = std::move(post);
-        } else {
-            break;
+            auto right = parseLogicalAnd();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
         }
-    }
 
-    return expr;
-}
-
-std::unique_ptr<Expression> Parser::parsePrimary() {
-    if (match(TokenType::IntegerLiteral) || match(TokenType::FloatLiteral) ||
-        match(TokenType::BitLiteral) || match(TokenType::StringLiteral) ||
-        match(TokenType::CharLiteral)) {
-        auto tok = previous();
-        std::string litType;
-        switch (tok.type) {
-            case TokenType::IntegerLiteral:
-                litType = "int";
-                break;
-            case TokenType::FloatLiteral:
-                litType = "float";
-                break;
-            case TokenType::BitLiteral:
-                litType = "bit";
-                break;
-            case TokenType::CharLiteral:
-                litType = "char";
-                break;
-            case TokenType::StringLiteral:
-                litType = "string";
-                break;
-            default:
-                break;
-        }
-        return std::make_unique<LiteralExpression>(LiteralExpression{tok.value, litType});
-    }
-
-    if (match(TokenType::Measure)) {
-        auto target = parseExpression();
-        return std::make_unique<MeasureExpression>(MeasureExpression{std::move(target)});
-    }
-
-    if (match(TokenType::Identifier)) {
-        const Token& token = previous();
-        auto expr = std::make_unique<VariableExpression>(VariableExpression{token.value});
-        expr->line = token.line;
-        expr->column = token.column;
         return expr;
     }
 
-    if (match(TokenType::LBrace)) {
-        auto start = previous();
-        auto expr = parseArrayLiteral();
-        expr->line = start.line;
-        expr->column = start.column;
+    std::unique_ptr<Expression> Parser::parseLogicalAnd() {
+        auto expr = parseBitwiseOr();
+
+        while (match(TokenType::AmpersandAmpersand)) {
+            std::string op = previous().value;
+            auto right = parseBitwiseOr();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
         return expr;
     }
 
-    if (match(TokenType::LParen)) {
-        auto expr = parseExpression();
-        (void)expect(TokenType::RParen, "Expected ')' after expression");
-        return std::make_unique<ParenthesizedExpression>(ParenthesizedExpression{std::move(expr)});
+    std::unique_ptr<Expression> Parser::parseBitwiseOr() {
+        auto expr = parseBitwiseXor();
+
+        while (match(TokenType::Pipe)) {
+            std::string op = previous().value;
+            auto right = parseBitwiseXor();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
     }
 
-    reportError("Expected expression");
-    return nullptr;
-}
+    std::unique_ptr<Expression> Parser::parseBitwiseXor() {
+        auto expr = parseBitwiseAnd();
 
-std::unique_ptr<Expression> Parser::parseArrayLiteral() {
-    std::vector<std::unique_ptr<Expression>> elements;
-    if (!check(TokenType::RBrace)) {
-        do {
-            elements.push_back(parseExpression());
-        } while (match(TokenType::Comma));
+        while (match(TokenType::Caret)) {
+            std::string op = previous().value;
+            auto right = parseBitwiseAnd();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
     }
-    (void)expect(TokenType::RBrace, "Expected '}' after array literal");
-    return std::make_unique<ArrayLiteralExpression>(std::move(elements));
-}
 
-// Literals
-std::unique_ptr<Expression> Parser::parseLiteral() {
-    const Token& token = advance();
+    std::unique_ptr<Expression> Parser::parseBitwiseAnd() {
+        auto expr = parseEquality();
 
-    switch (token.type) {
-        case TokenType::IntegerLiteral:
-            return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "int"});
-        case TokenType::FloatLiteral:
-            return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "float"});
-        case TokenType::BitLiteral:
-            return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "bit"});
-        case TokenType::CharLiteral:
-            return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "char"});
-        case TokenType::StringLiteral:
-            return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "string"});
-        default:
-            reportError("Expected a literal value.");
-            return nullptr;
+        while (match(TokenType::Ampersand)) {
+            std::string op = previous().value;
+            auto right = parseEquality();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
     }
-}
 
-// Types
+    std::unique_ptr<Expression> Parser::parseEquality() {
+        auto expr = parseComparison();
 
-std::unique_ptr<Type> Parser::parseType() {
-    // First: handle primitives
-    if (check(TokenType::Void) || check(TokenType::Int) || check(TokenType::Float) ||
-        check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
-        check(TokenType::Qubit)) {
-        auto baseType = parsePrimitiveType();
+        while (match(TokenType::EqualEqual) || match(TokenType::BangEqual)) {
+            std::string op = previous().value;
+            auto right = parseComparison();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
 
-        // Array types are only allowed for primitive types
-        if (match(TokenType::LBracket)) {
-            int size = -1;
-            if (!check(TokenType::RBracket)) {
-                const Token& sizeTok =
-                    expect(TokenType::IntegerLiteral, "Expected size in array type");
-                size = std::stoi(sizeTok.value);
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseComparison() {
+        auto expr = parseAdditive();
+
+        while (match(TokenType::Greater) || match(TokenType::Less) ||
+               match(TokenType::GreaterEqual) || match(TokenType::LessEqual)) {
+            std::string op = previous().value;
+            auto right = parseAdditive();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseAdditive() {
+        auto expr = parseMultiplicative();
+
+        while (match(TokenType::Plus) || match(TokenType::Minus)) {
+            std::string op = previous().value;
+            auto right = parseMultiplicative();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseMultiplicative() {
+        auto expr = parseUnary();
+
+        while (match(TokenType::Star) || match(TokenType::Slash) || match(TokenType::Percent)) {
+            std::string op = previous().value;
+            auto right = parseUnary();
+            expr = std::make_unique<BinaryExpression>(
+                BinaryExpression{op, std::move(expr), std::move(right)});
+        }
+
+        return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseUnary() {
+        if (match(TokenType::Minus) || match(TokenType::Bang) || match(TokenType::Tilde)) {
+            std::string op = previous().value;
+            auto right = parseUnary();
+            return std::make_unique<UnaryExpression>(UnaryExpression{op, std::move(right)});
+        }
+
+        return parseCall();
+    }
+
+    std::unique_ptr<Expression> Parser::parseCall() {
+        auto expr = parsePrimary();
+
+        while (true) {
+            if (match(TokenType::LParen)) {
+                std::vector<std::unique_ptr<Expression>> args;
+                if (!check(TokenType::RParen)) {
+                    do {
+                        args.push_back(parseExpression());
+                    } while (match(TokenType::Comma));
+                }
+                (void)expect(TokenType::RParen, "Expected ')' after arguments");
+                expr = std::make_unique<CallExpression>(std::move(expr), std::move(args));
+            } else if (match(TokenType::LBracket)) {
+                auto idx = parseExpression();
+                (void)expect(TokenType::RBracket, "Expected ']' after index");
+                auto ie = std::make_unique<IndexExpression>();
+                ie->collection = std::move(expr);
+                ie->index = std::move(idx);
+                expr = std::move(ie);
+            } else if (match(TokenType::PlusPlus) || match(TokenType::MinusMinus)) {
+                std::string op = previous().value;
+                auto post = std::make_unique<PostfixExpression>(op, std::move(expr));
+                post->line = previous().line;
+                post->column = previous().column;
+                expr = std::move(post);
+            } else {
+                break;
             }
-            (void)expect(TokenType::RBracket, "Expected ']' after '[' in array type");
-            return parseArrayType(std::move(baseType), size);
         }
 
-        return baseType;
+        return expr;
     }
 
-    reportError("Expected type");
-    return nullptr;
-}
-
-std::unique_ptr<Type> Parser::parsePrimitiveType() {
-    if (check(TokenType::Void)) {
-        (void)advance();
-        return std::make_unique<VoidType>();
-    }
-
-    if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||
-        check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit)) {
-        std::string typeName = advance().value;
-        return std::make_unique<PrimitiveType>(typeName);
-    }
-
-    reportError("Expected primitive type");
-    return nullptr;
-}
-
-std::unique_ptr<Type> Parser::parseArrayType(std::unique_ptr<Type> elementType, int size) {
-    return std::make_unique<ArrayType>(std::move(elementType), size);
-}
-
-// Parameters and Argments
-std::vector<std::unique_ptr<Parameter>> Parser::parseParameterList() {
-    std::vector<std::unique_ptr<Parameter>> parameters;
-
-    while (!check(TokenType::RParen)) {
-        auto param = std::make_unique<Parameter>();
-
-        // Parse type
-        param->type = parseType();
-
-        // Parse name
-        if (!check(TokenType::Identifier)) {
-            reportError("Expected parameter name.");
+    std::unique_ptr<Expression> Parser::parsePrimary() {
+        if (match(TokenType::IntegerLiteral) || match(TokenType::FloatLiteral) ||
+            match(TokenType::BitLiteral) || match(TokenType::StringLiteral) ||
+            match(TokenType::CharLiteral)) {
+            auto tok = previous();
+            std::string litType;
+            switch (tok.type) {
+                case TokenType::IntegerLiteral:
+                    litType = "int";
+                    break;
+                case TokenType::FloatLiteral:
+                    litType = "float";
+                    break;
+                case TokenType::BitLiteral:
+                    litType = "bit";
+                    break;
+                case TokenType::CharLiteral:
+                    litType = "char";
+                    break;
+                case TokenType::StringLiteral:
+                    litType = "string";
+                    break;
+                default:
+                    break;
+            }
+            return std::make_unique<LiteralExpression>(LiteralExpression{tok.value, litType});
         }
-        param->name = advance().value;
 
-        parameters.push_back(std::move(param));
+        if (match(TokenType::Measure)) {
+            auto target = parseExpression();
+            return std::make_unique<MeasureExpression>(MeasureExpression{std::move(target)});
+        }
 
-        if (!match(TokenType::Comma))
-            break;
+        if (match(TokenType::Identifier)) {
+            const Token& token = previous();
+            auto expr = std::make_unique<VariableExpression>(VariableExpression{token.value});
+            expr->line = token.line;
+            expr->column = token.column;
+            return expr;
+        }
+
+        if (match(TokenType::LBrace)) {
+            auto start = previous();
+            auto expr = parseArrayLiteral();
+            expr->line = start.line;
+            expr->column = start.column;
+            return expr;
+        }
+
+        if (match(TokenType::LParen)) {
+            auto expr = parseExpression();
+            (void)expect(TokenType::RParen, "Expected ')' after expression");
+            return std::make_unique<ParenthesizedExpression>(
+                ParenthesizedExpression{std::move(expr)});
+        }
+
+        reportError("Expected expression");
+        return nullptr;
     }
 
-    return parameters;
-}
+    std::unique_ptr<Expression> Parser::parseArrayLiteral() {
+        std::vector<std::unique_ptr<Expression>> elements;
+        if (!check(TokenType::RBrace)) {
+            do {
+                elements.push_back(parseExpression());
+            } while (match(TokenType::Comma));
+        }
+        (void)expect(TokenType::RBrace, "Expected '}' after array literal");
+        return std::make_unique<ArrayLiteralExpression>(std::move(elements));
+    }
 
-std::vector<std::unique_ptr<Expression>> Parser::parseArgumentList() {
-    std::vector<std::unique_ptr<Expression>> args;
+    // Literals
+    std::unique_ptr<Expression> Parser::parseLiteral() {
+        const Token& token = advance();
 
-    if (check(TokenType::RParen)) {
+        switch (token.type) {
+            case TokenType::IntegerLiteral:
+                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "int"});
+            case TokenType::FloatLiteral:
+                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "float"});
+            case TokenType::BitLiteral:
+                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "bit"});
+            case TokenType::CharLiteral:
+                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "char"});
+            case TokenType::StringLiteral:
+                return std::make_unique<LiteralExpression>(
+                    LiteralExpression{token.value, "string"});
+            default:
+                reportError("Expected a literal value.");
+                return nullptr;
+        }
+    }
+
+    // Types
+
+    std::unique_ptr<Type> Parser::parseType() {
+        // First: handle primitives
+        if (check(TokenType::Void) || check(TokenType::Int) || check(TokenType::Float) ||
+            check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
+            check(TokenType::Qubit)) {
+            auto baseType = parsePrimitiveType();
+
+            // Array types are only allowed for primitive types
+            if (match(TokenType::LBracket)) {
+                int size = -1;
+                if (!check(TokenType::RBracket)) {
+                    const Token& sizeTok =
+                        expect(TokenType::IntegerLiteral, "Expected size in array type");
+                    size = std::stoi(sizeTok.value);
+                }
+                (void)expect(TokenType::RBracket, "Expected ']' after '[' in array type");
+                return parseArrayType(std::move(baseType), size);
+            }
+
+            return baseType;
+        }
+
+        reportError("Expected type");
+        return nullptr;
+    }
+
+    std::unique_ptr<Type> Parser::parsePrimitiveType() {
+        if (check(TokenType::Void)) {
+            (void)advance();
+            return std::make_unique<VoidType>();
+        }
+
+        if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||
+            check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit)) {
+            std::string typeName = advance().value;
+            return std::make_unique<PrimitiveType>(typeName);
+        }
+
+        reportError("Expected primitive type");
+        return nullptr;
+    }
+
+    std::unique_ptr<Type> Parser::parseArrayType(std::unique_ptr<Type> elementType, int size) {
+        return std::make_unique<ArrayType>(std::move(elementType), size);
+    }
+
+    // Parameters and Argments
+    std::vector<std::unique_ptr<Parameter>> Parser::parseParameterList() {
+        std::vector<std::unique_ptr<Parameter>> parameters;
+
+        while (!check(TokenType::RParen)) {
+            auto param = std::make_unique<Parameter>();
+
+            // Parse type
+            param->type = parseType();
+
+            // Parse name
+            if (!check(TokenType::Identifier)) {
+                reportError("Expected parameter name.");
+            }
+            param->name = advance().value;
+
+            parameters.push_back(std::move(param));
+
+            if (!match(TokenType::Comma))
+                break;
+        }
+
+        return parameters;
+    }
+
+    std::vector<std::unique_ptr<Expression>> Parser::parseArgumentList() {
+        std::vector<std::unique_ptr<Expression>> args;
+
+        if (check(TokenType::RParen)) {
+            return args;
+        }
+
+        do {
+            args.push_back(parseExpression());
+        } while (match(TokenType::Comma));
+
         return args;
     }
 
-    do {
-        args.push_back(parseExpression());
-    } while (match(TokenType::Comma));
+    std::unique_ptr<Type> Parser::cloneType(const Type& type) {
+        if (auto prim = dynamic_cast<const PrimitiveType*>(&type))
+            return std::make_unique<PrimitiveType>(prim->name);
+        if (auto array = dynamic_cast<const ArrayType*>(&type))
+            return std::make_unique<ArrayType>(cloneType(*array->elementType), array->size);
+        if (dynamic_cast<const VoidType*>(&type))
+            return std::make_unique<VoidType>();
+        return nullptr;
+    }
 
-    return args;
-}
+    std::vector<std::unique_ptr<AnnotationNode>> Parser::cloneAnnotations(
+        const std::vector<std::unique_ptr<AnnotationNode>>& annotations) {
+        std::vector<std::unique_ptr<AnnotationNode>> result;
+        for (const auto& ann : annotations)
+            result.push_back(std::make_unique<AnnotationNode>(ann->name, ann->value));
+        return result;
+    }
 
-std::unique_ptr<Type> Parser::cloneType(const Type& type) {
-    if (auto prim = dynamic_cast<const PrimitiveType*>(&type))
-        return std::make_unique<PrimitiveType>(prim->name);
-    if (auto array = dynamic_cast<const ArrayType*>(&type))
-        return std::make_unique<ArrayType>(cloneType(*array->elementType), array->size);
-    if (dynamic_cast<const VoidType*>(&type))
-        return std::make_unique<VoidType>();
-    return nullptr;
-}
-
-std::vector<std::unique_ptr<AnnotationNode>> Parser::cloneAnnotations(
-    const std::vector<std::unique_ptr<AnnotationNode>>& annotations) {
-    std::vector<std::unique_ptr<AnnotationNode>> result;
-    for (const auto& ann : annotations)
-        result.push_back(std::make_unique<AnnotationNode>(ann->name, ann->value));
-    return result;
-}
-
-void Parser::flushExtraStatements(std::vector<std::unique_ptr<Statement>>& dest) {
-    for (auto& stmt : m_extraStatements) dest.push_back(std::move(stmt));
-    m_extraStatements.clear();
-}
+    void Parser::flushExtraStatements(std::vector<std::unique_ptr<Statement>>& dest) {
+        for (auto& stmt : m_extraStatements) dest.push_back(std::move(stmt));
+        m_extraStatements.clear();
+    }
 }

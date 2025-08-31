@@ -213,8 +213,7 @@ TEST(RuntimeTest, BitArrayBitwiseOperations) {
     auto* oldBuf = std::cout.rdbuf(output.rdbuf());
     eval.execute(*program);
     std::cout.rdbuf(oldBuf);
-    EXPECT_EQ("{1b, 0b, 0b, 1b}\n{0b, 0b, 1b, 0b}\n{1b, 1b, 1b, 0b}\n{1b, 1b, 0b, 0b}\n",
-              output.str());
+    EXPECT_EQ("{1, 0, 0, 1}\n{0, 0, 1, 0}\n{1, 1, 1, 0}\n{1, 1, 0, 0}\n", output.str());
 }
 
 TEST(RuntimeTest, IntArrayIndexing) {
