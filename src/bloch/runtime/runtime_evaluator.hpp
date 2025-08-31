@@ -59,6 +59,7 @@ namespace bloch {
         void assign(const std::string& name, const Value& v);
         int allocateTrackedQubit(const std::string& name);
         void markMeasured(int index);
+        void unmarkMeasured(int index);
         void warnUnmeasured() const;
         void beginScope();
         void endScope();
