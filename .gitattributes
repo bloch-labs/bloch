@@ -1,0 +1,9 @@
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.cpp text=auto
+*.hpp text=auto
+*.h text=auto
+*.cmake text=auto
+Makefile text=auto
+

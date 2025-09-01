@@ -8,6 +8,30 @@ We’re building an exciting quantum programming language, and contributions fro
 
 This guide explains how to propose changes, which branches to target, and how our CI/CD and release flow works.
 
+## Building Locally
+
+### Prerequisites
+
+- C++20-compatible compiler (GCC ≥ 10, Clang ≥ 10, or MSVC 19.28+)
+- CMake ≥ 3.16
+- Git
+
+### Clone and Build
+
+```bash
+git clone https://github.com/bloch-lang/bloch.git
+cd bloch
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release --parallel
+```
+
+### Run Tests
+
+```bash
+ctest --output-on-failure -C Release
+```
+
 ## TL;DR
 - Open PRs against `develop` for BAU feature development.
 - If fixing bugs identified in a release candidate (RC) then open a PR against the appropriate `release-v*` branch.
@@ -67,9 +91,34 @@ git commit -m "#15: fix bug"
 - We’ll review your PR as quickly as possible.
 - Please be open to feedback and changes.
 
-### Versioning & releases (how your PR ships)
-- Maintainers create RC tags (e.g. `v1.0.3-rc.1`) on `release-v*` branches to trigger pre-release builds.
-- When an RC is good, maintainers merge the release branch into `master` and create a final tag (e.g. `v1.0.3`). Official binaries are published from that tag.
+### Release & Versioning
+
+Maintainers will:
+
+1) Create a release branch from develop:
+   - `git checkout -b release-v1.0.0 origin/develop`
+
+2) Tag the first RC on the release branch and push:
+   - `git tag -a v1.0.0-rc.1 -m "RC 1"`
+   - `git push origin v1.0.0-rc.1`
+
+   This triggers the pre-release workflow for all OSes and publishes a GitHub pre-release with binaries.
+
+3) Install the RC locally and test:
+   - Linux/macOS: download archive and run `./install.sh`
+   - Windows: download zip and run `install.ps1`
+
+4) Iterate on the release branch as needed:
+   - Commit fixes to `release-v1.0.0` and cut `v1.0.0-rc.2`, `v1.0.0-rc.3`, etc.
+
+5) When stable, merge to master and tag final:
+   - `git checkout master && git merge --no-ff release-v1.0.0`
+   - `git tag -a v1.0.0 -m "Bloch 1.0.0"`
+   - `git push origin master v1.0.0`
+
+Notes:
+- RC tags are always `vX.Y.Z-rc.N` created on `release-v*` branches.
+- Final tags are `vX.Y.Z` and must point to `master` HEAD.
 
 ## ✅ Code Style
 - Adhere to the `.clang-format` file in the repo

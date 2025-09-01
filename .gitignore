@@ -25,6 +25,11 @@ cmake_install.cmake
 
 # Generated files
 compile_commands.json
+dist/
+
+# Packages (optional local builds)
+*.deb
+*.rpm
 
 # Examples folder
 examples/*.cpp

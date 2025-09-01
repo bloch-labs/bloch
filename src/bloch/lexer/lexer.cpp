@@ -1,3 +1,17 @@
+// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "lexer.hpp"
 
 #include <cctype>
@@ -52,7 +66,7 @@ namespace bloch {
         // Eat spaces, tabs and newlines. Treat // as a line comment.
         while (m_position < m_source.size()) {
             char c = peek();
-            if (isspace(c)) {
+            if (std::isspace(static_cast<unsigned char>(c))) {
                 if (c == '\n') {
                     (void)advance();
                     m_line++;
@@ -88,9 +102,9 @@ namespace bloch {
         char c = advance();
 
         // Fast paths for common leading characters
-        if (isdigit(c))
+        if (std::isdigit(static_cast<unsigned char>(c)))
             return scanNumber();
-        if (isalpha(c) || c == '_')
+        if (std::isalpha(static_cast<unsigned char>(c)) || c == '_')
             return scanIdentifierOrKeyword();
 
         switch (c) {
@@ -165,11 +179,11 @@ namespace bloch {
         // Integers by default; a trailing '.<digits>f' upgrades to float,
         // and a trailing 'b' turns a 0/1 into a bit literal.
         size_t start = m_position - 1;
-        while (isdigit(peek())) (void)advance();
+        while (std::isdigit(static_cast<unsigned char>(peek()))) (void)advance();
 
         if (peek() == '.') {
             (void)advance();
-            while (isdigit(peek())) (void)advance();
+            while (std::isdigit(static_cast<unsigned char>(peek()))) (void)advance();
             if (peek() == 'f') {
                 (void)advance();
                 return makeToken(TokenType::FloatLiteral,
@@ -201,7 +215,7 @@ namespace bloch {
     Token Lexer::scanIdentifierOrKeyword() {
         // Identifiers are [A-Za-z_][A-Za-z0-9_]*. Some of them are keywords.
         size_t start = m_position - 1;
-        while (isalnum(peek()) || peek() == '_') (void)advance();
+        while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_') (void)advance();
 
         std::string_view text = m_source.substr(start, m_position - start);
 

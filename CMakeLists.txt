@@ -9,8 +9,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Determine version from CI tag or local git
 set(BLOCH_VERSION "unknown")
-if(DEFINED ENV{CI_COMMIT_TAG} AND NOT "$ENV{CI_COMMIT_TAG}" STREQUAL "")
-    # GitLab CI provides the release tag in CI_COMMIT_TAG when building a tagged release
+if(DEFINED ENV{BLOCH_VERSION} AND NOT "$ENV{BLOCH_VERSION}" STREQUAL "")
+    # Explicit override (recommended in CI)
+    set(BLOCH_VERSION "$ENV{BLOCH_VERSION}")
+elseif(DEFINED ENV{GITHUB_REF_NAME} AND NOT "$ENV{GITHUB_REF_NAME}" STREQUAL "")
+    # GitHub Actions tag name when building a tagged release
+    set(BLOCH_VERSION "$ENV{GITHUB_REF_NAME}")
+elseif(DEFINED ENV{CI_COMMIT_TAG} AND NOT "$ENV{CI_COMMIT_TAG}" STREQUAL "")
+    # GitLab CI tag compatibility
     set(BLOCH_VERSION "$ENV{CI_COMMIT_TAG}")
 else()
     find_package(Git QUIET)
@@ -39,3 +45,11 @@ enable_testing()
 
 add_subdirectory(src)
 add_subdirectory(tests)
+
+# CPack packaging configuration (used in release builds)
+set(CPACK_PACKAGE_NAME "bloch")
+string(REGEX REPLACE "^v" "" CPACK_PACKAGE_VERSION "${BLOCH_VERSION}")
+set(CPACK_PACKAGE_VENDOR "Bloch Labs")
+set(CPACK_PACKAGE_CONTACT "hello@bloch-labs.com")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Bloch Labs <hello@bloch-labs.com>")
+include(CPack)

@@ -16,36 +16,56 @@ See `/docs` for
 - Explore [examples](examples/README.md)
 - [Official VSCode extension](https://github.com/bloch-labs/bloch-vscode)
 
-## Quick Start and Contributing
+## Installation
 
-### Prerequisites
+Prebuilt binaries for Linux, macOS, and Windows are attached to each release on GitHub.
 
-- C++20-compatible compiler (e.g. GCC ≥ 10, Clang ≥ 10, or MSVC 19.28+)
-- CMake ≥ 3.16
-- Git
+### Quick Install (from release archive)
 
-### Clone and Build
+- Linux/macOS:
+  - Download the `bloch-<tag>-<OS>-<ARCH>.tar.gz` from Releases
+  - `tar -xzf bloch-<tag>-<OS>-<ARCH>.tar.gz`
+  - `chmod +x install.sh && ./install.sh` (uses `/usr/local/bin` or falls back to `~/.local/bin`)
 
-Clone and build the repo:
+- Windows:
+  - Download the `bloch-<tag>-Windows-<ARCH>.zip` from Releases
+  - Extract it and run `install.ps1` in PowerShell (adds Bloch to your user PATH)
+
+Verify installation:
 
 ```bash
-git clone https://github.com/bloch-lang/bloch.git
-cd bloch
-mkdir build
-cd build
-cmake ..
-make
-```
-### Run Tests
-```bash
-cd build
-cmake ..
-make
-ctest
+bloch --version
 ```
 
-### Contributing
-Bloch is an open-source project and we welcome contributions! Please see [CONTRIBUTING.md](https://github.com/bloch-lang/bloch/blob/master/CONTRIBUTING.md) for guidelines on how to get involved.
+Note: If you prefer to build from source (e.g., for development), see Building Locally in [CONTRIBUTING.md](CONTRIBUTING.md). You can also install locally via CMake after building:
+
+```bash
+cmake --install build --prefix ~/.local
+```
+
+### Package Managers (planned)
+
+Install via common package managers (enabled for official releases):
+
+- Homebrew (macOS/Linux):
+  - `brew tap bloch-labs/bloch`
+  - `brew install bloch`
+
+- Windows (Scoop):
+  - `scoop bucket add bloch https://github.com/bloch-labs/scoop-bucket`
+  - `scoop install bloch`
+
+- Snap (Linux):
+  - `sudo snap install bloch --classic`
+
+- AppImage (Linux):
+  - Download `bloch-<tag>-Linux-x86_64.AppImage` from the Release
+  - `chmod +x bloch-<tag>-Linux-x86_64.AppImage && ./bloch-<tag>-Linux-x86_64.AppImage --appimage-extract-and-run -- --version`
+
+We will continue to ship raw binaries on each GitHub Release for manual installs and CI environments.
+
+## Contributing
+Bloch is an open-source project and we welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and local build instructions.
 
 ## Community & Updates
 

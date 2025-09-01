@@ -1,0 +1,169 @@
+name: Release Candidate Build
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  verify_source_branch:
+    name: Verify tag is from release-v* branch
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.check.outputs.allowed }}
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check branch ancestry
+        id: check
+        run: |
+          echo "Tag ref: $GITHUB_REF_NAME at $GITHUB_SHA"
+          echo "Finding branches containing commit..."
+          branches=$(git branch -r --contains "$GITHUB_SHA" | sed 's/^ *//')
+          echo "Branches containing commit:\n$branches"
+          if echo "$branches" | grep -E '^origin/release-v' >/dev/null; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            echo "Tag belongs to a release-v* branch. Proceed."
+          else
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "Tag does not belong to a release-v* branch. Skipping build."
+          fi
+
+  build:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: verify_source_branch
+    if: needs.verify_source_branch.outputs.allowed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout (with tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure CMake (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build -A x64
+
+      - name: Build
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Run unit tests
+        run: |
+          ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package artifact (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          BIN="build/bin/bloch"
+          if [ ! -f "$BIN" ]; then
+            # Fallbacks for non-default generators
+            [ -f "build/bloch" ] && BIN="build/bloch" || true
+            [ -f "build/Release/bloch" ] && BIN="build/Release/bloch" || true
+          fi
+          if [ ! -f "$BIN" ]; then
+            echo "Could not find built binary at $BIN" >&2
+            ls -R build || true
+            exit 1
+          fi
+          ASSET="bloch-${TAG_NAME}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz"
+          cp "$BIN" dist/bloch
+          cp LICENSE dist/ 2>/dev/null || true
+          if [ -f scripts/install.sh ]; then cp scripts/install.sh dist/install.sh; fi
+          # include installer if available
+          if [ -f dist/install.sh ]; then
+            chmod +x dist/install.sh || true
+            tar -C dist -czf "$ASSET" bloch LICENSE install.sh 2>/dev/null || tar -C dist -czf "$ASSET" bloch LICENSE
+          else
+            tar -C dist -czf "$ASSET" bloch LICENSE 2>/dev/null || tar -C dist -czf "$ASSET" bloch
+          fi
+          echo "Packaged $ASSET"
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $exe = Get-ChildItem -Path build -Recurse -Filter bloch.exe | Select-Object -First 1
+          if (-not $exe) {
+            Write-Error "Could not find bloch.exe under build/"
+          }
+          Copy-Item $exe.FullName dist/bloch.exe
+          if (Test-Path LICENSE) { Copy-Item LICENSE dist/ }
+          if (Test-Path scripts/install.ps1) { Copy-Item scripts/install.ps1 dist/install.ps1 }
+          $asset = "bloch-$env:TAG_NAME-Windows-$env:RUNNER_ARCH.zip"
+          if (Test-Path dist/install.ps1) {
+            Compress-Archive -Path dist/bloch.exe, dist/LICENSE, dist/install.ps1 -DestinationPath $asset -Force -ErrorAction SilentlyContinue
+          } else {
+            Compress-Archive -Path dist/bloch.exe, dist/LICENSE -DestinationPath $asset -Force -ErrorAction SilentlyContinue
+          }
+          if (-not (Test-Path $asset)) {
+            # If LICENSE not present
+            Compress-Archive -Path dist/bloch.exe -DestinationPath $asset -Force
+          }
+          Write-Host "Packaged $asset"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bloch-${{ github.ref_name }}-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            *.tar.gz
+            *.zip
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: needs.verify_source_branch.outputs.allowed == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: |
+          ls -R dist
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Bloch ${{ github.ref_name }}
+          prerelease: true
+          files: |
+            dist/**.tar.gz
+            dist/**.zip
+          body_path: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
