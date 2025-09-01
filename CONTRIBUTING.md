@@ -38,22 +38,21 @@ ctest --output-on-failure -C Release
 - Maintainers will cut release candidates from`develop`; stable and released code tags live on `master`.
 
 ## Branches
+**`master`**  
+- Stable, **released** code only. Every commit here corresponds to a published tag (e.g. `v1.0.3`, `v1.1.0`).
 
-- **`master`**  
-  Stable, **released** code only. Every commit here corresponds to a published tag (e.g. `v1.0.3`, `v1.1.0`).
+**`develop`**
+- This is the main development branch. All PRs should be merged here in BAU development.
 
-- **`develop`**
-  This is the main development branch. All PRs should be merged here in BAU development
+**`release-v*`**  
+- Release branches from which RCs are cut.
 
-- **`release-v1.0.x`**  
-  Release candidates and fixes for [v1.0.x](https://github.com/bloch-labs/bloch/milestone/5).
+**`feature/xx`, `bugfix/xx`, `refactor/xx`, `docs/xx`, `tests/xx`**  
+- Short-lived branches for your work, these follow the convention *issue-type/issue-number*.
+- These should be merged into `develop `
 
-- **`feature/xx`, `bugfix/xx`, `refactor/xx`, `docs/xx`, `tests/xx`**  
-  Short-lived branches for your work, these follow the convention *issue-type/issue-number*.
-  These should be merged into `develop `
-
-- **`hotfix/*`** (maintainers)  
-  Emergency fixes based off `master`.
+**`hotfix/*`** (maintainers)  
+- Emergency fixes based off `master`.
 
 ## Raising a PR
 ### Clone the repo
@@ -91,7 +90,7 @@ git commit -m "#15: fix bug"
 - We’ll review your PR as quickly as possible.
 - Please be open to feedback and changes.
 
-### Release & Versioning
+## Release & Versioning
 
 Maintainers will:
 
