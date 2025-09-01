@@ -10,22 +10,62 @@ namespace bloch {
         switch (v.type) {
             case Value::Type::String:
                 return v.stringValue;
+            case Value::Type::Char: {
+                oss << "'" << v.charValue << "'";
+                return oss.str();
+            }
             case Value::Type::Float:
                 oss << v.floatValue;
                 return oss.str();
             case Value::Type::Bit:
                 return std::to_string(v.bitValue);
+            case Value::Type::Int:
+                return std::to_string(v.intValue);
             case Value::Type::BitArray:
                 oss << "{";
                 for (size_t i = 0; i < v.bitArray.size(); ++i) {
                     if (i)
                         oss << ", ";
-                    oss << v.bitArray[i] << 'b';
+                    oss << v.bitArray[i];
                 }
                 oss << "}";
                 return oss.str();
-            case Value::Type::Int:
-                return std::to_string(v.intValue);
+            case Value::Type::IntArray:
+                oss << "{";
+                for (size_t i = 0; i < v.intArray.size(); ++i) {
+                    if (i)
+                        oss << ", ";
+                    oss << v.intArray[i];
+                }
+                oss << "}";
+                return oss.str();
+            case Value::Type::FloatArray:
+                oss << "{";
+                for (size_t i = 0; i < v.floatArray.size(); ++i) {
+                    if (i)
+                        oss << ", ";
+                    oss << v.floatArray[i];
+                }
+                oss << "}";
+                return oss.str();
+            case Value::Type::StringArray:
+                oss << "{";
+                for (size_t i = 0; i < v.stringArray.size(); ++i) {
+                    if (i)
+                        oss << ", ";
+                    oss << v.stringArray[i];
+                }
+                oss << "}";
+                return oss.str();
+            case Value::Type::CharArray:
+                oss << "{";
+                for (size_t i = 0; i < v.charArray.size(); ++i) {
+                    if (i)
+                        oss << ", ";
+                    oss << "'" << v.charArray[i] << "'";
+                }
+                oss << "}";
+                return oss.str();
             default:
                 return "";
         }
@@ -101,6 +141,8 @@ namespace bloch {
                     v.type = Value::Type::Float;
                 else if (prim->name == "string")
                     v.type = Value::Type::String;
+                else if (prim->name == "char")
+                    v.type = Value::Type::Char;
                 else if (prim->name == "qubit") {
                     v.type = Value::Type::Qubit;
                     v.qubit = allocateTrackedQubit(var->name);
@@ -109,12 +151,129 @@ namespace bloch {
                 if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
                     if (elem->name == "bit")
                         v.type = Value::Type::BitArray;
+                    else if (elem->name == "int")
+                        v.type = Value::Type::IntArray;
+                    else if (elem->name == "float")
+                        v.type = Value::Type::FloatArray;
+                    else if (elem->name == "string")
+                        v.type = Value::Type::StringArray;
+                    else if (elem->name == "char")
+                        v.type = Value::Type::CharArray;
+                    else if (elem->name == "qubit")
+                        v.type = Value::Type::QubitArray;
+                }
+                // Handle fixed-size allocation (without initializer)
+                if (arr->size >= 0 && !var->initializer) {
+                    int n = arr->size;
+                    if (v.type == Value::Type::BitArray)
+                        v.bitArray.assign(n, 0);
+                    else if (v.type == Value::Type::IntArray)
+                        v.intArray.assign(n, 0);
+                    else if (v.type == Value::Type::FloatArray)
+                        v.floatArray.assign(n, 0.0);
+                    else if (v.type == Value::Type::StringArray)
+                        v.stringArray.assign(n, "");
+                    else if (v.type == Value::Type::CharArray)
+                        v.charArray.assign(n, '\0');
+                    else if (v.type == Value::Type::QubitArray) {
+                        v.qubitArray.resize(n);
+                        for (int i = 0; i < n; ++i) v.qubitArray[i] = allocateTrackedQubit(var->name);
+                    }
                 }
             }
             bool initialized = false;
             if (var->initializer) {
-                v = eval(var->initializer.get());
-                initialized = true;
+                // Special-case array literal initialisation for typed arrays
+                if (auto arrType = dynamic_cast<ArrayType*>(var->varType.get())) {
+                    if (auto elem = dynamic_cast<PrimitiveType*>(arrType->elementType.get())) {
+                        if (elem->name == "qubit") {
+                            throw BlochError(var->line, var->column,
+                                             "qubit[] cannot be initialised");
+                        }
+                        if (auto arrLit = dynamic_cast<ArrayLiteralExpression*>(var->initializer.get())) {
+                            // If size is specified, enforce it
+                            if (arrType->size >= 0 &&
+                                static_cast<int>(arrLit->elements.size()) != arrType->size) {
+                                throw BlochError(var->line, var->column,
+                                                 "Array initializer length does not match declared size");
+                            }
+                            if (elem->name == "bit") {
+                                v.type = Value::Type::BitArray;
+                                v.bitArray.clear();
+                                for (auto& el : arrLit->elements) {
+                                    Value ev = eval(el.get());
+                                    if (ev.type != Value::Type::Bit)
+                                        throw BlochError(el->line, el->column,
+                                                         "bit[] initialiser expects bit elements");
+                                    v.bitArray.push_back(ev.bitValue ? 1 : 0);
+                                }
+                            } else if (elem->name == "int") {
+                                v.type = Value::Type::IntArray;
+                                v.intArray.clear();
+                                for (auto& el : arrLit->elements) {
+                                    Value ev = eval(el.get());
+                                    int val = 0;
+                                    if (ev.type == Value::Type::Int)
+                                        val = ev.intValue;
+                                    else if (ev.type == Value::Type::Bit)
+                                        val = ev.bitValue;
+                                    else if (ev.type == Value::Type::Float)
+                                        val = static_cast<int>(ev.floatValue);
+                                    else
+                                        throw BlochError(el->line, el->column,
+                                                         "int[] initialiser expects integer elements");
+                                    v.intArray.push_back(val);
+                                }
+                            } else if (elem->name == "float") {
+                                v.type = Value::Type::FloatArray;
+                                v.floatArray.clear();
+                                for (auto& el : arrLit->elements) {
+                                    Value ev = eval(el.get());
+                                    double val = 0.0;
+                                    if (ev.type == Value::Type::Float)
+                                        val = ev.floatValue;
+                                    else if (ev.type == Value::Type::Int)
+                                        val = static_cast<double>(ev.intValue);
+                                    else if (ev.type == Value::Type::Bit)
+                                        val = static_cast<double>(ev.bitValue);
+                                    else
+                                        throw BlochError(el->line, el->column,
+                                                         "float[] initialiser expects float elements");
+                                    v.floatArray.push_back(val);
+                                }
+                            } else if (elem->name == "string") {
+                                v.type = Value::Type::StringArray;
+                                v.stringArray.clear();
+                                for (auto& el : arrLit->elements) {
+                                    Value ev = eval(el.get());
+                                    if (ev.type != Value::Type::String)
+                                        throw BlochError(el->line, el->column,
+                                                         "string[] initialiser expects string elements");
+                                    v.stringArray.push_back(ev.stringValue);
+                                }
+                            } else if (elem->name == "char") {
+                                v.type = Value::Type::CharArray;
+                                v.charArray.clear();
+                                for (auto& el : arrLit->elements) {
+                                    Value ev = eval(el.get());
+                                    if (ev.type == Value::Type::Char)
+                                        v.charArray.push_back(ev.charValue);
+                                    else
+                                        throw BlochError(el->line, el->column,
+                                                         "char[] initialiser expects char elements");
+                                }
+                            }
+                            initialized = true;
+                        } else {
+                            // Fallback: evaluate as expression
+                            v = eval(var->initializer.get());
+                            initialized = true;
+                        }
+                    }
+                } else {
+                    v = eval(var->initializer.get());
+                    initialized = true;
+                }
             }
             m_env.back()[var->name] = {v, var->isTracked, initialized};
         } else if (auto block = dynamic_cast<BlockStatement*>(s)) {
@@ -208,6 +367,12 @@ namespace bloch {
                     v.stringValue = lit->value.substr(1, lit->value.size() - 2);
                 else
                     v.stringValue = "";
+            } else if (lit->literalType == "char") {
+                v.type = Value::Type::Char;
+                if (lit->value.size() >= 3)
+                    v.charValue = lit->value[1];
+                else
+                    v.charValue = '\0';
             } else {
                 v.type = Value::Type::Int;
                 v.intValue = std::stoi(lit->value);
@@ -216,15 +381,73 @@ namespace bloch {
         } else if (auto var = dynamic_cast<VariableExpression*>(e)) {
             return lookup(var->name);
         } else if (auto arr = dynamic_cast<ArrayLiteralExpression*>(e)) {
+            // Infer array type from first element (if present)
             Value v;
-            v.type = Value::Type::BitArray;
-            for (auto& el : arr->elements) {
-                Value ev = eval(el.get());
-                if (ev.type != Value::Type::Bit) {
-                    throw BlochError(arr->line, arr->column,
-                                     "Array literals only support bit elements");
-                }
-                v.bitArray.push_back(ev.bitValue ? 1 : 0);
+            if (arr->elements.empty()) {
+                v.type = Value::Type::IntArray;
+                return v;  // empty, default as int[] when untyped
+            }
+            Value first = eval(arr->elements[0].get());
+            switch (first.type) {
+                case Value::Type::Bit:
+                    v.type = Value::Type::BitArray;
+                    for (auto& el : arr->elements) {
+                        Value ev = eval(el.get());
+                        if (ev.type != Value::Type::Bit)
+                            throw BlochError(el->line, el->column,
+                                             "Inconsistent element types in array literal");
+                        v.bitArray.push_back(ev.bitValue ? 1 : 0);
+                    }
+                    break;
+                case Value::Type::Int:
+                    v.type = Value::Type::IntArray;
+                    for (auto& el : arr->elements) {
+                        Value ev = eval(el.get());
+                        if (ev.type != Value::Type::Int && ev.type != Value::Type::Bit)
+                            throw BlochError(el->line, el->column,
+                                             "Inconsistent element types in array literal");
+                        v.intArray.push_back(ev.type == Value::Type::Int ? ev.intValue
+                                                                          : ev.bitValue);
+                    }
+                    break;
+                case Value::Type::Float:
+                    v.type = Value::Type::FloatArray;
+                    for (auto& el : arr->elements) {
+                        Value ev = eval(el.get());
+                        if (ev.type != Value::Type::Float && ev.type != Value::Type::Int &&
+                            ev.type != Value::Type::Bit)
+                            throw BlochError(el->line, el->column,
+                                             "Inconsistent element types in array literal");
+                        double val = (ev.type == Value::Type::Float)
+                                         ? ev.floatValue
+                                         : static_cast<double>(ev.type == Value::Type::Int
+                                                                   ? ev.intValue
+                                                                   : ev.bitValue);
+                        v.floatArray.push_back(val);
+                    }
+                    break;
+                case Value::Type::String:
+                    v.type = Value::Type::StringArray;
+                    for (auto& el : arr->elements) {
+                        Value ev = eval(el.get());
+                        if (ev.type != Value::Type::String)
+                            throw BlochError(el->line, el->column,
+                                             "Inconsistent element types in array literal");
+                        v.stringArray.push_back(ev.stringValue);
+                    }
+                    break;
+                case Value::Type::Char:
+                    v.type = Value::Type::CharArray;
+                    for (auto& el : arr->elements) {
+                        Value ev = eval(el.get());
+                        if (ev.type != Value::Type::Char)
+                            throw BlochError(el->line, el->column,
+                                             "Inconsistent element types in array literal");
+                        v.charArray.push_back(ev.charValue);
+                    }
+                    break;
+                default:
+                    throw BlochError(arr->line, arr->column, "Unsupported array literal type");
             }
             return v;
         } else if (auto bin = dynamic_cast<BinaryExpression*>(e)) {
@@ -503,10 +726,144 @@ namespace bloch {
             markMeasured(q.qubit);
             m_measurements[e].push_back(bit);
             return {Value::Type::Bit, 0, 0.0, bit};
+        } else if (auto indexExpr = dynamic_cast<IndexExpression*>(e)) {
+            Value coll = eval(indexExpr->collection.get());
+            Value idxv = eval(indexExpr->index.get());
+            int idxi = 0;
+            if (idxv.type == Value::Type::Int)
+                idxi = idxv.intValue;
+            else if (idxv.type == Value::Type::Bit)
+                idxi = idxv.bitValue;
+            else if (idxv.type == Value::Type::Float)
+                idxi = static_cast<int>(idxv.floatValue);
+            else
+                throw BlochError(indexExpr->line, indexExpr->column, "Index must be numeric");
+            if (idxi < 0)
+                throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+            switch (coll.type) {
+                case Value::Type::BitArray:
+                    if (idxi >= static_cast<int>(coll.bitArray.size()))
+                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    return {Value::Type::Bit, 0, 0.0, coll.bitArray[idxi]};
+                case Value::Type::IntArray:
+                    if (idxi >= static_cast<int>(coll.intArray.size()))
+                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    return {Value::Type::Int, coll.intArray[idxi]};
+                case Value::Type::FloatArray:
+                    if (idxi >= static_cast<int>(coll.floatArray.size()))
+                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    return {Value::Type::Float, 0, coll.floatArray[idxi]};
+                case Value::Type::StringArray:
+                    if (idxi >= static_cast<int>(coll.stringArray.size()))
+                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    return {Value::Type::String, 0, 0.0, 0, coll.stringArray[idxi]};
+                case Value::Type::CharArray:
+                    if (idxi >= static_cast<int>(coll.charArray.size()))
+                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    {
+                        Value v;
+                        v.type = Value::Type::Char;
+                        v.charValue = coll.charArray[idxi];
+                        return v;
+                    }
+                case Value::Type::QubitArray: {
+                    if (idxi >= static_cast<int>(coll.qubitArray.size()))
+                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    Value v;
+                    v.type = Value::Type::Qubit;
+                    v.qubit = coll.qubitArray[idxi];
+                    return v;
+                }
+                default:
+                    throw BlochError(indexExpr->line, indexExpr->column,
+                                     "Indexing requires an array value");
+            }
         } else if (auto assignExpr = dynamic_cast<AssignmentExpression*>(e)) {
             Value v = eval(assignExpr->value.get());
             assign(assignExpr->name, v);
             return v;
+        } else if (auto aassign = dynamic_cast<ArrayAssignmentExpression*>(e)) {
+            // Only support assigning into variable arrays for now
+            auto* var = dynamic_cast<VariableExpression*>(aassign->collection.get());
+            if (!var)
+                throw BlochError(aassign->line, aassign->column,
+                                 "Assignment target must be a variable array");
+            Value arr = lookup(var->name);
+            Value idxv = eval(aassign->index.get());
+            int i = 0;
+            if (idxv.type == Value::Type::Int)
+                i = idxv.intValue;
+            else if (idxv.type == Value::Type::Bit)
+                i = idxv.bitValue;
+            else if (idxv.type == Value::Type::Float)
+                i = static_cast<int>(idxv.floatValue);
+            else
+                throw BlochError(aassign->line, aassign->column, "Index must be numeric");
+            if (i < 0)
+                throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+            Value rhs = eval(aassign->value.get());
+            switch (arr.type) {
+                case Value::Type::IntArray:
+                    if (i >= static_cast<int>(arr.intArray.size()))
+                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (rhs.type == Value::Type::Int)
+                        arr.intArray[i] = rhs.intValue;
+                    else if (rhs.type == Value::Type::Bit)
+                        arr.intArray[i] = rhs.bitValue;
+                    else if (rhs.type == Value::Type::Float)
+                        arr.intArray[i] = static_cast<int>(rhs.floatValue);
+                    else
+                        throw BlochError(aassign->line, aassign->column,
+                                         "Type mismatch for int[] assignment");
+                    break;
+                case Value::Type::FloatArray:
+                    if (i >= static_cast<int>(arr.floatArray.size()))
+                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (rhs.type == Value::Type::Float)
+                        arr.floatArray[i] = rhs.floatValue;
+                    else if (rhs.type == Value::Type::Int)
+                        arr.floatArray[i] = static_cast<double>(rhs.intValue);
+                    else if (rhs.type == Value::Type::Bit)
+                        arr.floatArray[i] = static_cast<double>(rhs.bitValue);
+                    else
+                        throw BlochError(aassign->line, aassign->column,
+                                         "Type mismatch for float[] assignment");
+                    break;
+                case Value::Type::BitArray:
+                    if (i >= static_cast<int>(arr.bitArray.size()))
+                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (rhs.type == Value::Type::Bit)
+                        arr.bitArray[i] = rhs.bitValue ? 1 : 0;
+                    else if (rhs.type == Value::Type::Int)
+                        arr.bitArray[i] = (rhs.intValue != 0) ? 1 : 0;
+                    else
+                        throw BlochError(aassign->line, aassign->column,
+                                         "Type mismatch for bit[] assignment");
+                    break;
+                case Value::Type::StringArray:
+                    if (i >= static_cast<int>(arr.stringArray.size()))
+                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (rhs.type == Value::Type::String)
+                        arr.stringArray[i] = rhs.stringValue;
+                    else
+                        throw BlochError(aassign->line, aassign->column,
+                                         "Type mismatch for string[] assignment");
+                    break;
+                case Value::Type::CharArray:
+                    if (i >= static_cast<int>(arr.charArray.size()))
+                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (rhs.type == Value::Type::Char)
+                        arr.charArray[i] = rhs.charValue;
+                    else
+                        throw BlochError(aassign->line, aassign->column,
+                                         "Type mismatch for char[] assignment");
+                    break;
+                default:
+                    throw BlochError(aassign->line, aassign->column,
+                                     "Assignment into this array type is unsupported");
+            }
+            assign(var->name, arr);
+            return arr;
         }
         return {};
     }

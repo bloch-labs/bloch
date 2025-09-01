@@ -80,7 +80,8 @@ namespace bloch {
         // Types
         [[nodiscard]] std::unique_ptr<Type> parseType();
         [[nodiscard]] std::unique_ptr<Type> parsePrimitiveType();
-        [[nodiscard]] std::unique_ptr<Type> parseArrayType(std::unique_ptr<Type> elementType);
+        [[nodiscard]] std::unique_ptr<Type> parseArrayType(std::unique_ptr<Type> elementType,
+                                                           int size = -1);
 
         // Parameters and Arguments
         [[nodiscard]] std::vector<std::unique_ptr<Parameter>> parseParameterList();

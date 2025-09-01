@@ -1,8 +1,6 @@
 function main() -> void { 
     bit[] a = {0b, 1b, 1b, 0b}; 
-    bit[] b = {1b, 0b, 1b, 0b};
-    echo(~a); 
-    echo(a & b); 
-    echo(a | b); 
-    echo(a ^ b); 
+    float[1] f_array = {3.14f};
+    int[] ints = {1,2,3,4,4};
+    echo(a[4]);
 }

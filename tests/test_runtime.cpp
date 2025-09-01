@@ -213,6 +213,33 @@ TEST(RuntimeTest, BitArrayBitwiseOperations) {
     auto* oldBuf = std::cout.rdbuf(output.rdbuf());
     eval.execute(*program);
     std::cout.rdbuf(oldBuf);
-    EXPECT_EQ("{1b, 0b, 0b, 1b}\n{0b, 0b, 1b, 0b}\n{1b, 1b, 1b, 0b}\n{1b, 1b, 0b, 0b}\n",
+    EXPECT_EQ("{1, 0, 0, 1}\n{0, 0, 1, 0}\n{1, 1, 1, 0}\n{1, 1, 0, 0}\n",
               output.str());
+}
+
+TEST(RuntimeTest, IntArrayInitializationAndIndexing) {
+    const char* src =
+        "function main() -> void { int[] a = {0,1,2,3}; echo(a[0]); echo(a[3]); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("0\n3\n", output.str());
+}
+
+TEST(RuntimeTest, IntArraySizedDefaults) {
+    const char* src = "function main() -> void { int[3] a; echo(a[0]); echo(a[2]); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("0\n0\n", output.str());
 }

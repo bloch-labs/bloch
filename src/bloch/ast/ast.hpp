@@ -240,6 +240,21 @@ namespace bloch {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Array element assignment expression
+    // collection[index] = value
+    struct ArrayAssignmentExpression : public Expression {
+        std::unique_ptr<Expression> collection;
+        std::unique_ptr<Expression> index;
+        std::unique_ptr<Expression> value;
+
+        ArrayAssignmentExpression(std::unique_ptr<Expression> collection,
+                                  std::unique_ptr<Expression> index,
+                                  std::unique_ptr<Expression> value)
+            : collection(std::move(collection)), index(std::move(index)),
+              value(std::move(value)) {}
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Type Nodes
     struct PrimitiveType : public Type {
         std::string name;
@@ -250,8 +265,11 @@ namespace bloch {
 
     struct ArrayType : public Type {
         std::unique_ptr<Type> elementType;
+        // Optional fixed size for the array. If negative, size is unspecified.
+        int size = -1;
 
-        ArrayType(std::unique_ptr<Type> elementType) : elementType(std::move(elementType)) {}
+        ArrayType(std::unique_ptr<Type> elementType, int size = -1)
+            : elementType(std::move(elementType)), size(size) {}
         void accept(ASTVisitor& visitor) override;
     };
 
@@ -332,6 +350,7 @@ namespace bloch {
         virtual void visit(ParenthesizedExpression& node) = 0;
         virtual void visit(MeasureExpression& node) = 0;
         virtual void visit(AssignmentExpression& node) = 0;
+        virtual void visit(ArrayAssignmentExpression& node) = 0;
 
         virtual void visit(PrimitiveType& node) = 0;
         virtual void visit(ArrayType& node) = 0;
@@ -367,6 +386,7 @@ namespace bloch {
     inline void ParenthesizedExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MeasureExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AssignmentExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void ArrayAssignmentExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void PrimitiveType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ArrayType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VoidType::accept(ASTVisitor& visitor) { visitor.visit(*this); }

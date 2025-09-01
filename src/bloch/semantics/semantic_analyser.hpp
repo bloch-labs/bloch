@@ -39,6 +39,7 @@ namespace bloch {
         void visit(ParenthesizedExpression& node) override;
         void visit(MeasureExpression& node) override;
         void visit(AssignmentExpression& node) override;
+        void visit(ArrayAssignmentExpression& node) override;
 
         void visit(PrimitiveType& node) override;
         void visit(ArrayType& node) override;

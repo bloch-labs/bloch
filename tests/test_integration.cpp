@@ -145,3 +145,19 @@ function main() -> void {
     compact2.erase(std::remove(compact2.begin(), compact2.end(), ' '), compact2.end());
     EXPECT_NE(compact2.find("1|3|1.000"), std::string::npos);
 }
+
+TEST(IntegrationTest, ArrayOperationsAndEcho) {
+    std::string src = R"(
+function main() -> void { 
+    bit[] a = {0b, 1b, 1b, 0b};
+    int[] b = {1,2,3};
+    echo(a);
+    echo(b[0]);
+    echo(b);
+    b[0] = b[0] + 1;
+    echo(b);
+}
+)";
+    std::string output = runBloch(src, "array_ops.bloch");
+    EXPECT_EQ("{0, 1, 1, 0}\n1\n{1, 2, 3}\n{2, 2, 3}\n", output);
+}

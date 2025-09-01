@@ -456,7 +456,7 @@ namespace bloch {
         auto expr = parseLogicalOr();
 
         if (match(TokenType::Equals)) {
-            // Must be a variable on the left-hand side
+            // Assignment to variable or array index
             if (auto varExpr = dynamic_cast<VariableExpression*>(expr.get())) {
                 int line = varExpr->line;
                 int column = varExpr->column;
@@ -466,6 +466,17 @@ namespace bloch {
                 assign->line = line;
                 assign->column = column;
                 return assign;
+            } else if (auto idxExpr = dynamic_cast<IndexExpression*>(expr.get())) {
+                // Take ownership of the IndexExpression to move its parts
+                std::unique_ptr<IndexExpression> idx(static_cast<IndexExpression*>(expr.release()));
+                int line = idx->line;
+                int column = idx->column;
+                auto value = parseAssignmentExpression();
+                auto arrayAssign = std::make_unique<ArrayAssignmentExpression>(
+                    std::move(idx->collection), std::move(idx->index), std::move(value)); 
+                arrayAssign->line = line;
+                arrayAssign->column = column;
+                return arrayAssign;
             } else {
                 reportError("Invalid assignment target");
             }
@@ -615,6 +626,42 @@ namespace bloch {
                 }
                 (void)expect(TokenType::RParen, "Expected ')' after arguments");
                 expr = std::make_unique<CallExpression>(std::move(expr), std::move(args));
+            } else if (match(TokenType::LBracket)) {
+                const Token& lbr = previous();
+                auto idxExpr = std::make_unique<IndexExpression>();
+                idxExpr->collection = std::move(expr);
+                auto indexNode = parseExpression();
+                // Parser check for constant negative indices like a[-1]
+                bool negativeConst = false;
+                if (auto lit = dynamic_cast<LiteralExpression*>(indexNode.get())) {
+                    if (lit->literalType == "int") {
+                        try {
+                            int v = std::stoi(lit->value);
+                            negativeConst = v < 0;
+                        } catch (...) {
+                        }
+                    }
+                } else if (auto unary = dynamic_cast<UnaryExpression*>(indexNode.get())) {
+                    if (unary->op == "-") {
+                        if (auto rlit = dynamic_cast<LiteralExpression*>(unary->right.get())) {
+                            if (rlit->literalType == "int") {
+                                try {
+                                    int v = std::stoi(rlit->value);
+                                    negativeConst = v > 0;  // -0 is allowed (treated as 0)
+                                } catch (...) {
+                                }
+                            }
+                        }
+                    }
+                }
+                if (negativeConst) {
+                    throw BlochError(lbr.line, lbr.column, "Array index must be non-negative");
+                }
+                idxExpr->index = std::move(indexNode);
+                (void)expect(TokenType::RBracket, "Expected ']' after index expression");
+                idxExpr->line = lbr.line;
+                idxExpr->column = lbr.column;
+                expr = std::move(idxExpr);
             } else if (match(TokenType::PlusPlus) || match(TokenType::MinusMinus)) {
                 std::string op = previous().value;
                 auto post = std::make_unique<PostfixExpression>(op, std::move(expr));
@@ -733,8 +780,19 @@ namespace bloch {
 
             // Array types are only allowed for primitive types
             if (match(TokenType::LBracket)) {
+                int arrSize = -1;
+                if (!check(TokenType::RBracket)) {
+                    if (!check(TokenType::IntegerLiteral))
+                        reportError("Expected optional integer size in array type");
+                    const Token& sizeTok = advance();
+                    try {
+                        arrSize = std::stoi(sizeTok.value);
+                    } catch (...) {
+                        reportError("Invalid integer size in array type");
+                    }
+                }
                 (void)expect(TokenType::RBracket, "Expected ']' after '[' in array type");
-                return parseArrayType(std::move(baseType));
+                return parseArrayType(std::move(baseType), arrSize);
             }
 
             return baseType;
@@ -760,8 +818,8 @@ namespace bloch {
         return nullptr;
     }
 
-    std::unique_ptr<Type> Parser::parseArrayType(std::unique_ptr<Type> elementType) {
-        return std::make_unique<ArrayType>(std::move(elementType));
+    std::unique_ptr<Type> Parser::parseArrayType(std::unique_ptr<Type> elementType, int size) {
+        return std::make_unique<ArrayType>(std::move(elementType), size);
     }
 
     // Parameters and Argments
@@ -807,7 +865,7 @@ namespace bloch {
         if (auto prim = dynamic_cast<const PrimitiveType*>(&type))
             return std::make_unique<PrimitiveType>(prim->name);
         if (auto array = dynamic_cast<const ArrayType*>(&type))
-            return std::make_unique<ArrayType>(cloneType(*array->elementType));
+            return std::make_unique<ArrayType>(cloneType(*array->elementType), array->size);
         if (dynamic_cast<const VoidType*>(&type))
             return std::make_unique<VoidType>();
         return nullptr;

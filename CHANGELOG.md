@@ -32,6 +32,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #104: added `--shots` CLI option and `@tracked` annotation
 - #103: added semantic checking to `++` and `--` operators
 - #54: added logical and bitwise operators
+- #117: added robust array support for all primitive types
 
 ### Changed
 - #3: prefix private class members with `m_`

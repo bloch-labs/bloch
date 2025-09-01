@@ -30,6 +30,15 @@ namespace bloch {
             }
         }
         if (node.initializer) {
+            // Disallow initialisation of qubit arrays
+            if (auto arr = dynamic_cast<ArrayType*>(node.varType.get())) {
+                if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
+                    if (elem->name == "qubit") {
+                        throw BlochError(node.line, node.column,
+                                         "qubit[] cannot be initialised");
+                    }
+                }
+            }
             if (auto call = dynamic_cast<CallExpression*>(node.initializer.get())) {
                 if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
                     if (returnsVoid(callee->name)) {
@@ -269,6 +278,29 @@ namespace bloch {
             }
             node.value->accept(*this);
         }
+    }
+
+    void SemanticAnalyser::visit(ArrayAssignmentExpression& node) {
+        // Validate collection is a declared, non-final variable
+        if (auto var = dynamic_cast<VariableExpression*>(node.collection.get())) {
+            if (!isDeclared(var->name)) {
+                throw BlochError(node.line, node.column,
+                                 "Variable '" + var->name + "' not declared");
+            }
+            if (isFinal(var->name)) {
+                throw BlochError(node.line, node.column,
+                                 "Cannot assign to final variable '" + var->name + "'");
+            }
+        } else {
+            // Only simple variable arrays are assignable targets for now
+            node.collection->accept(*this);
+            throw BlochError(node.line, node.column,
+                             "Assignment target must be a variable array");
+        }
+        if (node.index)
+            node.index->accept(*this);
+        if (node.value)
+            node.value->accept(*this);
     }
 
     void SemanticAnalyser::visit(PrimitiveType&) {}
