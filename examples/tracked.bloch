@@ -5,8 +5,7 @@ function measure_hadamard(qubit q) -> bit {
 }
 
 function main() -> void {
-    qubit q;
-    
-    @tracked bit b = measure_hadamard(q);
+    @tracked qubit q;
+    bit b = measure_hadamard(q);
     echo(b);
 }

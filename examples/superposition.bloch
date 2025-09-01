@@ -7,9 +7,10 @@ function superposition() -> bit {
 
 function main() -> void {
     int i = 0;
-    @tracked int ones = 0;
-    @tracked int zeros = 0;
-    while (i < 10) {
+    int N = 10;
+    int ones = 0;
+    int zeros = 0;
+    while (i < N) {
         bit b = superposition();
         if (b == 1b) {
             ones++;
@@ -18,6 +19,8 @@ function main() -> void {
         }
         i = i + 1;
     }
-echo("0s measured: " + zeros);
-echo("1s measured: " + ones);
+int zero_prob = zeros/N;
+int one_prob = ones/N;
+echo("0s " + zeros + ", " + zero_prob);
+echo("1s " + ones + ", " + one_prob);
 }

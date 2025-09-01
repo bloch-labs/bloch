@@ -351,8 +351,10 @@ namespace bloch {
             unmarkMeasured(q.qubit);
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
             Value q = eval(meas->qubit.get());
-            m_sim.measure(q.qubit);
+            int bit = m_sim.measure(q.qubit);
             markMeasured(q.qubit);
+            if (q.qubit >= 0 && q.qubit < static_cast<int>(m_lastMeasurement.size()))
+                m_lastMeasurement[q.qubit] = bit;
         } else if (auto assignStmt = dynamic_cast<AssignmentStatement*>(s)) {
             Value val = eval(assignStmt->value.get());
             assign(assignStmt->name, val);
@@ -736,6 +738,8 @@ namespace bloch {
             Value q = eval(idx->qubit.get());
             int bit = m_sim.measure(q.qubit);
             markMeasured(q.qubit);
+            if (q.qubit >= 0 && q.qubit < static_cast<int>(m_lastMeasurement.size()))
+                m_lastMeasurement[q.qubit] = bit;
             m_measurements[e].push_back(bit);
             return {Value::Type::Bit, 0, 0.0, bit};
         } else if (auto indexExpr = dynamic_cast<IndexExpression*>(e)) {
@@ -883,6 +887,8 @@ namespace bloch {
     int RuntimeEvaluator::allocateTrackedQubit(const std::string& name) {
         int idx = m_sim.allocateQubit();
         m_qubits.push_back({name, false});
+        if (idx >= static_cast<int>(m_lastMeasurement.size()))
+            m_lastMeasurement.resize(idx + 1, -1);
         return idx;
     }
 
@@ -894,6 +900,8 @@ namespace bloch {
     void RuntimeEvaluator::unmarkMeasured(int index) {
         if (index >= 0 && index < static_cast<int>(m_qubits.size()))
             m_qubits[index].measured = false;
+        if (index >= 0 && index < static_cast<int>(m_lastMeasurement.size()))
+            m_lastMeasurement[index] = -1;
     }
 
     void RuntimeEvaluator::warnUnmeasured() const {
@@ -912,10 +920,39 @@ namespace bloch {
         if (m_env.empty())
             return;
         for (auto& kv : m_env.back()) {
-            if (kv.second.tracked) {
-                std::string key =
-                    kv.second.initialized ? valueToString(kv.second.value) : "__unassigned__";
-                m_trackedCounts[kv.first][key]++;
+            if (!kv.second.tracked)
+                continue;
+            const auto& name = kv.first;
+            const auto& entry = kv.second;
+            const auto& v = entry.value;
+            if (v.type == Value::Type::Qubit) {
+                int q = v.qubit;
+                std::string outcome = "?";
+                if (q >= 0 && q < static_cast<int>(m_lastMeasurement.size()) &&
+                    m_lastMeasurement[q] != -1) {
+                    outcome = m_lastMeasurement[q] ? "1" : "0";
+                }
+                std::string key = std::string("qubit ") + name;
+                m_trackedCounts[key][outcome]++;
+            } else if (v.type == Value::Type::QubitArray) {
+                bool allMeasured = true;
+                std::string bits;
+                for (int q : v.qubitArray) {
+                    if (!(q >= 0 && q < static_cast<int>(m_lastMeasurement.size()) &&
+                          m_lastMeasurement[q] != -1)) {
+                        allMeasured = false;
+                        break;
+                    }
+                }
+                std::string outcome;
+                if (!allMeasured) {
+                    outcome = "?";
+                } else {
+                    for (int q : v.qubitArray) bits.push_back(m_lastMeasurement[q] ? '1' : '0');
+                    outcome = bits;
+                }
+                std::string key = std::string("qubit[] ") + name;
+                m_trackedCounts[key][outcome]++;
             }
         }
         m_env.pop_back();

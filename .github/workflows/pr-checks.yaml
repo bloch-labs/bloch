@@ -15,18 +15,23 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++ clang-format
+          sudo apt-get install -y cmake g++ clang-format-14
 
       - name: Check formatting
         run: |
+          set -euo pipefail
+          CLANG_FORMAT=clang-format-14
+          "$CLANG_FORMAT" --version
+          # Use -print0 + xargs -0 to handle spaces and large file sets
           FILES=$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')
           if [ -n "$FILES" ]; then
             echo "Checking formatting for files:"
             echo "$FILES"
-            if ! clang-format --dry-run --Werror $FILES; then
+            if ! find . -regex '.*\.\(cpp\|hpp\|c\|h\)' -print0 \
+              | xargs -0 -r "$CLANG_FORMAT" -style=file -n --Werror; then
               echo ""
               echo "❌ Code is not formatted correctly."
-              echo "👉 Please run: clang-format -i \$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
+              echo "👉 Please run: clang-format-14 -i \$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
               echo ""
               exit 1
             else
