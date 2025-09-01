@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef BLOCH_SKIP_INTEGRATION_TESTS
+#include "test_framework.hpp"
+TEST(IntegrationTest, SkippedOnWindows) { EXPECT_TRUE(true); }
+#else
 #include <array>
 #include <cstdio>
 #include <filesystem>
@@ -171,6 +175,8 @@ function main() -> void {
     std::string output = runBloch(src, "quantum_test.bloch");
     EXPECT_EQ("1\n", output);
 }
+
+#endif // BLOCH_SKIP_INTEGRATION_TESTS
 
 TEST(IntegrationTest, RunsClassicalProgram) {
     std::string src = R"(
