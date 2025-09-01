@@ -18,6 +18,7 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <vector>
 #include "test_framework.hpp"
 
 namespace {
@@ -30,20 +31,55 @@ namespace {
         ofs << source;
         ofs.close();
 
-        fs::path blochBin = cwd.parent_path() / "bin" / "bloch";
-        std::string cmd = blochBin.string();
-        if (!options.empty())
-            cmd += " " + options;
-        cmd += " " + name + " 2>&1";
+        auto findBinary = [&](const fs::path& start) -> fs::path {
+            std::vector<fs::path> candidates;
+#if defined(_WIN32)
+            const char* exe = "bloch.exe";
+            candidates.push_back(start / exe);
+            candidates.push_back(start.parent_path() / "bin" / "Release" / exe);
+            candidates.push_back(start.parent_path() / "bin" / exe);
+            candidates.push_back(start / "bin" / "Release" / exe);
+            candidates.push_back(start / "bin" / exe);
+            candidates.push_back(start.parent_path() / "bin" / "Debug" / exe);
+#else
+            const char* exe = "bloch";
+            candidates.push_back(start / exe);
+            candidates.push_back(start.parent_path() / "bin" / exe);
+            candidates.push_back(start / "bin" / exe);
+#endif
+            for (const auto& p : candidates) {
+                if (fs::exists(p))
+                    return fs::absolute(p);
+            }
+            return fs::absolute(start / exe);
+        };
+
+        fs::path blochBin = findBinary(cwd);
+
+        std::string cmd = std::string("\"") + blochBin.string() + "\"";
+        if (!options.empty()) cmd += " " + options;
+        cmd += std::string(" \"") + fs::absolute(blochFile).string() + "\" 2>&1";
         std::array<char, 128> buffer;
         std::string result;
         struct PCloseDeleter {
             void operator()(FILE* f) const {
                 if (f)
+                {
+#if defined(_WIN32)
+                    _pclose(f);
+#else
                     pclose(f);
+#endif
+                }
             }
         };
-        std::unique_ptr<FILE, PCloseDeleter> pipe(popen(cmd.c_str(), "r"));
+        std::unique_ptr<FILE, PCloseDeleter> pipe(
+#if defined(_WIN32)
+            _popen(cmd.c_str(), "r")
+#else
+            popen(cmd.c_str(), "r")
+#endif
+        );
         if (!pipe)
             return result;
         while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
