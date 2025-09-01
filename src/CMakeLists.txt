@@ -15,3 +15,6 @@ add_executable(bloch
 target_link_libraries(bloch
     bloch_lib
 )
+
+# Embed the version string into the binary
+target_compile_definitions(bloch PRIVATE BLOCH_VERSION="${BLOCH_VERSION}")

@@ -33,6 +33,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #103: added semantic checking to `++` and `--` operators
 - #54: added logical and bitwise operators
 - #117: added robust array support for all primitive types
+- #124: added `--help` and `--version` CLI flags
 
 ### Changed
 - #3: prefix private class members with `m_`
