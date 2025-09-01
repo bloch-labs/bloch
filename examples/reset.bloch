@@ -8,6 +8,5 @@ function try_reset() -> bit {
 }
 
 function main() -> void {
-    @tracked bit b = 0b;
-    b = try_reset();
+    bit b = try_reset();
 }

@@ -22,12 +22,17 @@ namespace bloch {
             type = ValueType::Void;
         declare(node.name, node.isFinal, type);
         if (node.isTracked) {
-            if (type != ValueType::Bit && type != ValueType::Int) {
-                throw BlochError(node.line, node.column, "@tracked variables must be bit or int");
+            // Only 'qubit' and 'qubit[]' types can be tracked
+            bool valid = false;
+            if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {
+                valid = (prim->name == "qubit");
+            } else if (auto arr = dynamic_cast<ArrayType*>(node.varType.get())) {
+                if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get()))
+                    valid = (elem->name == "qubit");
             }
-            if (!node.initializer) {
-                blochWarning(node.line, node.column,
-                             "tracked variable '" + node.name + "' may be unitialised.");
+            if (!valid) {
+                throw BlochError(node.line, node.column,
+                                 "@tracked variables must be qubit or qubit[]");
             }
         }
         if (node.initializer) {

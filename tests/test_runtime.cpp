@@ -116,18 +116,18 @@ TEST(RuntimeTest, PostIncrementAndDecrement) {
 }
 
 TEST(RuntimeTest, TracksVariableSingleShot) {
-    const char* src = "function main() -> void { @tracked int x = 1; }";
+    const char* src = "function main() -> void { @tracked qubit q; x(q); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
     RuntimeEvaluator eval;
     eval.execute(*program);
     const auto& counts = eval.trackedCounts();
-    ASSERT_EQ(counts.at("x").at("1"), 1);
+    ASSERT_EQ(counts.at("qubit q").at("?"), 1);
 }
 
 TEST(RuntimeTest, TracksVariableMultipleShots) {
-    const char* src = "function main() -> void { @tracked int x = 1; }";
+    const char* src = "function main() -> void { @tracked qubit q; x(q); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
@@ -138,7 +138,7 @@ TEST(RuntimeTest, TracksVariableMultipleShots) {
         for (const auto& vk : eval.trackedCounts())
             for (const auto& vv : vk.second) agg[vk.first][vv.first] += vv.second;
     }
-    ASSERT_EQ(agg["x"]["1"], 5);
+    ASSERT_EQ(agg["qubit q"]["?"], 5);
 }
 
 TEST(RuntimeTest, EchoModes) {
@@ -163,14 +163,14 @@ TEST(RuntimeTest, EchoModes) {
 }
 
 TEST(RuntimeTest, UninitializedTrackedVariable) {
-    const char* src = "function main() -> void { @tracked int x; }";
+    const char* src = "function main() -> void { @tracked qubit q; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
     RuntimeEvaluator eval;
     eval.execute(*program);
     const auto& counts = eval.trackedCounts();
-    ASSERT_EQ(counts.at("x").at("__unassigned__"), 1);
+    ASSERT_EQ(counts.at("qubit q").at("0"), 1);
 }
 
 TEST(RuntimeTest, ResetClearsQubit) {

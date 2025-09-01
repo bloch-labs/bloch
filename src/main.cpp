@@ -108,19 +108,36 @@ int main(int argc, char** argv) {
 
             if (!aggregate.empty()) {
                 for (auto& var : aggregate) {
+                    // Header: e.g., "qubit q" or "qubit[] qreg"
                     std::cout << var.first << "\n";
                     std::vector<std::pair<std::string, int>> vals(var.second.begin(),
                                                                   var.second.end());
-                    std::sort(vals.begin(), vals.end(), [](const auto& a, const auto& b) {
-                        if (a.second != b.second)
-                            return a.second > b.second;
-                        return a.first < b.first;
+                    auto isBinary = [](const std::string& s) {
+                        return !s.empty() && s.find_first_not_of("01") == std::string::npos;
+                    };
+                    std::stable_sort(vals.begin(), vals.end(), [&](const auto& a, const auto& b) {
+                        bool ab = isBinary(a.first);
+                        bool bb = isBinary(b.first);
+                        if (ab != bb)
+                            return ab;  // binary outcomes first; e.g., place '?' at end
+                        if (!ab && !bb)
+                            return a.first < b.first;
+                        // Both binary: compare as integers, prefer shorter width first
+                        if (a.first.size() != b.first.size())
+                            return a.first.size() < b.first.size();
+                        return std::stoi(a.first, nullptr, 2) < std::stoi(b.first, nullptr, 2);
                     });
-                    std::cout << " value | count | prob\n";
-                    std::cout << "---------------------\n";
+                    // Dynamic column sizing for outcome strings
+                    size_t outcomeWidth = 7;
+                    for (const auto& p : vals) outcomeWidth = std::max(outcomeWidth, p.first.size());
+                    std::cout << std::left << std::setw(static_cast<int>(outcomeWidth)) << "outcome"
+                              << " | " << std::right << std::setw(5) << "count" << " | "
+                              << std::setw(5) << "prob" << "\n";
+                    std::cout << std::string(outcomeWidth, '-') << "-+-------+-----\n";
                     for (auto& p : vals) {
                         double prob = static_cast<double>(p.second) / shots;
-                        std::cout << std::setw(6) << p.first << " | " << std::setw(5) << p.second
+                        std::cout << std::left << std::setw(static_cast<int>(outcomeWidth))
+                                  << p.first << " | " << std::right << std::setw(5) << p.second
                                   << " | " << std::setw(5) << prob << "\n";
                     }
                     std::cout << "\n";

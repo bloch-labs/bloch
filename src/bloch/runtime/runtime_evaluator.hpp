@@ -78,6 +78,8 @@ namespace bloch {
             bool measured;
         };
         std::vector<QubitInfo> m_qubits;
+        // Last measured value per qubit index (-1 if never measured)
+        std::vector<int> m_lastMeasurement;
 
         // Core interpreter operations
         Value eval(Expression* expr);
