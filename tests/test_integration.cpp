@@ -59,30 +59,19 @@ namespace {
         std::string cmd = std::string("\"") + blochBin.string() + "\"";
         if (!options.empty()) cmd += " " + options;
         cmd += std::string(" \"") + fs::absolute(blochFile).string() + "\" 2>&1";
-        std::array<char, 128> buffer;
         std::string result;
-        struct PCloseDeleter {
-            void operator()(FILE* f) const {
-                if (f)
-                {
-#if defined(_WIN32)
-                    _pclose(f);
-#else
-                    pclose(f);
-#endif
-                }
+        // Redirect stdout/stderr to a file and read it back (more portable than popen on Windows)
+        fs::path stem = blochFile.stem();
+        fs::path outPath = cwd / (stem.string() + ".out");
+        std::string redirCmd = cmd + std::string(" > \"") + outPath.string() + "\" 2>&1";
+        (void)std::system(redirCmd.c_str());
+        {
+            std::ifstream in(outPath);
+            if (in) {
+                result.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+                in.close();
             }
-        };
-        std::unique_ptr<FILE, PCloseDeleter> pipe(
-#if defined(_WIN32)
-            _popen(cmd.c_str(), "r")
-#else
-            popen(cmd.c_str(), "r")
-#endif
-        );
-        if (!pipe)
-            return result;
-        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
+        }
 
         // Normalize output for cross-platform comparisons:
         // - Convert CRLF/CR to LF
@@ -122,7 +111,6 @@ namespace {
             result.swap(tmp);
         }
 
-        fs::path stem = blochFile.stem();
         fs::remove(blochFile);
         fs::remove(cwd / (stem.string() + ".qasm"));
         fs::remove(cwd / (stem.string() + ".out"));
