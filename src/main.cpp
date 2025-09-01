@@ -24,7 +24,8 @@ int main(int argc, char** argv) {
     //  --shots=N    runs the program N times and aggregates @tracked counts
     //  --echo=all   echo statements are printed per shot
     //  --echo=none  no echo statements are printed
-    // TODO: Add a --version and --help flag 
+    // TODO: Add a --version and --help flag
+    // TODO: Add a --json flag 
     bool emitQasm = false;
     int shots = 1;
     bool shotsProvided = false;
