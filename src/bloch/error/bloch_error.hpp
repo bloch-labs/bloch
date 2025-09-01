@@ -6,6 +6,7 @@
 #include <string>
 
 namespace bloch {
+    // We use simple, coloured messages to make CLI output easy to scan.
     enum class MessageLevel { Info, Warning, Error };
 
     inline const char* colour(MessageLevel level) {
@@ -35,6 +36,7 @@ namespace bloch {
         }
     }
 
+    // Compose a single-line message; when line/column are 0 we omit the location.
     inline std::string format(MessageLevel level, int line, int column, const std::string& msg) {
         std::ostringstream err;
         err << colour(level) << prefix(level) << " ";

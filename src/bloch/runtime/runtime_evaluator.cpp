@@ -6,6 +6,7 @@
 namespace bloch {
 
     static std::string valueToString(const Value& v) {
+        // Pretty-print a runtime value for echo and tracked summaries.
         std::ostringstream oss;
         switch (v.type) {
             case Value::Type::String:
@@ -108,6 +109,7 @@ namespace bloch {
     }
 
     Value RuntimeEvaluator::call(FunctionDeclaration* fn, const std::vector<Value>& args) {
+        // Bind parameters, run the body until a return is hit, then unwind.
         beginScope();
         for (size_t i = 0; i < fn->params.size() && i < args.size(); ++i) {
             m_env.back()[fn->params[i]->name] = {args[i], false, true};
@@ -184,7 +186,7 @@ namespace bloch {
             }
             bool initialized = false;
             if (var->initializer) {
-                // Special-case array literal initialisation for typed arrays
+                // Special case of array literal initialisation for typed arrays
                 if (auto arrType = dynamic_cast<ArrayType*>(var->varType.get())) {
                     if (auto elem = dynamic_cast<PrimitiveType*>(arrType->elementType.get())) {
                         if (elem->name == "qubit") {
@@ -700,6 +702,9 @@ namespace bloch {
                 std::vector<Value> args;
                 for (auto& a : callExpr->arguments) args.push_back(eval(a.get()));
                 if (builtin != builtInGates.end()) {
+                    // Map built-ins directly to simulator operations.
+                    // TODO: In the noisy simulator this logic will have to remain the same
+                    // so we will need the same basic quantum operations
                     if (name == "h")
                         m_sim.h(args[0].qubit);
                     else if (name == "x")
@@ -790,7 +795,7 @@ namespace bloch {
             assign(assignExpr->name, v);
             return v;
         } else if (auto aassign = dynamic_cast<ArrayAssignmentExpression*>(e)) {
-            // Only support assigning into variable arrays for now
+            // Only support assigning into variable arrays for 1.0.0
             auto* var = dynamic_cast<VariableExpression*>(aassign->collection.get());
             if (!var)
                 throw BlochError(aassign->line, aassign->column,

@@ -3,6 +3,7 @@
 namespace bloch {
 
     ValueType typeFromString(const std::string& name) {
+        // Map source-level type names to our compact enum.
         if (name == "int")
             return ValueType::Int;
         if (name == "float")
@@ -21,6 +22,7 @@ namespace bloch {
     }
 
     std::string typeToString(ValueType type) {
+        // The reverse mapping comes in handy for diagnostics.
         switch (type) {
             case ValueType::Int:
                 return "int";
@@ -77,4 +79,4 @@ namespace bloch {
         return ValueType::Unknown;
     }
 
-}  // namespace bloch
+}

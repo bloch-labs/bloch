@@ -13,6 +13,8 @@ namespace bloch {
 
     std::vector<Token> Lexer::tokenize() {
         std::vector<Token> tokens;
+        // We repeatedly skip trivia and scan the next meaningful token
+        // until we run out of input. Always append an explicit EOF token.
         while (m_position < m_source.size()) {
             skipWhitespace();
             if (m_position < m_source.size()) {
@@ -47,6 +49,7 @@ namespace bloch {
     }
 
     void Lexer::skipWhitespace() {
+        // Eat spaces, tabs and newlines. Treat // as a line comment.
         while (m_position < m_source.size()) {
             char c = peek();
             if (isspace(c)) {
@@ -68,6 +71,7 @@ namespace bloch {
     }
 
     void Lexer::skipComment() {
+        // Consume the rest of the current line.
         while (m_position < m_source.size() && m_source[m_position] != '\n') {
             (void)advance();
         }
@@ -76,12 +80,14 @@ namespace bloch {
     void Lexer::reportError(const std::string& msg) { throw BlochError(m_line, m_column, msg); }
 
     Token Lexer::makeToken(TokenType type, const std::string& value) {
+        // Column is adjusted so error spans point to token start.
         return Token{type, value, m_line, m_column - static_cast<int>(value.length())};
     }
 
     Token Lexer::scanToken() {
         char c = advance();
 
+        // Fast paths for common leading characters
         if (isdigit(c))
             return scanNumber();
         if (isalpha(c) || c == '_')
@@ -156,6 +162,8 @@ namespace bloch {
     }
 
     Token Lexer::scanNumber() {
+        // Integers by default; a trailing '.<digits>f' upgrades to float,
+        // and a trailing 'b' turns a 0/1 into a bit literal.
         size_t start = m_position - 1;
         while (isdigit(peek())) (void)advance();
 
@@ -191,6 +199,7 @@ namespace bloch {
     }
 
     Token Lexer::scanIdentifierOrKeyword() {
+        // Identifiers are [A-Za-z_][A-Za-z0-9_]*. Some of them are keywords.
         size_t start = m_position - 1;
         while (isalnum(peek()) || peek() == '_') (void)advance();
 
@@ -234,6 +243,7 @@ namespace bloch {
     }
 
     Token Lexer::scanString() {
+        // Strings are double-quoted and may span lines; we do not process escapes yet.
         size_t start = m_position;
         while (m_position < m_source.size() && peek() != '"') {
             if (peek() == '\n')
@@ -253,6 +263,7 @@ namespace bloch {
     }
 
     Token Lexer::scanChar() {
+        // Char literals are simple: '\'' X '\'' with no escaping support for now.
         size_t start = m_position;
         if (m_position < m_source.size())
             (void)advance();

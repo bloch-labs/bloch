@@ -63,7 +63,8 @@ namespace bloch {
     // Main parse function
     std::unique_ptr<Program> Parser::parse() {
         auto program = std::make_unique<Program>();
-
+        // We alternate between function declarations and top-level statements.
+        // Extra statements generated from multi-declarations are flushed as we go.
         while (!isAtEnd()) {
             if (check(TokenType::Function) || checkFunctionAnnotation()) {
                 program->functions.push_back(parseFunction());
@@ -182,6 +183,7 @@ namespace bloch {
             isQubitType = prim->name == "qubit";
 
         bool hasInitializer = var->initializer != nullptr;
+        // Support comma-separated qubit declarations (qubit a, b, c;).
         while (match(TokenType::Comma)) {
             if (!allowMultiple)
                 reportError("Multiple declarations not allowed in this context");
@@ -233,7 +235,6 @@ namespace bloch {
     }
 
     // Statements
-
     std::unique_ptr<Statement> Parser::parseStatement() {
         if (check(TokenType::LBrace))
             return parseBlock();
@@ -449,7 +450,6 @@ namespace bloch {
     }
 
     // Expressions
-
     std::unique_ptr<Expression> Parser::parseExpression() { return parseAssignmentExpression(); }
 
     std::unique_ptr<Expression> Parser::parseAssignmentExpression() {

@@ -19,6 +19,12 @@ int main(int argc, char** argv) {
         std::cerr << "Usage: bloch [--emit-qasm] [--shots=N] [--echo=all|none] <file.bloch>\n";
         return 1;
     }
+    // Flags:
+    //  --emit-qasm  prints the QASM log after execution
+    //  --shots=N    runs the program N times and aggregates @tracked counts
+    //  --echo=all   echo statements are printed per shot
+    //  --echo=none  no echo statements are printed
+    // TODO: Add a --version and --help flag 
     bool emitQasm = false;
     int shots = 1;
     bool shotsProvided = false;
@@ -45,6 +51,8 @@ int main(int argc, char** argv) {
         std::cerr << "No input file provided\n";
         return 1;
     }
+    // By default we suppress echo when taking many shots, unless the user
+    // explicitly asks for it via --echo=all.
     bool echoAll = echoOpt.empty() ? (!shotsProvided || shots == 1) : (echoOpt == "all");
     if (shotsProvided && shots > 1 && echoOpt.empty())
         bloch::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
@@ -64,6 +72,7 @@ int main(int argc, char** argv) {
         analyser.analyse(*program);
         std::string qasm;
         if (shotsProvided) {
+            // Multi-shot execution: aggregate tracked values and report a summary.
             std::unordered_map<std::string, std::unordered_map<std::string, int>> aggregate;
             auto start = std::chrono::steady_clock::now();
             for (int s = 0; s < shots; ++s) {

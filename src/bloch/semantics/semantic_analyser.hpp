@@ -11,6 +11,9 @@
 
 namespace bloch {
 
+    // The semantic pass checks name usage, types at a coarse level,
+    // function contracts, and a few language rules (like @tracked constraints).
+    // It also records function signatures for later runtime validation.
     class SemanticAnalyser : public ASTVisitor {
        public:
         void analyse(Program& program);

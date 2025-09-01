@@ -6,16 +6,19 @@
 
 namespace bloch {
 
+    // A compact type universe for semantic checks and runtime hints.
     enum class ValueType { Int, Float, String, Char, Qubit, Bit, Void, Unknown };
 
     ValueType typeFromString(const std::string& name);
     std::string typeToString(ValueType type);
 
+    // Per-name metadata tracked across nested scopes.
     struct SymbolInfo {
         bool isFinal = false;
         ValueType type = ValueType::Unknown;
     };
 
+    // Nested-scope symbol table (stack of hash maps).
     class SymbolTable {
        public:
         void beginScope();

@@ -7,6 +7,8 @@
 
 namespace bloch {
 
+    // An ideal statevector simulator with a QASM log.
+    // TODO: performance optimisation post 1.0.0
     class QasmSimulator {
        public:
         int allocateQubit();
@@ -27,6 +29,7 @@ namespace bloch {
         std::vector<std::complex<double>> m_state{1, 0};
         std::string m_ops;
 
+        // Apply a 2x2 unitary to qubit q.
         void applySingleQubitGate(int q, const std::array<std::complex<double>, 4>& m);
     };
 

@@ -3,6 +3,8 @@
 #include <string>
 
 namespace bloch {
+    // Tokens represent the smallest meaningful pieces the parser understands.
+    // We group them loosely by purpose to keep scanning and parsing readable.
     enum class TokenType {
         // Literals
         Identifier,
@@ -77,6 +79,8 @@ namespace bloch {
         Unknown
     };
 
+    // A token carries what it is, the raw text we saw, and where it came from.
+    // Line/column are 1-based and point to the start of the token for friendly errors.
     struct Token {
         TokenType type;
         std::string value;

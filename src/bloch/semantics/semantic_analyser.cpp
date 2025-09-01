@@ -5,6 +5,7 @@
 namespace bloch {
 
     void SemanticAnalyser::analyse(Program& program) {
+        // Global scope for top-level declarations and functions.
         beginScope();
         program.accept(*this);
         endScope();

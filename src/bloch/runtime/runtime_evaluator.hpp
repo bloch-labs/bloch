@@ -10,6 +10,8 @@
 
 namespace bloch {
 
+    // Runtime values carry both a discriminant and storage. Arrays are
+    // represented as std::vector<> of the appropriate primitive.
     struct Value {
         enum class Type {
             Int,
@@ -42,6 +44,9 @@ namespace bloch {
         std::vector<int> qubitArray;
     };
 
+    // Interpreter that walks the AST and simulates quantum bits via
+    // QasmSimulator. It also tracks @tracked variables and defers echo output
+    // until warnings have been printed.
     class RuntimeEvaluator {
        public:
         void execute(Program& program);
@@ -74,15 +79,20 @@ namespace bloch {
         };
         std::vector<QubitInfo> m_qubits;
 
+        // Core interpreter operations
         Value eval(Expression* expr);
         void exec(Statement* stmt);
         Value call(FunctionDeclaration* fn, const std::vector<Value>& args);
         Value lookup(const std::string& name);
         void assign(const std::string& name, const Value& v);
+
+        // Qubit bookkeeping
         int allocateTrackedQubit(const std::string& name);
         void markMeasured(int index);
         void unmarkMeasured(int index);
         void warnUnmeasured() const;
+        
+        // Scope & output helpers
         void beginScope();
         void endScope();
         void flushEchoes();

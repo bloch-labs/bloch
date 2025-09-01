@@ -9,6 +9,8 @@ namespace bloch {
     static std::mt19937 rng{std::random_device{}()};
 
     int QasmSimulator::allocateQubit() {
+        // Grow the state by a factor of two, keeping existing amplitudes
+        // in the |...0> subspace and zeroing the |...1> subspace.
         int index = m_qubits++;
         std::vector<std::complex<double>> newState(m_state.size() * 2);
         for (size_t i = 0; i < m_state.size(); ++i) {
@@ -20,6 +22,7 @@ namespace bloch {
     }
 
     void QasmSimulator::applySingleQubitGate(int q, const std::array<std::complex<double>, 4>& m) {
+        // Standard blocked application over basis pairs differing at bit q.
         size_t step = size_t{1} << q;
         size_t size = m_state.size();
         for (size_t i = 0; i < size; i += 2 * step) {
@@ -86,6 +89,7 @@ namespace bloch {
     }
 
     void QasmSimulator::cx(int control, int target) {
+        // Swap amplitudes where control is 1 and target is 0 to flip target.
         size_t cbit = size_t{1} << control;
         size_t tbit = size_t{1} << target;
         for (size_t i = 0; i < m_state.size(); ++i) {
@@ -114,6 +118,7 @@ namespace bloch {
     }
 
     int QasmSimulator::measure(int q) {
+        // Compute probability of |1>, sample, and collapse the state accordingly.
         size_t bit = size_t{1} << q;
         double p1 = 0;
         for (size_t i = 0; i < m_state.size(); ++i)

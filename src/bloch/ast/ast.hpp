@@ -6,6 +6,11 @@
 
 namespace bloch {
 
+    // The AST is a compact tree built by the parser. Each node carries
+    // its source position and supports a classic visitor for later stages
+    // (semantic analysis and execution).
+    // Only the essentials live here to keep traversal cheap and predictable.
+    
     // Base Node Interfaces
     class ASTVisitor;
 
@@ -39,6 +44,7 @@ namespace bloch {
     };
 
     // Block Statement
+    // {...}
     struct BlockStatement : public Statement {
         std::vector<std::unique_ptr<Statement>> statements;
 
@@ -93,6 +99,7 @@ namespace bloch {
     };
 
     // Echo Statement
+    // Print a value at runtime; useful for examples and quick debugging.
     struct EchoStatement : public Statement {
         std::unique_ptr<Expression> value;
 
@@ -109,6 +116,7 @@ namespace bloch {
     };
 
     // Measure Statement
+    // Measure a qubit and push the result into classical memory.
     struct MeasureStatement : public Statement {
         std::unique_ptr<Expression> qubit;
 
@@ -117,6 +125,7 @@ namespace bloch {
     };
 
     // Ternary Statement
+    // cond ? thenBranch : elseBranch
     struct TernaryStatement : public Statement {
         std::unique_ptr<Expression> condition;
         std::unique_ptr<Statement> thenBranch;
@@ -158,6 +167,7 @@ namespace bloch {
     };
 
     // Postfix Expression
+    // Support for i++ and i--
     struct PostfixExpression : public Expression {
         std::string op;
         std::unique_ptr<Expression> left;
@@ -196,7 +206,8 @@ namespace bloch {
         void accept(ASTVisitor& visitor) override;
     };
 
-    // Index Expression
+    // Index Expression a[i]
+    // Indexing into arrays (bounds/typing checked later).
     struct IndexExpression : public Expression {
         std::unique_ptr<Expression> collection;
         std::unique_ptr<Expression> index;
@@ -206,6 +217,7 @@ namespace bloch {
     };
 
     // Array Literal Expression
+    // {a, b, c} literal; type is inferred or validated during semantics/runtime.
     struct ArrayLiteralExpression : public Expression {
         std::vector<std::unique_ptr<Expression>> elements;
 
@@ -215,6 +227,7 @@ namespace bloch {
     };
 
     // Parenthesized Expression
+    // (expr) — keeps source intent; may be useful for diagnostics.
     struct ParenthesizedExpression : public Expression {
         std::unique_ptr<Expression> expression;
 
@@ -223,6 +236,7 @@ namespace bloch {
     };
 
     // Measure Expression
+    // Inline measurement returns a bit value.
     struct MeasureExpression : public Expression {
         std::unique_ptr<Expression> qubit;
 
@@ -240,8 +254,7 @@ namespace bloch {
         void accept(ASTVisitor& visitor) override;
     };
 
-    // Array element assignment expression
-    // collection[index] = value
+    // Array element assignment expression: collection[index] = value
     struct ArrayAssignmentExpression : public Expression {
         std::unique_ptr<Expression> collection;
         std::unique_ptr<Expression> index;

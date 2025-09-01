@@ -8,6 +8,10 @@
 #include "../lexer/token.hpp"
 
 namespace bloch {
+    // The Parser consumes a flat token stream and produces an AST.
+    // It's a hand-written, recursive-descent parser tuned for clarity,
+    // with small conveniences like a lookahead helper and an overflow
+    // queue (m_extraStatements) for expanding multi-declarations.
     class Parser {
        public:
         explicit Parser(std::vector<Token> tokens);
@@ -16,6 +20,8 @@ namespace bloch {
        private:
         std::vector<Token> m_tokens;
         size_t m_current;
+        // For multi-declarations (e.g. qubit a, b, c;), we parse the first
+        // and stage the rest here, then flush them into the surrounding block.
         std::vector<std::unique_ptr<Statement>> m_extraStatements;
 
         // Token manipulation
