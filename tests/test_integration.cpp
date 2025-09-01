@@ -19,9 +19,50 @@
 #include <memory>
 #include <string>
 #include <vector>
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+#if !defined(_WIN32) && !defined(__APPLE__)
+#include <unistd.h>
+#endif
 #include "test_framework.hpp"
 
 namespace {
+    // Determine directory of the currently running test executable
+    std::filesystem::path executableDir() {
+#if defined(_WIN32)
+        char buf[MAX_PATH];
+        DWORD len = GetModuleFileNameA(nullptr, buf, MAX_PATH);
+        if (len > 0) {
+            std::filesystem::path p(buf);
+            return p.parent_path();
+        }
+        return std::filesystem::current_path();
+#elif defined(__APPLE__)
+        uint32_t size = 0;
+        _NSGetExecutablePath(nullptr, &size);
+        std::string path;
+        path.resize(size + 1);
+        if (_NSGetExecutablePath(path.data(), &size) == 0) {
+            std::filesystem::path p(path.c_str());
+            return p.parent_path();
+        }
+        return std::filesystem::current_path();
+#else
+        char buf[4096];
+        ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+        if (len > 0) {
+            buf[len] = '\0';
+            std::filesystem::path p(buf);
+            return p.parent_path();
+        }
+        return std::filesystem::current_path();
+#endif
+    }
+
     std::string runBloch(const std::string& source, const std::string& name,
                          const std::string& options = "") {
         namespace fs = std::filesystem;
@@ -31,30 +72,30 @@ namespace {
         ofs << source;
         ofs.close();
 
-        auto findBinary = [&](const fs::path& start) -> fs::path {
-            std::vector<fs::path> candidates;
+        auto findBinary = [&]() -> fs::path {
+            fs::path base = executableDir();
 #if defined(_WIN32)
             const char* exe = "bloch.exe";
-            candidates.push_back(start / exe);
-            candidates.push_back(start.parent_path() / "bin" / "Release" / exe);
-            candidates.push_back(start.parent_path() / "bin" / exe);
-            candidates.push_back(start / "bin" / "Release" / exe);
-            candidates.push_back(start / "bin" / exe);
-            candidates.push_back(start.parent_path() / "bin" / "Debug" / exe);
 #else
             const char* exe = "bloch";
-            candidates.push_back(start / exe);
-            candidates.push_back(start.parent_path() / "bin" / exe);
-            candidates.push_back(start / "bin" / exe);
 #endif
-            for (const auto& p : candidates) {
-                if (fs::exists(p))
-                    return fs::absolute(p);
+            std::vector<fs::path> candidates = {
+                base / exe,
+                base.parent_path() / exe,
+                base / ".." / exe,
+                cwd / "bin" / exe,
+                cwd / "bin" / "Release" / exe,
+                cwd.parent_path() / "bin" / exe,
+                cwd.parent_path() / "bin" / "Release" / exe,
+            };
+            for (auto& p : candidates) {
+                std::error_code ec;
+                if (fs::exists(p, ec)) return fs::weakly_canonical(p, ec);
             }
-            return fs::absolute(start / exe);
+            return exe;
         };
 
-        fs::path blochBin = findBinary(cwd);
+        fs::path blochBin = findBinary();
 
         std::string cmd = std::string("\"") + blochBin.string() + "\"";
         if (!options.empty()) cmd += " " + options;
