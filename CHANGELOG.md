@@ -43,6 +43,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #77: simplifed Parser by making better use of the `expect` function
 - #107: require `b` suffix for `bit` literals to disambiguate from `int`
 - #116: refactored error reporting for better user experience
+- #123: refactored `@tracked` rules and CLI output
 
 ### Fixed
 - #11: minor readme bugfixes
