@@ -251,3 +251,10 @@ TEST(SemanticTest, PostfixOperatorThrowsErrorWhenNotOnInt) {
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
+
+TEST(SemanticTest, QubitArrayCannotBeInitialised) {
+    const char* src = "qubit[] qs = { };";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}

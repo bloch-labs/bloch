@@ -49,7 +49,7 @@ comparison            = additive { (">" | "<" | ">=" | "<=") additive } ;
 additive              = multiplicative { ("+" | "-") multiplicative } ;
 multiplicative        = unary { ("*" | "/" | "%") unary } ;
 unary                 = ("-" | "!" | "~") unary | call ;
-call                  = primary { "(" [ argumentList ] ")" } | "++" | "--" ;
+call                  = primary { ( "(" [ argumentList ] ")" ) | ("[" expression "]") } | "++" | "--" ;
 argumentList          = expression { "," expression } ;
 primary               = literal
                       | "measure" expression
@@ -63,7 +63,7 @@ literal               = integerLiteral
                       | stringLiteral
                       | charLiteral ;
 
-type                  = primitiveType [ "[" "]" ] ;
+type                  = primitiveType [ "[" [ integerLiteral ] "]" ] ;
 primitiveType         = "void" | "int" | "float" | "char" | "string"
                       | "bit" | "qubit" ;
 

@@ -318,3 +318,54 @@ TEST(ParserTest, ParseLogicalAndBitwiseExpressions) {
     ASSERT_NE(unaryBang, nullptr);
     EXPECT_EQ(unaryBang->op, "!");
 }
+
+TEST(ParserTest, ParseArrayTypesAndIndexing) {
+    const char* src =
+        "int[] a; int[5] b; int[] c = {0,1,2}; function main() -> void { echo(c[1]); }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_GE(program->statements.size(), 3u);
+    auto* a = dynamic_cast<VariableDeclaration*>(program->statements[0].get());
+    auto* b = dynamic_cast<VariableDeclaration*>(program->statements[1].get());
+    auto* c = dynamic_cast<VariableDeclaration*>(program->statements[2].get());
+    ASSERT_NE(a, nullptr);
+    ASSERT_NE(b, nullptr);
+    ASSERT_NE(c, nullptr);
+    auto* aType = dynamic_cast<ArrayType*>(a->varType.get());
+    ASSERT_NE(aType, nullptr);
+    auto* aElem = dynamic_cast<PrimitiveType*>(aType->elementType.get());
+    ASSERT_NE(aElem, nullptr);
+    EXPECT_EQ(aElem->name, "int");
+    EXPECT_EQ(aType->size, -1);
+
+    auto* bType = dynamic_cast<ArrayType*>(b->varType.get());
+    ASSERT_NE(bType, nullptr);
+    auto* bElem = dynamic_cast<PrimitiveType*>(bType->elementType.get());
+    ASSERT_NE(bElem, nullptr);
+    EXPECT_EQ(bElem->name, "int");
+    EXPECT_EQ(bType->size, 5);
+
+    auto* cInit = dynamic_cast<ArrayLiteralExpression*>(c->initializer.get());
+    ASSERT_NE(cInit, nullptr);
+    ASSERT_EQ(cInit->elements.size(), 3u);
+
+    ASSERT_EQ(program->functions.size(), 1u);
+    auto* func = program->functions[0].get();
+    ASSERT_NE(func->body, nullptr);
+    ASSERT_EQ(func->body->statements.size(), 1u);
+    auto* echo = dynamic_cast<EchoStatement*>(func->body->statements[0].get());
+    ASSERT_NE(echo, nullptr);
+    auto* idx = dynamic_cast<IndexExpression*>(echo->value.get());
+    ASSERT_NE(idx, nullptr);
+}
+
+TEST(ParserTest, RejectNegativeArrayIndexLiteral) {
+    const char* src = "function main() -> void { int[] a = {1,2,3}; echo(a[-1]); }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochError);
+}

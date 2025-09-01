@@ -11,14 +11,35 @@
 namespace bloch {
 
     struct Value {
-        enum class Type { Int, Float, Bit, BitArray, String, Qubit, Void };
+        enum class Type {
+            Int,
+            Float,
+            Bit,
+            String,
+            Char,
+            Qubit,
+            // Arrays
+            IntArray,
+            FloatArray,
+            BitArray,
+            StringArray,
+            CharArray,
+            QubitArray,
+            Void
+        };
         Type type = Type::Void;
         int intValue = 0;
         double floatValue = 0.0;
         int bitValue = 0;
         std::string stringValue = "";
+        char charValue = '\0';
         int qubit = -1;
+        std::vector<int> intArray;
+        std::vector<double> floatArray;
         std::vector<int> bitArray;
+        std::vector<std::string> stringArray;
+        std::vector<char> charArray;
+        std::vector<int> qubitArray;
     };
 
     class RuntimeEvaluator {
