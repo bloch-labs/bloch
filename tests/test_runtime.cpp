@@ -162,7 +162,7 @@ TEST(RuntimeTest, EchoModes) {
     EXPECT_EQ("1\n", out.str());
 }
 
-TEST(RuntimeTest, UninitializedTrackedVariable) {
+TEST(RuntimeTest, UnmeasuredTrackedQubit) {
     const char* src = "function main() -> void { @tracked qubit q; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
@@ -170,7 +170,18 @@ TEST(RuntimeTest, UninitializedTrackedVariable) {
     RuntimeEvaluator eval;
     eval.execute(*program);
     const auto& counts = eval.trackedCounts();
-    ASSERT_EQ(counts.at("qubit q").at("0"), 1);
+    ASSERT_EQ(counts.at("qubit q").at("?"), 1);
+}
+
+TEST(RuntimeTest, MeasuredTrackedQubit) {
+    const char* src = "function main() -> void { @tracked qubit q; x(q); measure q; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    const auto& counts = eval.trackedCounts();
+    ASSERT_EQ(counts.at("qubit q").at("1"), 1);
 }
 
 TEST(RuntimeTest, ResetClearsQubit) {
