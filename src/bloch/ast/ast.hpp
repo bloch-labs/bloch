@@ -250,8 +250,7 @@ namespace bloch {
         ArrayAssignmentExpression(std::unique_ptr<Expression> collection,
                                   std::unique_ptr<Expression> index,
                                   std::unique_ptr<Expression> value)
-            : collection(std::move(collection)), index(std::move(index)),
-              value(std::move(value)) {}
+            : collection(std::move(collection)), index(std::move(index)), value(std::move(value)) {}
         void accept(ASTVisitor& visitor) override;
     };
 

@@ -213,13 +213,11 @@ TEST(RuntimeTest, BitArrayBitwiseOperations) {
     auto* oldBuf = std::cout.rdbuf(output.rdbuf());
     eval.execute(*program);
     std::cout.rdbuf(oldBuf);
-    EXPECT_EQ("{1, 0, 0, 1}\n{0, 0, 1, 0}\n{1, 1, 1, 0}\n{1, 1, 0, 0}\n",
-              output.str());
+    EXPECT_EQ("{1, 0, 0, 1}\n{0, 0, 1, 0}\n{1, 1, 1, 0}\n{1, 1, 0, 0}\n", output.str());
 }
 
 TEST(RuntimeTest, IntArrayInitializationAndIndexing) {
-    const char* src =
-        "function main() -> void { int[] a = {0,1,2,3}; echo(a[0]); echo(a[3]); }";
+    const char* src = "function main() -> void { int[] a = {0,1,2,3}; echo(a[0]); echo(a[3]); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);

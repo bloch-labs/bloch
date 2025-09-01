@@ -34,8 +34,7 @@ namespace bloch {
             if (auto arr = dynamic_cast<ArrayType*>(node.varType.get())) {
                 if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
                     if (elem->name == "qubit") {
-                        throw BlochError(node.line, node.column,
-                                         "qubit[] cannot be initialised");
+                        throw BlochError(node.line, node.column, "qubit[] cannot be initialised");
                     }
                 }
             }
@@ -294,8 +293,7 @@ namespace bloch {
         } else {
             // Only simple variable arrays are assignable targets for now
             node.collection->accept(*this);
-            throw BlochError(node.line, node.column,
-                             "Assignment target must be a variable array");
+            throw BlochError(node.line, node.column, "Assignment target must be a variable array");
         }
         if (node.index)
             node.index->accept(*this);

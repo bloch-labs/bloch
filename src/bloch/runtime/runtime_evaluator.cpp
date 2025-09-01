@@ -177,7 +177,8 @@ namespace bloch {
                         v.charArray.assign(n, '\0');
                     else if (v.type == Value::Type::QubitArray) {
                         v.qubitArray.resize(n);
-                        for (int i = 0; i < n; ++i) v.qubitArray[i] = allocateTrackedQubit(var->name);
+                        for (int i = 0; i < n; ++i)
+                            v.qubitArray[i] = allocateTrackedQubit(var->name);
                     }
                 }
             }
@@ -190,12 +191,14 @@ namespace bloch {
                             throw BlochError(var->line, var->column,
                                              "qubit[] cannot be initialised");
                         }
-                        if (auto arrLit = dynamic_cast<ArrayLiteralExpression*>(var->initializer.get())) {
+                        if (auto arrLit =
+                                dynamic_cast<ArrayLiteralExpression*>(var->initializer.get())) {
                             // If size is specified, enforce it
                             if (arrType->size >= 0 &&
                                 static_cast<int>(arrLit->elements.size()) != arrType->size) {
-                                throw BlochError(var->line, var->column,
-                                                 "Array initializer length does not match declared size");
+                                throw BlochError(
+                                    var->line, var->column,
+                                    "Array initializer length does not match declared size");
                             }
                             if (elem->name == "bit") {
                                 v.type = Value::Type::BitArray;
@@ -220,8 +223,9 @@ namespace bloch {
                                     else if (ev.type == Value::Type::Float)
                                         val = static_cast<int>(ev.floatValue);
                                     else
-                                        throw BlochError(el->line, el->column,
-                                                         "int[] initialiser expects integer elements");
+                                        throw BlochError(
+                                            el->line, el->column,
+                                            "int[] initialiser expects integer elements");
                                     v.intArray.push_back(val);
                                 }
                             } else if (elem->name == "float") {
@@ -237,8 +241,9 @@ namespace bloch {
                                     else if (ev.type == Value::Type::Bit)
                                         val = static_cast<double>(ev.bitValue);
                                     else
-                                        throw BlochError(el->line, el->column,
-                                                         "float[] initialiser expects float elements");
+                                        throw BlochError(
+                                            el->line, el->column,
+                                            "float[] initialiser expects float elements");
                                     v.floatArray.push_back(val);
                                 }
                             } else if (elem->name == "string") {
@@ -247,8 +252,9 @@ namespace bloch {
                                 for (auto& el : arrLit->elements) {
                                     Value ev = eval(el.get());
                                     if (ev.type != Value::Type::String)
-                                        throw BlochError(el->line, el->column,
-                                                         "string[] initialiser expects string elements");
+                                        throw BlochError(
+                                            el->line, el->column,
+                                            "string[] initialiser expects string elements");
                                     v.stringArray.push_back(ev.stringValue);
                                 }
                             } else if (elem->name == "char") {
@@ -259,8 +265,9 @@ namespace bloch {
                                     if (ev.type == Value::Type::Char)
                                         v.charArray.push_back(ev.charValue);
                                     else
-                                        throw BlochError(el->line, el->column,
-                                                         "char[] initialiser expects char elements");
+                                        throw BlochError(
+                                            el->line, el->column,
+                                            "char[] initialiser expects char elements");
                                 }
                             }
                             initialized = true;
@@ -407,7 +414,7 @@ namespace bloch {
                             throw BlochError(el->line, el->column,
                                              "Inconsistent element types in array literal");
                         v.intArray.push_back(ev.type == Value::Type::Int ? ev.intValue
-                                                                          : ev.bitValue);
+                                                                         : ev.bitValue);
                     }
                     break;
                 case Value::Type::Float:
@@ -418,11 +425,11 @@ namespace bloch {
                             ev.type != Value::Type::Bit)
                             throw BlochError(el->line, el->column,
                                              "Inconsistent element types in array literal");
-                        double val = (ev.type == Value::Type::Float)
-                                         ? ev.floatValue
-                                         : static_cast<double>(ev.type == Value::Type::Int
-                                                                   ? ev.intValue
-                                                                   : ev.bitValue);
+                        double val =
+                            (ev.type == Value::Type::Float)
+                                ? ev.floatValue
+                                : static_cast<double>(ev.type == Value::Type::Int ? ev.intValue
+                                                                                  : ev.bitValue);
                         v.floatArray.push_back(val);
                     }
                     break;

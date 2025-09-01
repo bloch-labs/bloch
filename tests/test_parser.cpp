@@ -363,8 +363,7 @@ TEST(ParserTest, ParseArrayTypesAndIndexing) {
 }
 
 TEST(ParserTest, RejectNegativeArrayIndexLiteral) {
-    const char* src =
-        "function main() -> void { int[] a = {1,2,3}; echo(a[-1]); }";
+    const char* src = "function main() -> void { int[] a = {1,2,3}; echo(a[-1]); }";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));

@@ -473,7 +473,7 @@ namespace bloch {
                 int column = idx->column;
                 auto value = parseAssignmentExpression();
                 auto arrayAssign = std::make_unique<ArrayAssignmentExpression>(
-                    std::move(idx->collection), std::move(idx->index), std::move(value)); 
+                    std::move(idx->collection), std::move(idx->index), std::move(value));
                 arrayAssign->line = line;
                 arrayAssign->column = column;
                 return arrayAssign;
