@@ -24,6 +24,15 @@ git fetch origin --tags --prune || true
 # Create local branch tracking remote if needed
 if git show-ref --verify --quiet "refs/heads/${BRANCH}"; then
   git checkout "${BRANCH}"
+  # Ensure upstream is set; if not, set to origin/<branch> or push to create it
+  if ! git rev-parse --abbrev-ref --symbolic-full-name "@{u}" >/dev/null 2>&1; then
+    if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null 2>&1; then
+      git branch --set-upstream-to="origin/${BRANCH}" "${BRANCH}"
+    else
+      echo "Upstream for '${BRANCH}' not found on origin. Pushing branch to origin..."
+      git push -u origin "${BRANCH}"
+    fi
+  fi
 else
   if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null 2>&1; then
     git checkout -B "${BRANCH}" "origin/${BRANCH}"
@@ -60,4 +69,3 @@ echo
 echo "Pushed tag '${TAG}'."
 echo "If '${BRANCH}' matches release-v*, the RC pre-release workflow will run automatically."
 echo "View Actions: https://github.com/$(git config --get remote.origin.url | sed -E 's#(git@|https://)github.com[:/](.*)\.git#\2#')/actions"
-
