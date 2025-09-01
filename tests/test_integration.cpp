@@ -84,6 +84,44 @@ namespace {
             return result;
         while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
 
+        // Normalize output for cross-platform comparisons:
+        // - Convert CRLF/CR to LF
+        // - Strip ANSI escape sequences (e.g., color codes)
+        {
+            // Newlines
+            std::string tmp;
+            tmp.reserve(result.size());
+            for (size_t i = 0; i < result.size(); ++i) {
+                char c = result[i];
+                if (c == '\r') {
+                    // Skip CR; if next is LF, LF will be handled naturally
+                    continue;
+                }
+                tmp.push_back(c);
+            }
+            result.swap(tmp);
+        }
+        {
+            // ANSI escape sequences: \x1B[ ... letter
+            std::string tmp;
+            tmp.reserve(result.size());
+            for (size_t i = 0; i < result.size();) {
+                unsigned char c = static_cast<unsigned char>(result[i]);
+                if (c == 0x1B && i + 1 < result.size() && result[i + 1] == '[') {
+                    // Skip until a letter (m, K, etc.) or end
+                    i += 2;
+                    while (i < result.size()) {
+                        char ch = result[i++];
+                        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) break;
+                    }
+                } else {
+                    tmp.push_back(static_cast<char>(c));
+                    ++i;
+                }
+            }
+            result.swap(tmp);
+        }
+
         fs::path stem = blochFile.stem();
         fs::remove(blochFile);
         fs::remove(cwd / (stem.string() + ".qasm"));
