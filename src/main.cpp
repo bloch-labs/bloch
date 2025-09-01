@@ -19,24 +19,21 @@
 #endif
 
 static void printHelp() {
-    std::cout
-        << "Bloch " << BLOCH_VERSION << "\n"
-        << "Usage: bloch [options] <file.bloch>\n\n"
-        << "Options:\n"
-        << "  --help          Show this help and exit\n"
-        << "  --version       Print version and exit\n"
-        << "  --emit-qasm     Print emitted QASM to stdout\n"
-        << "  --shots=N       Run the program N times and aggregate @tracked counts\n"
-        << "  --echo=all|none Control echo statements (default: auto)\n\n"
-        << "Behavior:\n"
-        << "  - Writes <file>.qasm alongside the input file.\n"
-        << "  - When --shots is used, prints an aggregate table of tracked values.\n"
-        << std::endl;
+    std::cout << "Bloch " << BLOCH_VERSION << "\n"
+              << "Usage: bloch [options] <file.bloch>\n\n"
+              << "Options:\n"
+              << "  --help          Show this help and exit\n"
+              << "  --version       Print version and exit\n"
+              << "  --emit-qasm     Print emitted QASM to stdout\n"
+              << "  --shots=N       Run the program N times and aggregate @tracked counts\n"
+              << "  --echo=all|none Control echo statements (default: auto)\n\n"
+              << "Behavior:\n"
+              << "  - Writes <file>.qasm alongside the input file.\n"
+              << "  - When --shots is used, prints an aggregate table of tracked values.\n"
+              << std::endl;
 }
 
-static void printVersion() {
-    std::cout << BLOCH_VERSION << std::endl;
-}
+static void printVersion() { std::cout << BLOCH_VERSION << std::endl; }
 
 int main(int argc, char** argv) {
     if (argc < 2) {
