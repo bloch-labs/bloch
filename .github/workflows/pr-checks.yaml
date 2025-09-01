@@ -31,7 +31,7 @@ jobs:
               | xargs -0 -r "$CLANG_FORMAT" -style=file -n --Werror; then
               echo ""
               echo "❌ Code is not formatted correctly."
-              echo "👉 Please run: $CLANG_FORMAT -i \$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
+              echo "👉 Please run: clang-format-14 -i \$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
               echo ""
               exit 1
             else
