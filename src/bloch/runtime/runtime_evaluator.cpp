@@ -948,8 +948,7 @@ namespace bloch {
                 if (!allMeasured) {
                     outcome = "?";
                 } else {
-                    for (int q : v.qubitArray)
-                        bits.push_back(m_lastMeasurement[q] ? '1' : '0');
+                    for (int q : v.qubitArray) bits.push_back(m_lastMeasurement[q] ? '1' : '0');
                     outcome = bits;
                 }
                 std::string key = std::string("qubit[] ") + name;

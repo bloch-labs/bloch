@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
     //  --echo=all   echo statements are printed per shot
     //  --echo=none  no echo statements are printed
     // TODO: Add a --version and --help flag
-    // TODO: Add a --json flag 
+    // TODO: Add a --json flag
     bool emitQasm = false;
     int shots = 1;
     bool shotsProvided = false;
@@ -129,10 +129,12 @@ int main(int argc, char** argv) {
                     });
                     // Dynamic column sizing for outcome strings
                     size_t outcomeWidth = 7;
-                    for (const auto& p : vals) outcomeWidth = std::max(outcomeWidth, p.first.size());
+                    for (const auto& p : vals)
+                        outcomeWidth = std::max(outcomeWidth, p.first.size());
                     std::cout << std::left << std::setw(static_cast<int>(outcomeWidth)) << "outcome"
-                              << " | " << std::right << std::setw(5) << "count" << " | "
-                              << std::setw(5) << "prob" << "\n";
+                              << " | " << std::right << std::setw(5) << "count"
+                              << " | " << std::setw(5) << "prob"
+                              << "\n";
                     std::cout << std::string(outcomeWidth, '-') << "-+-------+-----\n";
                     for (auto& p : vals) {
                         double prob = static_cast<double>(p.second) / shots;

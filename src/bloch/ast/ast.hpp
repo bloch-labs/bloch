@@ -10,7 +10,7 @@ namespace bloch {
     // its source position and supports a classic visitor for later stages
     // (semantic analysis and execution).
     // Only the essentials live here to keep traversal cheap and predictable.
-    
+
     // Base Node Interfaces
     class ASTVisitor;
 

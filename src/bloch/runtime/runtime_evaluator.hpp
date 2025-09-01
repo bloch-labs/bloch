@@ -93,7 +93,7 @@ namespace bloch {
         void markMeasured(int index);
         void unmarkMeasured(int index);
         void warnUnmeasured() const;
-        
+
         // Scope & output helpers
         void beginScope();
         void endScope();
