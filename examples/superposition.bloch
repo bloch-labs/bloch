@@ -19,8 +19,8 @@ function main() -> void {
         }
         i = i + 1;
     }
-int zero_prob = zeros/N;
-int one_prob = ones/N;
+float zero_prob = 1.0f * zeros/N;
+float one_prob = 1.0f * ones/N;
 echo("0s " + zeros + ", " + zero_prob);
 echo("1s " + ones + ", " + one_prob);
 }
