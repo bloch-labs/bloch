@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Bloch langugae are documented here
+All notable changes to the Bloch programming language are documented here
 
 This project follows [Semantic Versioning](https://semver.org/) and the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. 
 
