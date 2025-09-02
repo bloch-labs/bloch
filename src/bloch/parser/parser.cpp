@@ -255,12 +255,6 @@ namespace bloch {
 
         bool isFinal = match(TokenType::Final);
 
-        // Lookahead for user-defined type declarations: Identifier Identifier
-        if (check(TokenType::Identifier) && checkNext(TokenType::Identifier)) {
-            auto type = parseType();  // consumes the type name (first identifier)
-            return parseVariableDeclaration(std::move(type), isFinal);
-        }
-
         // Match primitive declarations or annotated declarations
         if (check(TokenType::At) || check(TokenType::Int) || check(TokenType::Float) ||
             check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||

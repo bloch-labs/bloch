@@ -7,13 +7,7 @@ Bloch is a modern, strongly typed, interpreted quantum programming language from
 ![Demo of `/examples/superposition2.bloch`](demo/superposition2-demo.gif)
 
 ## Docs
-> ⚠️ **Note:** docs are still under construction.
-
-See `/docs` for
-- [Language grammar](docs/grammar.md)
-- Standard library
-- [Runtime internals](docs/runtime.md)
-- Explore [examples](examples/README.md)
+- [Documentation](https://docs.bloch-labs.com/bloch)
 - [Official VSCode extension](https://github.com/bloch-labs/bloch-vscode)
 
 ## Installation
