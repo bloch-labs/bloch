@@ -272,3 +272,10 @@ TEST(SemanticTest, QubitArrayCannotBeInitialised) {
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
+
+TEST(SemanticTest, AssignToFinalVariableFails) {
+    const char* src = "final int x = 1; x = 2;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}

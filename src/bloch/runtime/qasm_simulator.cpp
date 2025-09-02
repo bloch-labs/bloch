@@ -116,18 +116,37 @@ namespace bloch {
     }
 
     void QasmSimulator::reset(int q) {
+        // Put qubit q into |0>.
+        // If the state already has amplitude in the |...0> subspace, zero the |...1> subspace
+        // and renormalize. If all amplitude is in |...1>, deterministically move it into
+        // the |...0> subspace (equivalent to an X on a measured |1>), avoiding NaNs.
         size_t bit = size_t{1} << q;
-        double norm = 0.0;
+        double norm0 = 0.0;
         for (size_t i = 0; i < m_state.size(); ++i) {
-            if (!(i & bit))
-                norm += std::norm(m_state[i]);
-            else
-                m_state[i] = 0;
+            if (!(i & bit)) norm0 += std::norm(m_state[i]);
         }
-        norm = std::sqrt(norm);
-        for (size_t i = 0; i < m_state.size(); ++i)
-            if (!(i & bit))
-                m_state[i] /= norm;
+
+        if (norm0 == 0.0) {
+            // All amplitude is in the |...1> subspace: swap it into |...0>.
+            for (size_t i = 0; i < m_state.size(); ++i) {
+                if (i & bit) {
+                    size_t j = i ^ bit;  // flip target bit to 0
+                    m_state[j] = m_state[i];
+                    m_state[i] = 0.0;
+                }
+            }
+        } else {
+            // Zero |...1> and renormalize |...0>
+            double inv = 1.0 / std::sqrt(norm0);
+            for (size_t i = 0; i < m_state.size(); ++i) {
+                if (i & bit) {
+                    m_state[i] = 0.0;
+                } else {
+                    m_state[i] *= inv;
+                }
+            }
+        }
+
         m_ops += "reset q[" + std::to_string(q) + "];\n";
     }
 

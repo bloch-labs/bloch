@@ -266,3 +266,66 @@ TEST(RuntimeTest, IntArraySizedDefaults) {
     std::cout.rdbuf(oldBuf);
     EXPECT_EQ("0\n0\n", output.str());
 }
+
+TEST(RuntimeTest, ArrayAssignmentHappyPaths) {
+    const char* src =
+        "function main() -> void { int[] a = {0,1}; a[0] = 2; a[1] = 1b; echo(a[0]); echo(a[1]); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* old = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(old);
+    EXPECT_EQ("2\n1\n", output.str());
+}
+
+TEST(RuntimeTest, ArrayAssignmentTypeMismatchThrows) {
+    const char* src = "function main() -> void { string[] s = {\"a\"}; s[0] = 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
+TEST(RuntimeTest, ArrayAssignmentOutOfBoundsThrows) {
+    const char* src = "function main() -> void { int[1] a; a[1] = 5; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
+TEST(RuntimeTest, NegativeIndexRuntimeThrows) {
+    const char* src = "function main() -> void { int[] a = {1,2}; int i = -1; echo(a[i]); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
+TEST(RuntimeTest, UnaryTildeOnIntThrows) {
+    const char* src = "function main() -> void { int x = 2; echo(~x); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
+TEST(RuntimeTest, RyRzAppearInQasm) {
+    const char* src =
+        "function main() -> void { qubit q; ry(q, 1.0f); rz(q, 0.5f); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    std::string qasm = eval.getQasm();
+    EXPECT_NE(qasm.find("ry("), std::string::npos);
+    EXPECT_NE(qasm.find("rz("), std::string::npos);
+}

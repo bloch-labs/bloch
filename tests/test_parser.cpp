@@ -383,3 +383,20 @@ TEST(ParserTest, RejectNegativeArrayIndexLiteral) {
     Parser parser(std::move(tokens));
     EXPECT_THROW((void)parser.parse(), BlochError);
 }
+
+TEST(ParserTest, ParseArrayElementAssignment) {
+    const char* src = "int[] a = {1,2,3}; a[1] = 5;";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 2u);
+    auto* assignStmt = dynamic_cast<ExpressionStatement*>(program->statements[1].get());
+    ASSERT_NE(assignStmt, nullptr);
+    auto* arrAssign = dynamic_cast<ArrayAssignmentExpression*>(assignStmt->expression.get());
+    ASSERT_NE(arrAssign, nullptr);
+    auto* collVar = dynamic_cast<VariableExpression*>(arrAssign->collection.get());
+    ASSERT_NE(collVar, nullptr);
+    EXPECT_EQ(collVar->name, "a");
+}
