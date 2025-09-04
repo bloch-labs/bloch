@@ -91,7 +91,9 @@ namespace bloch {
         }
     }
 
-    void Lexer::reportError(const std::string& msg) { throw BlochError(m_line, m_column, msg); }
+    void Lexer::reportError(const std::string& msg) {
+        throw BlochError(ErrorCategory::Lexical, m_line, m_column, msg);
+    }
 
     Token Lexer::makeToken(TokenType type, const std::string& value) {
         // Column is adjusted so error spans point to token start.
@@ -189,16 +191,23 @@ namespace bloch {
                 return makeToken(TokenType::FloatLiteral,
                                  std::string(m_source.substr(start, m_position - start)));
             } else {
-                reportError("Float literal must end with 'f'");
+                reportError("float literals must end with 'f'");
                 return makeToken(TokenType::Unknown,
                                  std::string(m_source.substr(start, m_position - start)));
             }
         }
 
+        // Support integer part followed directly by 'f' (e.g., 3f)
+        if (peek() == 'f') {
+            (void)advance();
+            return makeToken(TokenType::FloatLiteral,
+                             std::string(m_source.substr(start, m_position - start)));
+        }
+
         if (peek() == 'b') {
             std::string_view digits = m_source.substr(start, m_position - start);
             if (digits != "0" && digits != "1") {
-                reportError("Bit literal must be '0b' or '1b'");
+                reportError("bit literals must be 0b or 1b");
                 (void)advance();
                 return makeToken(TokenType::Unknown,
                                  std::string(m_source.substr(start, m_position - start)));
@@ -271,7 +280,7 @@ namespace bloch {
                              std::string(m_source.substr(start - 1, m_position - start + 1)));
         }
 
-        reportError("Unterminated string literal");
+        reportError("unterminated string literal");
         return makeToken(TokenType::Unknown,
                          std::string(m_source.substr(start - 1, m_position - start + 1)));
     }
@@ -287,7 +296,7 @@ namespace bloch {
             return makeToken(TokenType::CharLiteral, std::string(m_source.substr(start - 1, 3)));
         }
 
-        reportError("Unterminated char literal");
+        reportError("unterminated char literal");
         return makeToken(TokenType::Unknown,
                          std::string(m_source.substr(start - 1, m_position - start + 1)));
     }

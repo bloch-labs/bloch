@@ -50,6 +50,15 @@ TEST(LexerTest, FloatLiteral) {
     EXPECT_EQ(tokens[0].value, "3.14f");
 }
 
+TEST(LexerTest, FloatLiteralIntegerF) {
+    Lexer lexer("3f");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_EQ(tokens.size(), 2);
+    EXPECT_EQ(tokens[0].type, TokenType::FloatLiteral);
+    EXPECT_EQ(tokens[0].value, "3f");
+}
+
 TEST(LexerTest, BitLiteral) {
     Lexer lexer("1b");
     auto tokens = lexer.tokenize();

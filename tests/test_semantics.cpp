@@ -279,3 +279,17 @@ TEST(SemanticTest, AssignToFinalVariableFails) {
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
+
+TEST(SemanticTest, BitInitializerRequiresBitLiteral) {
+    const char* src = "bit b = 0;";  // missing 'b' suffix
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FloatInitializerRequiresFloatLiteral) {
+    const char* src = "float f = 3;";  // missing 'f' suffix
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}

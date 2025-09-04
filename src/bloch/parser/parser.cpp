@@ -71,7 +71,7 @@ namespace bloch {
     // Error
     void Parser::reportError(const std::string& msg) {
         const Token& token = peek();
-        throw BlochError(token.line, token.column, msg);
+        throw BlochError(ErrorCategory::Parse, token.line, token.column, msg);
     }
 
     // Main parse function
@@ -202,7 +202,7 @@ namespace bloch {
             if (!allowMultiple)
                 reportError("Multiple declarations not allowed in this context");
             if (!isQubitType)
-                reportError("Only qubit declarations may declare multiple variables");
+                reportError("only 'qubit' may be multi-declared");
             if (hasInitializer)
                 reportError("Cannot initialise multiple qubit declarations");
             const Token& extraToken =
@@ -217,7 +217,7 @@ namespace bloch {
             m_extraStatements.push_back(std::move(extraVar));
         }
 
-        (void)expect(TokenType::Semicolon, "Expected ';' after variable declaration");
+        (void)expect(TokenType::Semicolon, "expected ';' after declaration");
 
         return var;
     }
@@ -663,7 +663,8 @@ namespace bloch {
                     }
                 }
                 if (negativeConst) {
-                    throw BlochError(lbr.line, lbr.column, "Array index must be non-negative");
+                    throw BlochError(ErrorCategory::Parse, lbr.line, lbr.column,
+                                     "array index must be non-negative");
                 }
                 idxExpr->index = std::move(indexNode);
                 (void)expect(TokenType::RBracket, "Expected ']' after index expression");

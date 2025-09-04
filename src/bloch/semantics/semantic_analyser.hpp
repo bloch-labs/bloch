@@ -32,6 +32,7 @@ namespace bloch {
        public:
         void analyse(Program& program);
 
+        // Visitors
         void visit(VariableDeclaration& node) override;
         void visit(BlockStatement& node) override;
         void visit(ExpressionStatement& node) override;
@@ -79,6 +80,7 @@ namespace bloch {
         };
         std::unordered_map<std::string, FunctionInfo> m_functionInfo;
 
+        // Helpers
         void beginScope();
         void endScope();
         void declare(const std::string& name, bool isFinal, ValueType type);
@@ -90,6 +92,9 @@ namespace bloch {
         std::vector<ValueType> getFunctionParamTypes(const std::string& name) const;
         ValueType getVariableType(const std::string& name) const;
         bool returnsVoid(const std::string& name) const;
+
+        // Type inference
+        ValueType inferType(Expression* expr) const;
     };
 
 }

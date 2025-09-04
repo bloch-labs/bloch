@@ -16,6 +16,8 @@
 #include <sstream>
 #include "../error/bloch_error.hpp"
 #include "../semantics/built_ins.hpp"
+#include <cmath>
+#include <iomanip>
 
 namespace bloch {
 
@@ -29,9 +31,16 @@ namespace bloch {
                 oss << "'" << v.charValue << "'";
                 return oss.str();
             }
-            case Value::Type::Float:
-                oss << v.floatValue;
+            case Value::Type::Float: {
+                // Show a trailing .0 for whole-number floats
+                if (std::isfinite(v.floatValue) && std::floor(v.floatValue) == v.floatValue) {
+                    oss.setf(std::ios::fixed);
+                    oss << std::setprecision(1) << v.floatValue;
+                } else {
+                    oss << v.floatValue;
+                }
                 return oss.str();
+            }
             case Value::Type::Bit:
                 return std::to_string(v.bitValue);
             case Value::Type::Int:
@@ -204,7 +213,7 @@ namespace bloch {
                 if (auto arrType = dynamic_cast<ArrayType*>(var->varType.get())) {
                     if (auto elem = dynamic_cast<PrimitiveType*>(arrType->elementType.get())) {
                         if (elem->name == "qubit") {
-                            throw BlochError(var->line, var->column,
+                            throw BlochError(ErrorCategory::Runtime, var->line, var->column,
                                              "qubit[] cannot be initialised");
                         }
                         if (auto arrLit =
@@ -212,9 +221,8 @@ namespace bloch {
                             // If size is specified, enforce it
                             if (arrType->size >= 0 &&
                                 static_cast<int>(arrLit->elements.size()) != arrType->size) {
-                                throw BlochError(
-                                    var->line, var->column,
-                                    "Array initializer length does not match declared size");
+                                throw BlochError(ErrorCategory::Runtime, var->line, var->column,
+                                                 "array initializer length does not match declared size");
                             }
                             if (elem->name == "bit") {
                                 v.type = Value::Type::BitArray;
@@ -222,7 +230,7 @@ namespace bloch {
                                 for (auto& el : arrLit->elements) {
                                     Value ev = eval(el.get());
                                     if (ev.type != Value::Type::Bit)
-                                        throw BlochError(el->line, el->column,
+                                        throw BlochError(ErrorCategory::Runtime, el->line, el->column,
                                                          "bit[] initialiser expects bit elements");
                                     v.bitArray.push_back(ev.bitValue ? 1 : 0);
                                 }
@@ -239,9 +247,8 @@ namespace bloch {
                                     else if (ev.type == Value::Type::Float)
                                         val = static_cast<int>(ev.floatValue);
                                     else
-                                        throw BlochError(
-                                            el->line, el->column,
-                                            "int[] initialiser expects integer elements");
+                                        throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                                         "int[] initialiser expects integer elements");
                                     v.intArray.push_back(val);
                                 }
                             } else if (elem->name == "float") {
@@ -257,9 +264,8 @@ namespace bloch {
                                     else if (ev.type == Value::Type::Bit)
                                         val = static_cast<double>(ev.bitValue);
                                     else
-                                        throw BlochError(
-                                            el->line, el->column,
-                                            "float[] initialiser expects float elements");
+                                        throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                                         "float[] initialiser expects float elements");
                                     v.floatArray.push_back(val);
                                 }
                             } else if (elem->name == "string") {
@@ -269,7 +275,7 @@ namespace bloch {
                                     Value ev = eval(el.get());
                                     if (ev.type != Value::Type::String)
                                         throw BlochError(
-                                            el->line, el->column,
+                                            ErrorCategory::Runtime, el->line, el->column,
                                             "string[] initialiser expects string elements");
                                     v.stringArray.push_back(ev.stringValue);
                                 }
@@ -282,7 +288,7 @@ namespace bloch {
                                         v.charArray.push_back(ev.charValue);
                                     else
                                         throw BlochError(
-                                            el->line, el->column,
+                                            ErrorCategory::Runtime, el->line, el->column,
                                             "char[] initialiser expects char elements");
                                 }
                             }
@@ -419,8 +425,8 @@ namespace bloch {
                     for (auto& el : arr->elements) {
                         Value ev = eval(el.get());
                         if (ev.type != Value::Type::Bit)
-                            throw BlochError(el->line, el->column,
-                                             "Inconsistent element types in array literal");
+                            throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                             "inconsistent element types in array literal");
                         v.bitArray.push_back(ev.bitValue ? 1 : 0);
                     }
                     break;
@@ -429,8 +435,8 @@ namespace bloch {
                     for (auto& el : arr->elements) {
                         Value ev = eval(el.get());
                         if (ev.type != Value::Type::Int && ev.type != Value::Type::Bit)
-                            throw BlochError(el->line, el->column,
-                                             "Inconsistent element types in array literal");
+                            throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                             "inconsistent element types in array literal");
                         v.intArray.push_back(ev.type == Value::Type::Int ? ev.intValue
                                                                          : ev.bitValue);
                     }
@@ -441,8 +447,8 @@ namespace bloch {
                         Value ev = eval(el.get());
                         if (ev.type != Value::Type::Float && ev.type != Value::Type::Int &&
                             ev.type != Value::Type::Bit)
-                            throw BlochError(el->line, el->column,
-                                             "Inconsistent element types in array literal");
+                            throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                             "inconsistent element types in array literal");
                         double val =
                             (ev.type == Value::Type::Float)
                                 ? ev.floatValue
@@ -456,8 +462,8 @@ namespace bloch {
                     for (auto& el : arr->elements) {
                         Value ev = eval(el.get());
                         if (ev.type != Value::Type::String)
-                            throw BlochError(el->line, el->column,
-                                             "Inconsistent element types in array literal");
+                            throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                             "inconsistent element types in array literal");
                         v.stringArray.push_back(ev.stringValue);
                     }
                     break;
@@ -466,13 +472,14 @@ namespace bloch {
                     for (auto& el : arr->elements) {
                         Value ev = eval(el.get());
                         if (ev.type != Value::Type::Char)
-                            throw BlochError(el->line, el->column,
-                                             "Inconsistent element types in array literal");
+                            throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                             "inconsistent element types in array literal");
                         v.charArray.push_back(ev.charValue);
                     }
                     break;
                 default:
-                    throw BlochError(arr->line, arr->column, "Unsupported array literal type");
+                    throw BlochError(ErrorCategory::Runtime, arr->line, arr->column,
+                                     "unsupported array literal type");
             }
             return v;
         } else if (auto bin = dynamic_cast<BinaryExpression*>(e)) {
@@ -503,8 +510,8 @@ namespace bloch {
             }
             if (bin->op == "/") {
                 if (rNum == 0) {
-                    throw BlochError(bin->line, bin->column,
-                                     "Division by zero in expression evaluation");
+                    throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                     "division by zero");
                 }
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float) {
                     return {Value::Type::Float, 0, lNum / rNum};
@@ -513,8 +520,8 @@ namespace bloch {
             }
             if (bin->op == "%") {
                 if (rInt == 0) {
-                    throw BlochError(bin->line, bin->column,
-                                     "Modulo by zero in expression evaluation");
+                    throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                     "modulo by zero");
                 }
                 return {Value::Type::Int, lInt % rInt};
             }
@@ -564,8 +571,8 @@ namespace bloch {
                     return {Value::Type::Bit, 0, 0.0, l.bitValue & r.bitValue};
                 if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
                     if (l.bitArray.size() != r.bitArray.size()) {
-                        throw BlochError(bin->line, bin->column,
-                                         "Bit arrays must be same length for '&'");
+                        throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                         "bit arrays must be same length for '&'");
                     }
                     Value v;
                     v.type = Value::Type::BitArray;
@@ -590,16 +597,16 @@ namespace bloch {
                         v.bitArray[i] = l.bitValue & r.bitArray[i];
                     return v;
                 }
-                throw BlochError(bin->line, bin->column,
-                                 "Bitwise '&' requires bit or bit[] operands");
+                throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                 "bitwise '&' requires bit or bit[] operands");
             }
             if (bin->op == "|") {
                 if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
                     return {Value::Type::Bit, 0, 0.0, l.bitValue | r.bitValue};
                 if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
                     if (l.bitArray.size() != r.bitArray.size()) {
-                        throw BlochError(bin->line, bin->column,
-                                         "Bit arrays must be same length for '|'");
+                        throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                         "bit arrays must be same length for '|'");
                     }
                     Value v;
                     v.type = Value::Type::BitArray;
@@ -624,16 +631,16 @@ namespace bloch {
                         v.bitArray[i] = l.bitValue | r.bitArray[i];
                     return v;
                 }
-                throw BlochError(bin->line, bin->column,
-                                 "Bitwise '|' requires bit or bit[] operands");
+                throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                 "bitwise '|' requires bit or bit[] operands");
             }
             if (bin->op == "^") {
                 if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
                     return {Value::Type::Bit, 0, 0.0, l.bitValue ^ r.bitValue};
                 if (l.type == Value::Type::BitArray && r.type == Value::Type::BitArray) {
                     if (l.bitArray.size() != r.bitArray.size()) {
-                        throw BlochError(bin->line, bin->column,
-                                         "Bit arrays must be same length for '^'");
+                        throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                         "bit arrays must be same length for '^'");
                     }
                     Value v;
                     v.type = Value::Type::BitArray;
@@ -658,8 +665,8 @@ namespace bloch {
                         v.bitArray[i] = l.bitValue ^ r.bitArray[i];
                     return v;
                 }
-                throw BlochError(bin->line, bin->column,
-                                 "Bitwise '^' requires bit or bit[] operands");
+                throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                 "bitwise '^' requires bit or bit[] operands");
             }
         } else if (auto unary = dynamic_cast<UnaryExpression*>(e)) {
             Value r = eval(unary->right.get());
@@ -670,8 +677,8 @@ namespace bloch {
             }
             if (unary->op == "!") {
                 if (r.type == Value::Type::BitArray) {
-                    throw BlochError(unary->line, unary->column,
-                                     "Logical '!' unsupported for bit[]");
+                    throw BlochError(ErrorCategory::Runtime, unary->line, unary->column,
+                                     "logical '!' unsupported for bit[]");
                 }
                 bool rb = r.type == Value::Type::Float
                               ? r.floatValue != 0.0
@@ -689,8 +696,8 @@ namespace bloch {
                         v.bitArray[i] = r.bitArray[i] ? 0 : 1;
                     return v;
                 }
-                throw BlochError(unary->line, unary->column,
-                                 "Bitwise '~' requires bit or bit[] operand");
+                throw BlochError(ErrorCategory::Runtime, unary->line, unary->column,
+                                 "bitwise '~' requires bit or bit[] operand");
             }
             return r;
         } else if (auto post = dynamic_cast<PostfixExpression*>(e)) {
@@ -768,29 +775,38 @@ namespace bloch {
             else if (idxv.type == Value::Type::Float)
                 idxi = static_cast<int>(idxv.floatValue);
             else
-                throw BlochError(indexExpr->line, indexExpr->column, "Index must be numeric");
-            if (idxi < 0)
-                throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                 "index must be numeric");
             switch (coll.type) {
                 case Value::Type::BitArray:
-                    if (idxi >= static_cast<int>(coll.bitArray.size()))
-                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    if (idxi < 0 || idxi >= static_cast<int>(coll.bitArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                             std::to_string(coll.bitArray.size()));
                     return {Value::Type::Bit, 0, 0.0, coll.bitArray[idxi]};
                 case Value::Type::IntArray:
-                    if (idxi >= static_cast<int>(coll.intArray.size()))
-                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    if (idxi < 0 || idxi >= static_cast<int>(coll.intArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                             std::to_string(coll.intArray.size()));
                     return {Value::Type::Int, coll.intArray[idxi]};
                 case Value::Type::FloatArray:
-                    if (idxi >= static_cast<int>(coll.floatArray.size()))
-                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    if (idxi < 0 || idxi >= static_cast<int>(coll.floatArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                             std::to_string(coll.floatArray.size()));
                     return {Value::Type::Float, 0, coll.floatArray[idxi]};
                 case Value::Type::StringArray:
-                    if (idxi >= static_cast<int>(coll.stringArray.size()))
-                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    if (idxi < 0 || idxi >= static_cast<int>(coll.stringArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                             std::to_string(coll.stringArray.size()));
                     return {Value::Type::String, 0, 0.0, 0, coll.stringArray[idxi]};
                 case Value::Type::CharArray:
-                    if (idxi >= static_cast<int>(coll.charArray.size()))
-                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    if (idxi < 0 || idxi >= static_cast<int>(coll.charArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                             std::to_string(coll.charArray.size()));
                     {
                         Value v;
                         v.type = Value::Type::Char;
@@ -798,16 +814,18 @@ namespace bloch {
                         return v;
                     }
                 case Value::Type::QubitArray: {
-                    if (idxi >= static_cast<int>(coll.qubitArray.size()))
-                        throw BlochError(indexExpr->line, indexExpr->column, "Index out of bounds");
+                    if (idxi < 0 || idxi >= static_cast<int>(coll.qubitArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                             std::to_string(coll.qubitArray.size()));
                     Value v;
                     v.type = Value::Type::Qubit;
                     v.qubit = coll.qubitArray[idxi];
                     return v;
                 }
                 default:
-                    throw BlochError(indexExpr->line, indexExpr->column,
-                                     "Indexing requires an array value");
+                    throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                     "indexing requires an array value");
             }
         } else if (auto assignExpr = dynamic_cast<AssignmentExpression*>(e)) {
             Value v = eval(assignExpr->value.get());
@@ -817,8 +835,8 @@ namespace bloch {
             // Only support assigning into variable arrays for 1.0.0
             auto* var = dynamic_cast<VariableExpression*>(aassign->collection.get());
             if (!var)
-                throw BlochError(aassign->line, aassign->column,
-                                 "Assignment target must be a variable array");
+                throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                 "assignment target must be a variable");
             Value arr = lookup(var->name);
             Value idxv = eval(aassign->index.get());
             int i = 0;
@@ -829,14 +847,16 @@ namespace bloch {
             else if (idxv.type == Value::Type::Float)
                 i = static_cast<int>(idxv.floatValue);
             else
-                throw BlochError(aassign->line, aassign->column, "Index must be numeric");
-            if (i < 0)
-                throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                 "index must be numeric");
             Value rhs = eval(aassign->value.get());
             switch (arr.type) {
                 case Value::Type::IntArray:
-                    if (i >= static_cast<int>(arr.intArray.size()))
-                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (i < 0 || i >= static_cast<int>(arr.intArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "index " + std::to_string(i) +
+                                             " out of bounds for length " +
+                                             std::to_string(arr.intArray.size()));
                     if (rhs.type == Value::Type::Int)
                         arr.intArray[i] = rhs.intValue;
                     else if (rhs.type == Value::Type::Bit)
@@ -844,12 +864,15 @@ namespace bloch {
                     else if (rhs.type == Value::Type::Float)
                         arr.intArray[i] = static_cast<int>(rhs.floatValue);
                     else
-                        throw BlochError(aassign->line, aassign->column,
-                                         "Type mismatch for int[] assignment");
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "type mismatch for int[] assignment");
                     break;
                 case Value::Type::FloatArray:
-                    if (i >= static_cast<int>(arr.floatArray.size()))
-                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (i < 0 || i >= static_cast<int>(arr.floatArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "index " + std::to_string(i) +
+                                             " out of bounds for length " +
+                                             std::to_string(arr.floatArray.size()));
                     if (rhs.type == Value::Type::Float)
                         arr.floatArray[i] = rhs.floatValue;
                     else if (rhs.type == Value::Type::Int)
@@ -857,41 +880,50 @@ namespace bloch {
                     else if (rhs.type == Value::Type::Bit)
                         arr.floatArray[i] = static_cast<double>(rhs.bitValue);
                     else
-                        throw BlochError(aassign->line, aassign->column,
-                                         "Type mismatch for float[] assignment");
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "type mismatch for float[] assignment");
                     break;
                 case Value::Type::BitArray:
-                    if (i >= static_cast<int>(arr.bitArray.size()))
-                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (i < 0 || i >= static_cast<int>(arr.bitArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "index " + std::to_string(i) +
+                                             " out of bounds for length " +
+                                             std::to_string(arr.bitArray.size()));
                     if (rhs.type == Value::Type::Bit)
                         arr.bitArray[i] = rhs.bitValue ? 1 : 0;
                     else if (rhs.type == Value::Type::Int)
                         arr.bitArray[i] = (rhs.intValue != 0) ? 1 : 0;
                     else
-                        throw BlochError(aassign->line, aassign->column,
-                                         "Type mismatch for bit[] assignment");
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "type mismatch for bit[] assignment");
                     break;
                 case Value::Type::StringArray:
-                    if (i >= static_cast<int>(arr.stringArray.size()))
-                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (i < 0 || i >= static_cast<int>(arr.stringArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "index " + std::to_string(i) +
+                                             " out of bounds for length " +
+                                             std::to_string(arr.stringArray.size()));
                     if (rhs.type == Value::Type::String)
                         arr.stringArray[i] = rhs.stringValue;
                     else
-                        throw BlochError(aassign->line, aassign->column,
-                                         "Type mismatch for string[] assignment");
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "type mismatch for string[] assignment");
                     break;
                 case Value::Type::CharArray:
-                    if (i >= static_cast<int>(arr.charArray.size()))
-                        throw BlochError(aassign->line, aassign->column, "Index out of bounds");
+                    if (i < 0 || i >= static_cast<int>(arr.charArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "index " + std::to_string(i) +
+                                             " out of bounds for length " +
+                                             std::to_string(arr.charArray.size()));
                     if (rhs.type == Value::Type::Char)
                         arr.charArray[i] = rhs.charValue;
                     else
-                        throw BlochError(aassign->line, aassign->column,
-                                         "Type mismatch for char[] assignment");
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "type mismatch for char[] assignment");
                     break;
                 default:
-                    throw BlochError(aassign->line, aassign->column,
-                                     "Assignment into this array type is unsupported");
+                    throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                     "assignment into this array type is unsupported");
             }
             assign(var->name, arr);
             return arr;

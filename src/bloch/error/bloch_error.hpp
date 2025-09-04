@@ -22,6 +22,7 @@
 namespace bloch {
     // We use simple, coloured messages to make CLI output easy to scan.
     enum class MessageLevel { Info, Warning, Error };
+    enum class ErrorCategory { Lexical, Parse, Semantic, Runtime, Generic };
 
     inline const char* colour(MessageLevel level) {
         switch (level) {
@@ -61,15 +62,50 @@ namespace bloch {
         return err.str();
     }
 
+    inline const char* categoryLabel(ErrorCategory cat) {
+        switch (cat) {
+            case ErrorCategory::Lexical:
+                return "Lexical error";
+            case ErrorCategory::Parse:
+                return "Parse error";
+            case ErrorCategory::Semantic:
+                return "Semantic error";
+            case ErrorCategory::Runtime:
+                return "Runtime error";
+            default:
+                return "Error";
+        }
+    }
+
+    inline std::string format(ErrorCategory cat, int line, int column, const std::string& msg) {
+        // Errors are printed in red, with a consistent "X error at L:C: ..." shape.
+        std::ostringstream err;
+        err << colour(MessageLevel::Error) << categoryLabel(cat);
+        if (line > 0 && column > 0) {
+            err << " at " << line << ":" << column;
+        }
+        err << ": " << msg << "\033[0m\n";
+        return err.str();
+    }
+
     class BlochError : public std::runtime_error {
        public:
-        BlochError(int line, int column, const std::string& msg)
-            : std::runtime_error(format(MessageLevel::Error, line, column, msg)),
+        BlochError(ErrorCategory category, int line, int column, const std::string& msg)
+            : std::runtime_error(format(category, line, column, msg)),
               line(line),
-              column(column) {}
+              column(column),
+              category(category) {}
+
+        // default to Generic error category
+        BlochError(int line, int column, const std::string& msg)
+            : std::runtime_error(format(ErrorCategory::Generic, line, column, msg)),
+              line(line),
+              column(column),
+              category(ErrorCategory::Generic) {}
 
         int line;
         int column;
+        ErrorCategory category;
     };
 
     inline void blochInfo(int line, int column, const std::string& msg) {

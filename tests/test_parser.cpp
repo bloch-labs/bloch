@@ -98,6 +98,28 @@ TEST(ParserTest, ParseInitialisedFinalVariableDeclaration) {
     EXPECT_EQ(lit->value, "10");
 }
 
+TEST(ParserTest, ParseInitialisedFloatVariableDeclaration) {
+    Lexer lexer("float f = 3f;");
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 1u);
+
+    auto* var = dynamic_cast<VariableDeclaration*>(program->statements[0].get());
+    ASSERT_NE(var, nullptr);
+    EXPECT_EQ(var->name, "f");
+
+    auto* type = dynamic_cast<PrimitiveType*>(var->varType.get());
+    ASSERT_NE(type, nullptr);
+    EXPECT_EQ(type->name, "float");
+
+    auto* lit = dynamic_cast<LiteralExpression*>(var->initializer.get());
+    ASSERT_NE(lit, nullptr);
+    EXPECT_EQ(lit->value, "3f");
+    EXPECT_EQ(lit->literalType, "float");
+}
+
 TEST(ParserTest, StateAnnotationIsRejected) {
     const char* src = "@state(\"+\") qubit q;";
     Lexer lexer(src);

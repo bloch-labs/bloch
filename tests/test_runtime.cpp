@@ -101,6 +101,19 @@ TEST(RuntimeTest, EchoConcatenatesValues) {
     EXPECT_EQ("Measured: 1\n10\n", output.str());
 }
 
+TEST(RuntimeTest, EchoFloatPrintsWithDecimal) {
+    const char* src = "function main() -> void { float f = 3f; echo(f); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("3.0\n", output.str());
+}
+
 TEST(RuntimeTest, TernaryExecutesCorrectBranch) {
     const char* src =
         "function main() -> void { int x = 0; x ? echo(\"true\"); : echo(\"false\"); }";
