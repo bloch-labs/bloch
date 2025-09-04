@@ -32,5 +32,4 @@ dist/
 *.rpm
 
 # Examples folder
-examples/*.cpp
-examples/*.qasm
+examples/
