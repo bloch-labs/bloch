@@ -1,5 +1,0 @@
-function main() -> void {
-    float f = 3.14f;
-    qubit q;
-    echo("hello");
-}
