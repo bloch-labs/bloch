@@ -19,7 +19,7 @@ This guide explains how to propose changes, which branches to target, and how ou
 ### Clone and Build
 
 ```bash
-git clone https://github.com/bloch-lang/bloch.git
+git clone https://github.com/bloch-labs/bloch.git
 cd bloch
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
@@ -104,8 +104,6 @@ Maintainers will:
    This triggers the pre-release workflow for all OSes and publishes a GitHub pre-release with binaries.
 
 3) Install the RC locally and test:
-   - Linux/macOS: download archive and run `./install.sh`
-   - Windows: download zip and run `install.ps1`
 
 4) Iterate on the release branch as needed:
    - Commit fixes to `release-v1.0.0` and cut `v1.0.0-rc.2`, `v1.0.0-rc.3`, etc.
