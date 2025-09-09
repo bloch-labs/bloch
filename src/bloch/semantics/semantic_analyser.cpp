@@ -58,6 +58,9 @@ namespace bloch {
                 return ValueType::Bit;
             auto lt = inferType(bin->left.get());
             auto rt = inferType(bin->right.get());
+            // String concatenation
+            if (bin->op == "+" && (lt == ValueType::String || rt == ValueType::String))
+                return ValueType::String;
             if (bin->op == "+" || bin->op == "-" || bin->op == "*" || bin->op == "/" ||
                 bin->op == "%") {
                 if (lt == ValueType::Float || rt == ValueType::Float)
@@ -105,8 +108,18 @@ namespace bloch {
         ValueType type = ValueType::Unknown;
         if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get()))
             type = typeFromString(prim->name);
-        else if (dynamic_cast<VoidType*>(node.varType.get()))
-            type = ValueType::Void;
+        else if (dynamic_cast<VoidType*>(node.varType.get())) {
+            // Variables cannot be of type 'void'
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "variables cannot have type 'void'");
+        }
+        // Reject invalid annotations on variables
+        for (const auto& ann : node.annotations) {
+            if (ann && ann->name == "quantum") {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "'@quantum' may annotate functions only");
+            }
+        }
         declare(node.name, node.isFinal, type);
         if (node.isTracked) {
             // Only 'qubit' and 'qubit[]' types can be tracked
@@ -199,8 +212,34 @@ namespace bloch {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                              "Non-void function must return a value");
         }
-        if (node.value)
+        if (node.value) {
+            // Type-check return expression when both sides are known
+            ValueType actual = inferType(node.value.get());
+            if (m_currentReturnType != ValueType::Unknown && actual != ValueType::Unknown &&
+                actual != m_currentReturnType) {
+                // Provide guidance for common literal mistakes
+                if (m_currentReturnType == ValueType::Bit) {
+                    if (auto lit = dynamic_cast<LiteralExpression*>(node.value.get())) {
+                        if (lit->literalType == "int") {
+                            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                             "bit literals must be 0b or 1b");
+                        }
+                    }
+                } else if (m_currentReturnType == ValueType::Float) {
+                    if (auto lit = dynamic_cast<LiteralExpression*>(node.value.get())) {
+                        if (lit->literalType == "int") {
+                            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                             "float literals must end with 'f'");
+                        }
+                    }
+                }
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "return type mismatch: expected '" +
+                                     typeToString(m_currentReturnType) + "' but got '" +
+                                     typeToString(actual) + "'");
+            }
             node.value->accept(*this);
+        }
     }
 
     void SemanticAnalyser::visit(IfStatement& node) {
@@ -247,13 +286,31 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(ResetStatement& node) {
-        if (node.target)
+        if (node.target) {
+            // Best-effort type validation for simple variable targets
+            if (auto var = dynamic_cast<VariableExpression*>(node.target.get())) {
+                ValueType t = getVariableType(var->name);
+                if (t != ValueType::Unknown && t != ValueType::Qubit) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "reset target must be a 'qubit'");
+                }
+            }
             node.target->accept(*this);
+        }
     }
 
     void SemanticAnalyser::visit(MeasureStatement& node) {
-        if (node.qubit)
+        if (node.qubit) {
+            // Best-effort type validation for simple variable targets
+            if (auto var = dynamic_cast<VariableExpression*>(node.qubit.get())) {
+                ValueType t = getVariableType(var->name);
+                if (t != ValueType::Unknown && t != ValueType::Qubit) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "measure target must be a 'qubit'");
+                }
+            }
             node.qubit->accept(*this);
+        }
     }
 
     void SemanticAnalyser::visit(AssignmentStatement& node) {
@@ -359,6 +416,15 @@ namespace bloch {
                                              " expected '" + typeToString(expectedType) +
                                              "' but got '" + actualStr + "'");
                     }
+                } else {
+                    // Fallback: check any other expression if we can infer its type
+                    ValueType actual = inferType(arg.get());
+                    if (actual != ValueType::Unknown && actual != expectedType) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "argument #" + std::to_string(i + 1) + " to " + var->name +
+                                             " expected '" + typeToString(expectedType) +
+                                             "' but got '" + typeToString(actual) + "'");
+                    }
                 }
             }
         } else if (node.callee) {
@@ -387,8 +453,17 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(MeasureExpression& node) {
-        if (node.qubit)
+        if (node.qubit) {
+            // Best-effort type validation for simple variable targets
+            if (auto var = dynamic_cast<VariableExpression*>(node.qubit.get())) {
+                ValueType t = getVariableType(var->name);
+                if (t != ValueType::Unknown && t != ValueType::Qubit) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "measure target must be a 'qubit'");
+                }
+            }
             node.qubit->accept(*this);
+        }
     }
 
     void SemanticAnalyser::visit(AssignmentExpression& node) {
@@ -515,10 +590,11 @@ namespace bloch {
                                  "'" + param->name + "' is already declared in this scope");
             }
             ValueType type = ValueType::Unknown;
-            if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get()))
+            if (dynamic_cast<VoidType*>(param->type.get())) {
+                throw BlochError(ErrorCategory::Semantic, param->line, param->column,
+                                 "parameters cannot have type 'void'");
+            } else if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get()))
                 type = typeFromString(prim->name);
-            else if (dynamic_cast<VoidType*>(param->type.get()))
-                type = ValueType::Void;
             declare(param->name, false, type);
             param->accept(*this);
         }

@@ -293,3 +293,73 @@ TEST(SemanticTest, FloatInitializerRequiresFloatLiteral) {
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
+
+TEST(SemanticTest, ReturnTypeMismatchIntToFloatFails) {
+    const char* src = "function f() -> float { return 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, ReturnTypeMismatchIntToBitFails) {
+    const char* src = "function f() -> bit { return 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, ReturnStringConcatenationPasses) {
+    const char* src = "function f() -> string { return \"a\" + 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, MeasureTargetMustBeQubitFails) {
+    const char* src = "int x; measure x;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, ResetTargetMustBeQubitFails) {
+    const char* src = "int x; reset x;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, MeasureExpressionTargetMustBeQubitFails) {
+    const char* src = "int i; bit b = measure i;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FunctionArgumentExpressionTypeMismatchFails) {
+    const char* src = "function foo(float a) -> void { } foo(1 + 2);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, BuiltinGateExpressionArgTypeMismatchFails) {
+    const char* src = "qubit q; rx(q, 1 + 2);";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, StringConcatInitializerPasses) {
+    const char* src = "string s = \"hello\" + 5;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, VoidParameterDisallowed) {
+    const char* src = "function f(void x) -> void { }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}

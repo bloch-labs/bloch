@@ -128,6 +128,14 @@ TEST(ParserTest, StateAnnotationIsRejected) {
     EXPECT_THROW((void)parser.parse(), BlochError);
 }
 
+TEST(ParserTest, QuantumAnnotationOutsideFunctionRejected) {
+    const char* src = "@quantum qubit q;";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochError);
+}
+
 TEST(ParserTest, ParseMultipleQubitDeclarations) {
     Lexer lexer("qubit q, r;");
     auto tokens = lexer.tokenize();
