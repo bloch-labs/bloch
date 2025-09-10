@@ -12,7 +12,24 @@ Bloch is a modern, strongly typed, interpreted quantum programming language from
 
 ## Installation
 
-> Packaged binaries will be available when a stable release v1.0.0 is ready!
+Quick install (Linux/macOS):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- v1.0.0-rc.1
+```
+
+Notes:
+- This downloads the `bloch` binary for your OS/arch from the GitHub release `v1.0.0-rc.1`, verifies its checksum, and installs it to `/usr/local/bin` (falls back to `~/.local/bin` if not writable).
+- To install a different version, pass the tag (e.g., `v1.0.0`). You can also use `latest` (stable) or `latest-rc` (requires `jq`).
+- To choose a custom install directory:
+
+  ```bash
+  INSTALL_DIR=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- v1.0.0-rc.1
+  ```
+
+Manual install:
+- Download the asset matching your platform from the release page and extract the tarball: `bloch-<TAG>-<OS>-<ARCH>.tar.gz`
+- Move the `bloch` binary to a directory on your `PATH` (e.g., `/usr/local/bin`).
 
 For instructions on how to build from source, see "Building Locally" in [CONTRIBUTING.md](CONTRIBUTING.md). You can also install locally via CMake after building:
 
