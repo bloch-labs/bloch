@@ -14,8 +14,9 @@ warn()    { printf "%b!%b %s\n" "$YELLOW" "$RESET" "$*" >&2; }
 error()   { printf "%b✗%b %s\n" "$RED" "$RESET" "$*" >&2; }
 note()    { printf "%b%s%b\n" "$DIM" "$*" "$RESET"; }
 
-is_interactive() {
-  [[ -t 0 && -t 1 ]]
+has_tty() {
+  # Consider interactive if stdout or stderr is a TTY, or FORCE_INTERACTIVE is set
+  [[ -t 1 || -t 2 || -n "${FORCE_INTERACTIVE:-}" ]]
 }
 
 # Bloch installer for Linux/macOS
@@ -183,7 +184,7 @@ case ":$PATH:" in
 esac
 
 if ! command -v bloch >/dev/null 2>&1 || [[ $path_has_dest -eq 0 ]]; then
-  if is_interactive; then
+  if has_tty && [[ -r /dev/tty ]]; then
     SHELL_NAME=$(basename "${SHELL:-}")
     if [[ "$SHELL_NAME" == "fish" ]]; then
       warn "Detected fish shell. Automatic PATH update is not supported."
@@ -206,7 +207,8 @@ if ! command -v bloch >/dev/null 2>&1 || [[ $path_has_dest -eq 0 ]]; then
       [[ -f "$HOME/.zprofile" && "$SHELL_NAME" == "zsh" ]] && PROFILE="$HOME/.zprofile"
 
       step "'bloch' is not on PATH"
-      read -r -p "Would you like to add '$DEST' to your PATH by updating $(basename "$PROFILE")? [y/N] " reply || reply="n"
+      printf "Would you like to add '%s' to your PATH by updating %s? [y/N] " "$DEST" "$(basename "$PROFILE")" > /dev/tty
+      read -r reply < /dev/tty || reply="n"
       if [[ "$reply" == [yY] || "$reply" == "yes" || "$reply" == "YES" ]]; then
         mkdir -p "$(dirname "$PROFILE")"
         # Append only if not already present
