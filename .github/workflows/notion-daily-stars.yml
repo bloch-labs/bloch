@@ -1,0 +1,96 @@
+name: Stars → Notion (Daily)
+
+on:
+  schedule:
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      REPO: bloch-labs/bloch
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Upsert today's stars into Notion
+        run: |
+          python - << 'PY'
+          import os, requests, datetime
+          from zoneinfo import ZoneInfo
+
+          NOTION_API_KEY = os.environ["NOTION_API_KEY"]
+          NOTION_DATABASE_ID = os.environ["NOTION_DATABASE_ID"]
+          REPO = os.environ["REPO"]
+          
+          today = datetime.datetime.now(ZoneInfo("Europe/London")).date().isoformat()
+
+          # --- GitHub: get star count ---
+          gh = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "stars-notion-sync"
+          }
+          repo_url = f"https://api.github.com/repos/{REPO}"
+          r = requests.get(repo_url, headers=gh, timeout=30)
+          r.raise_for_status()
+          stars = int(r.json().get("stargazers_count", 0))
+
+          # --- Notion helpers ---
+          nh = {
+            "Authorization": f"Bearer {NOTION_API_KEY}",
+            "Notion-Version": "2022-06-28",
+            "Content-Type": "application/json",
+          }
+
+          def find_page_for_date(date_str: str):
+            url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}/query"
+            payload = {
+              "filter": {"property": "Date", "date": {"equals": date_str}},
+              "page_size": 1
+            }
+            res = requests.post(url, headers=nh, json=payload, timeout=30)
+            res.raise_for_status()
+            results = res.json().get("results", [])
+            return results[0]["id"] if results else None
+
+          def create_page(date_str: str, stars_value: int):
+            url = "https://api.notion.com/v1/pages"
+            payload = {
+              "parent": {"database_id": NOTION_DATABASE_ID},
+              "properties": {
+                "Name": {"title": [{"text": {"content": date_str}}]},
+                "Date": {"date": {"start": date_str}},
+                "Stars": {"number": stars_value}
+              }
+            }
+            res = requests.post(url, headers=nh, json=payload, timeout=30)
+            res.raise_for_status()
+
+          def update_page(page_id: str, date_str: str, stars_value: int):
+            url = f"https://api.notion.com/v1/pages/{page_id}"
+            payload = {
+              "properties": {
+                "Date": {"date": {"start": date_str}},
+                "Stars": {"number": stars_value}
+              }
+            }
+            res = requests.patch(url, headers=nh, json=payload, timeout=30)
+            res.raise_for_status()
+
+          page_id = find_page_for_date(today)
+          if page_id:
+            update_page(page_id, today, stars)
+            print(f"Updated {today}: {stars} ⭐")
+          else:
+            create_page(today, stars)
+            print(f"Created {today}: {stars} ⭐")
+
+          PY
