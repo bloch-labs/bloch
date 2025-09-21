@@ -94,7 +94,8 @@ namespace {
             };
             for (auto& p : candidates) {
                 std::error_code ec;
-                if (fs::exists(p, ec)) return fs::weakly_canonical(p, ec);
+                if (fs::exists(p, ec))
+                    return fs::weakly_canonical(p, ec);
             }
             return exe;
         };
@@ -102,7 +103,8 @@ namespace {
         fs::path blochBin = findBinary();
 
         std::string cmd = std::string("\"") + blochBin.string() + "\"";
-        if (!options.empty()) cmd += " " + options;
+        if (!options.empty())
+            cmd += " " + options;
         cmd += std::string(" \"") + fs::absolute(blochFile).string() + "\" 2>&1";
         std::string result;
         // Redirect stdout/stderr to a file and read it back (more portable than popen on Windows)
@@ -113,7 +115,8 @@ namespace {
         {
             std::ifstream in(outPath);
             if (in) {
-                result.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+                result.assign((std::istreambuf_iterator<char>(in)),
+                              std::istreambuf_iterator<char>());
                 in.close();
             }
         }
@@ -146,7 +149,8 @@ namespace {
                     i += 2;
                     while (i < result.size()) {
                         char ch = result[i++];
-                        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) break;
+                        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'))
+                            break;
                     }
                 } else {
                     tmp.push_back(static_cast<char>(c));
@@ -176,7 +180,7 @@ function main() -> void {
     EXPECT_EQ("1\n", output);
 }
 
-#endif // BLOCH_SKIP_INTEGRATION_TESTS
+#endif  // BLOCH_SKIP_INTEGRATION_TESTS
 
 TEST(IntegrationTest, RunsClassicalProgram) {
     std::string src = R"(

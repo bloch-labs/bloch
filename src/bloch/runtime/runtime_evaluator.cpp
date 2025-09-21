@@ -13,11 +13,11 @@
 // limitations under the License.
 
 #include "runtime_evaluator.hpp"
+#include <cmath>
+#include <iomanip>
 #include <sstream>
 #include "../error/bloch_error.hpp"
 #include "../semantics/built_ins.hpp"
-#include <cmath>
-#include <iomanip>
 
 namespace bloch {
 
@@ -221,8 +221,9 @@ namespace bloch {
                             // If size is specified, enforce it
                             if (arrType->size >= 0 &&
                                 static_cast<int>(arrLit->elements.size()) != arrType->size) {
-                                throw BlochError(ErrorCategory::Runtime, var->line, var->column,
-                                                 "array initializer length does not match declared size");
+                                throw BlochError(
+                                    ErrorCategory::Runtime, var->line, var->column,
+                                    "array initializer length does not match declared size");
                             }
                             if (elem->name == "bit") {
                                 v.type = Value::Type::BitArray;
@@ -230,7 +231,8 @@ namespace bloch {
                                 for (auto& el : arrLit->elements) {
                                     Value ev = eval(el.get());
                                     if (ev.type != Value::Type::Bit)
-                                        throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                        throw BlochError(ErrorCategory::Runtime, el->line,
+                                                         el->column,
                                                          "bit[] initialiser expects bit elements");
                                     v.bitArray.push_back(ev.bitValue ? 1 : 0);
                                 }
@@ -247,8 +249,9 @@ namespace bloch {
                                     else if (ev.type == Value::Type::Float)
                                         val = static_cast<int>(ev.floatValue);
                                     else
-                                        throw BlochError(ErrorCategory::Runtime, el->line, el->column,
-                                                         "int[] initialiser expects integer elements");
+                                        throw BlochError(
+                                            ErrorCategory::Runtime, el->line, el->column,
+                                            "int[] initialiser expects integer elements");
                                     v.intArray.push_back(val);
                                 }
                             } else if (elem->name == "float") {
@@ -264,8 +267,9 @@ namespace bloch {
                                     else if (ev.type == Value::Type::Bit)
                                         val = static_cast<double>(ev.bitValue);
                                     else
-                                        throw BlochError(ErrorCategory::Runtime, el->line, el->column,
-                                                         "float[] initialiser expects float elements");
+                                        throw BlochError(
+                                            ErrorCategory::Runtime, el->line, el->column,
+                                            "float[] initialiser expects float elements");
                                     v.floatArray.push_back(val);
                                 }
                             } else if (elem->name == "string") {
@@ -794,31 +798,36 @@ namespace bloch {
                 case Value::Type::BitArray:
                     if (idxi < 0 || idxi >= static_cast<int>(coll.bitArray.size()))
                         throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
-                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                         "index " + std::to_string(idxi) +
+                                             " out of bounds for length " +
                                              std::to_string(coll.bitArray.size()));
                     return {Value::Type::Bit, 0, 0.0, coll.bitArray[idxi]};
                 case Value::Type::IntArray:
                     if (idxi < 0 || idxi >= static_cast<int>(coll.intArray.size()))
                         throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
-                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                         "index " + std::to_string(idxi) +
+                                             " out of bounds for length " +
                                              std::to_string(coll.intArray.size()));
                     return {Value::Type::Int, coll.intArray[idxi]};
                 case Value::Type::FloatArray:
                     if (idxi < 0 || idxi >= static_cast<int>(coll.floatArray.size()))
                         throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
-                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                         "index " + std::to_string(idxi) +
+                                             " out of bounds for length " +
                                              std::to_string(coll.floatArray.size()));
                     return {Value::Type::Float, 0, coll.floatArray[idxi]};
                 case Value::Type::StringArray:
                     if (idxi < 0 || idxi >= static_cast<int>(coll.stringArray.size()))
                         throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
-                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                         "index " + std::to_string(idxi) +
+                                             " out of bounds for length " +
                                              std::to_string(coll.stringArray.size()));
                     return {Value::Type::String, 0, 0.0, 0, coll.stringArray[idxi]};
                 case Value::Type::CharArray:
                     if (idxi < 0 || idxi >= static_cast<int>(coll.charArray.size()))
                         throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
-                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                         "index " + std::to_string(idxi) +
+                                             " out of bounds for length " +
                                              std::to_string(coll.charArray.size()));
                     {
                         Value v;
@@ -829,7 +838,8 @@ namespace bloch {
                 case Value::Type::QubitArray: {
                     if (idxi < 0 || idxi >= static_cast<int>(coll.qubitArray.size()))
                         throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
-                                         "index " + std::to_string(idxi) + " out of bounds for length " +
+                                         "index " + std::to_string(idxi) +
+                                             " out of bounds for length " +
                                              std::to_string(coll.qubitArray.size()));
                     Value v;
                     v.type = Value::Type::Qubit;

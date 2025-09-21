@@ -252,8 +252,7 @@ TEST(RuntimeTest, ResetAfterMeasurementThrows) {
 }
 
 TEST(RuntimeTest, MeasureExpressionAfterMeasurementThrows) {
-    const char* src =
-        "function main() -> void { qubit q; bit a = measure q; bit b = measure q; }";
+    const char* src = "function main() -> void { qubit q; bit a = measure q; bit b = measure q; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
@@ -381,8 +380,7 @@ TEST(RuntimeTest, UnaryTildeOnIntThrows) {
 }
 
 TEST(RuntimeTest, RyRzAppearInQasm) {
-    const char* src =
-        "function main() -> void { qubit q; ry(q, 1.0f); rz(q, 0.5f); }";
+    const char* src = "function main() -> void { qubit q; ry(q, 1.0f); rz(q, 0.5f); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);

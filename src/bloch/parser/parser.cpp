@@ -645,8 +645,7 @@ namespace bloch {
                 (void)expect(TokenType::RParen, "Expected ')' after arguments");
                 int calleeLine = expr ? expr->line : 0;
                 int calleeColumn = expr ? expr->column : 0;
-                auto call =
-                    std::make_unique<CallExpression>(std::move(expr), std::move(args));
+                auto call = std::make_unique<CallExpression>(std::move(expr), std::move(args));
                 if (calleeLine > 0) {
                     call->line = calleeLine;
                     call->column = calleeColumn;
@@ -737,8 +736,7 @@ namespace bloch {
         if (match(TokenType::Measure)) {
             const Token& measureTok = previous();
             auto target = parseExpression();
-            auto expr =
-                std::make_unique<MeasureExpression>(MeasureExpression{std::move(target)});
+            auto expr = std::make_unique<MeasureExpression>(MeasureExpression{std::move(target)});
             expr->line = measureTok.line;
             expr->column = measureTok.column;
             return expr;
