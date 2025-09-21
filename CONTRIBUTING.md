@@ -81,8 +81,8 @@ git commit -m "bugfix: short description (#123)"
 #100 - Added 100 new `.bloch` code examples
 ```
 
-### Open a PR with 
-- Clear title and description, reference the issue number in your title e.g. `#15: fixing some bugs`
+### Open a PR 
+- Clear title and description, reference the issue number in your title e.g. `bugfix: fixing bugs (#15)`
 - Target the correct release branch
 > Please make sure to target `develop`, this should be automatic. Do not target `master` with your PR, only RC tags and hotfixes (maintainers) are merged directly to `master`
 
@@ -95,23 +95,23 @@ git commit -m "bugfix: short description (#123)"
 Maintainers will:
 
 1) Create a release branch from develop:
-   - `git checkout -b release-v1.0.0 origin/develop`
+   - `git checkout -b release-v1.x.x origin/develop`
 
 2) Tag the first RC on the release branch and push:
-   - `git tag -a v1.0.0-rc.1 -m "RC 1"`
-   - `git push origin v1.0.0-rc.1`
+   - `git tag -a v1.x.x-rc.1 -m "RC 1"`
+   - `git push origin v1.x.x-rc.1`
 
    This triggers the pre-release workflow for all OSes and publishes a GitHub pre-release with binaries.
 
 3) Install the RC locally and test:
 
 4) Iterate on the release branch as needed:
-   - Commit fixes to `release-v1.0.0` and cut `v1.0.0-rc.2`, `v1.0.0-rc.3`, etc.
+   - Commit fixes to `release-v1.x.x` and cut `v1.x.x-rc.2`, `v1.x.x-rc.3`, etc.
 
 5) When stable, merge to master and tag final:
-   - `git checkout master && git merge --no-ff release-v1.0.0`
-   - `git tag -a v1.0.0 -m "Bloch 1.0.0"`
-   - `git push origin master v1.0.0`
+   - `git checkout master && git merge --no-ff release-v1.x.x`
+   - `git tag -a v1.x.x -m "Bloch 1.x.x"`
+   - `git push origin master v1.x.x`
 
 Notes:
 - RC tags are always `vX.Y.Z-rc.N` created on `release-v*` branches.

@@ -106,6 +106,7 @@ namespace bloch {
         int allocateTrackedQubit(const std::string& name);
         void markMeasured(int index);
         void unmarkMeasured(int index);
+        void ensureQubitActive(int index, int line, int column);
         void warnUnmeasured() const;
 
         // Scope & output helpers

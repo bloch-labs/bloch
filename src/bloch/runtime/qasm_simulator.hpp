@@ -18,6 +18,7 @@
 #include <complex>
 #include <string>
 #include <vector>
+#include "../error/bloch_error.hpp"
 
 namespace bloch {
 
@@ -39,12 +40,14 @@ namespace bloch {
         std::string getQasm() const;
 
        private:
-        int m_qubits = 0;
-        std::vector<std::complex<double>> m_state{1, 0};
-        std::string m_ops;
+       int m_qubits = 0;
+       std::vector<std::complex<double>> m_state{1, 0};
+       std::string m_ops;
+       std::vector<bool> m_measured;
 
         // Apply a 2x2 unitary to qubit q.
         void applySingleQubitGate(int q, const std::array<std::complex<double>, 4>& m);
+        void ensureQubitActive(int q) const;
     };
 
 }

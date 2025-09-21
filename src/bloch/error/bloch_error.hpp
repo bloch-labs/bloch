@@ -82,7 +82,7 @@ namespace bloch {
         std::ostringstream err;
         err << colour(MessageLevel::Error) << categoryLabel(cat);
         if (line > 0 && column > 0) {
-            err << " at " << line << ":" << column;
+            err << " at Ln " << line << ", Col " << column;
         }
         err << ": " << msg << "\033[0m\n";
         return err.str();

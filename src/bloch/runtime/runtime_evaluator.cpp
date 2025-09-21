@@ -367,10 +367,12 @@ namespace bloch {
                 m_echoBuffer.push_back(valueToString(v));
         } else if (auto reset = dynamic_cast<ResetStatement*>(s)) {
             Value q = eval(reset->target.get());
+            ensureQubitActive(q.qubit, reset->line, reset->column);
             m_sim.reset(q.qubit);
             unmarkMeasured(q.qubit);
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
             Value q = eval(meas->qubit.get());
+            ensureQubitActive(q.qubit, meas->line, meas->column);
             int bit = m_sim.measure(q.qubit);
             markMeasured(q.qubit);
             if (q.qubit >= 0 && q.qubit < static_cast<int>(m_lastMeasurement.size()))
@@ -729,22 +731,32 @@ namespace bloch {
                     // Map built-ins directly to simulator operations.
                     // TODO: In the noisy simulator this logic will have to remain the same
                     // so we will need the same basic quantum operations
-                    if (name == "h")
+                    if (name == "h") {
+                        ensureQubitActive(args[0].qubit, callExpr->line, callExpr->column);
                         m_sim.h(args[0].qubit);
-                    else if (name == "x")
+                    } else if (name == "x") {
+                        ensureQubitActive(args[0].qubit, callExpr->line, callExpr->column);
                         m_sim.x(args[0].qubit);
-                    else if (name == "y")
+                    } else if (name == "y") {
+                        ensureQubitActive(args[0].qubit, callExpr->line, callExpr->column);
                         m_sim.y(args[0].qubit);
-                    else if (name == "z")
+                    } else if (name == "z") {
+                        ensureQubitActive(args[0].qubit, callExpr->line, callExpr->column);
                         m_sim.z(args[0].qubit);
-                    else if (name == "rx")
+                    } else if (name == "rx") {
+                        ensureQubitActive(args[0].qubit, callExpr->line, callExpr->column);
                         m_sim.rx(args[0].qubit, args[1].floatValue);
-                    else if (name == "ry")
+                    } else if (name == "ry") {
+                        ensureQubitActive(args[0].qubit, callExpr->line, callExpr->column);
                         m_sim.ry(args[0].qubit, args[1].floatValue);
-                    else if (name == "rz")
+                    } else if (name == "rz") {
+                        ensureQubitActive(args[0].qubit, callExpr->line, callExpr->column);
                         m_sim.rz(args[0].qubit, args[1].floatValue);
-                    else if (name == "cx")
+                    } else if (name == "cx") {
+                        ensureQubitActive(args[0].qubit, callExpr->line, callExpr->column);
+                        ensureQubitActive(args[1].qubit, callExpr->line, callExpr->column);
                         m_sim.cx(args[0].qubit, args[1].qubit);
+                    }
                     return {};  // void
                 }
                 auto fit = m_functions.find(name);
@@ -758,6 +770,7 @@ namespace bloch {
             }
         } else if (auto idx = dynamic_cast<MeasureExpression*>(e)) {
             Value q = eval(idx->qubit.get());
+            ensureQubitActive(q.qubit, idx->line, idx->column);
             int bit = m_sim.measure(q.qubit);
             markMeasured(q.qubit);
             if (q.qubit >= 0 && q.qubit < static_cast<int>(m_lastMeasurement.size()))
@@ -942,6 +955,18 @@ namespace bloch {
     void RuntimeEvaluator::markMeasured(int index) {
         if (index >= 0 && index < static_cast<int>(m_qubits.size()))
             m_qubits[index].measured = true;
+    }
+
+    void RuntimeEvaluator::ensureQubitActive(int index, int line, int column) {
+        if (index < 0 || index >= static_cast<int>(m_qubits.size()))
+            throw BlochError(ErrorCategory::Runtime, line, column, "invalid qubit reference");
+        if (m_qubits[index].measured) {
+            std::string label = m_qubits[index].name.empty()
+                                    ? std::string("q[") + std::to_string(index) + "]"
+                                    : m_qubits[index].name;
+            throw BlochError(ErrorCategory::Runtime, line, column,
+                             "qubit " + label + " has already been measured");
+        }
     }
 
     void RuntimeEvaluator::unmarkMeasured(int index) {
