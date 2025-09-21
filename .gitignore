@@ -32,4 +32,4 @@ dist/
 *.rpm
 
 # Examples folder
-examples/
+examples/*.qasm

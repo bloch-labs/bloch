@@ -58,6 +58,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the [Keep a 
 - #94: `echo()` now works with all and mixed data types
 - #93: ensure semantic analysis enforces non-void functions to end with a return statement
 - #76: fixed `reset` operation in runtime and simulator
+- #131: fixed qbit behaviour after being measured
 
 ### Removed  
 - #24: remove old `version` starter code
