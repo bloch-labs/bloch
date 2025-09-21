@@ -1,0 +1,7 @@
+function main() -> void {
+    @tracked qubit q;
+
+    h(q);
+    bit b = measure q;
+    echo(b);
+}
