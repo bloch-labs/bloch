@@ -403,6 +403,7 @@ namespace bloch {
 
     // echo(expr);
     std::unique_ptr<EchoStatement> Parser::parseEcho() {
+        const Token& echoTok = previous();
         (void)expect(TokenType::LParen, "Expected '(' after 'echo'");
         auto value = parseExpression();
         (void)expect(TokenType::RParen, "Expected ')' after echo argument");
@@ -410,22 +411,30 @@ namespace bloch {
 
         auto stmt = std::make_unique<EchoStatement>();
         stmt->value = std::move(value);
+        stmt->line = echoTok.line;
+        stmt->column = echoTok.column;
         return stmt;
     }
 
     // reset q0;
     std::unique_ptr<ResetStatement> Parser::parseReset() {
+        const Token& resetTok = previous();
         auto stmt = std::make_unique<ResetStatement>();
         stmt->target = parseExpression();
         (void)expect(TokenType::Semicolon, "Expected ';' after reset target");
+        stmt->line = resetTok.line;
+        stmt->column = resetTok.column;
         return stmt;
     }
 
     // measure q0;
     std::unique_ptr<MeasureStatement> Parser::parseMeasure() {
+        const Token& measureTok = previous();
         auto stmt = std::make_unique<MeasureStatement>();
         stmt->qubit = parseExpression();
         (void)expect(TokenType::Semicolon, "Expected ';' after measure target");
+        stmt->line = measureTok.line;
+        stmt->column = measureTok.column;
         return stmt;
     }
 
@@ -626,6 +635,7 @@ namespace bloch {
 
         while (true) {
             if (match(TokenType::LParen)) {
+                const Token& lparen = previous();
                 std::vector<std::unique_ptr<Expression>> args;
                 if (!check(TokenType::RParen)) {
                     do {
@@ -633,7 +643,17 @@ namespace bloch {
                     } while (match(TokenType::Comma));
                 }
                 (void)expect(TokenType::RParen, "Expected ')' after arguments");
-                expr = std::make_unique<CallExpression>(std::move(expr), std::move(args));
+                int calleeLine = expr ? expr->line : 0;
+                int calleeColumn = expr ? expr->column : 0;
+                auto call = std::make_unique<CallExpression>(std::move(expr), std::move(args));
+                if (calleeLine > 0) {
+                    call->line = calleeLine;
+                    call->column = calleeColumn;
+                } else {
+                    call->line = lparen.line;
+                    call->column = lparen.column;
+                }
+                expr = std::move(call);
             } else if (match(TokenType::LBracket)) {
                 const Token& lbr = previous();
                 auto idxExpr = std::make_unique<IndexExpression>();
@@ -714,8 +734,12 @@ namespace bloch {
         }
 
         if (match(TokenType::Measure)) {
+            const Token& measureTok = previous();
             auto target = parseExpression();
-            return std::make_unique<MeasureExpression>(MeasureExpression{std::move(target)});
+            auto expr = std::make_unique<MeasureExpression>(MeasureExpression{std::move(target)});
+            expr->line = measureTok.line;
+            expr->column = measureTok.column;
+            return expr;
         }
 
         if (match(TokenType::Identifier)) {

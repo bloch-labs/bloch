@@ -163,7 +163,8 @@ namespace bloch {
             if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {
                 ValueType target = typeFromString(prim->name);
                 ValueType initT = inferType(node.initializer.get());
-                if (target != ValueType::Unknown && initT != ValueType::Unknown && target != initT) {
+                if (target != ValueType::Unknown && initT != ValueType::Unknown &&
+                    target != initT) {
                     // Special guidance for common literal mistakes
                     if (prim->name == "bit") {
                         if (auto lit = dynamic_cast<LiteralExpression*>(node.initializer.get())) {
@@ -360,14 +361,16 @@ namespace bloch {
             // Postfix operators are only valid for integer variables
             ValueType t = getVariableType(var->name);
             if (t != ValueType::Int) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "Postfix operator '" + node.op + "' requires variable of type 'int'");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "Postfix operator '" + node.op + "' requires variable of type 'int'");
             }
         } else if (node.left) {
             // Only variables are valid lvalues for postfix operators
             node.left->accept(*this);
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "Postfix operator '" + node.op + "' can only be applied to a variable");
+            throw BlochError(
+                ErrorCategory::Semantic, node.line, node.column,
+                "Postfix operator '" + node.op + "' can only be applied to a variable");
         }
     }
 
