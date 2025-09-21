@@ -194,11 +194,21 @@ if [[ ! -f "$TMPDIR/bloch" ]]; then
   exit 1
 fi
 
+
 chmod +x "$TMPDIR/bloch"
+if ! BLOCH_PROBE_OUTPUT=$("$TMPDIR/bloch" --version 2>&1); then
+  error "Downloaded binary failed to run on this system."
+  if [[ "$BLOCH_PROBE_OUTPUT" == *"GLIBC_"* || "$BLOCH_PROBE_OUTPUT" == *"GLIBCXX_"* ]]; then
+    warn "Bloch requires glibc >= 2.35 and libstdc++ >= 3.4.30."
+    warn "Upgrade to a newer Linux distribution or build from source."
+  fi
+  echo "$BLOCH_PROBE_OUTPUT" >&2
+  exit 1
+fi
 install -m 0755 "$TMPDIR/bloch" "$DEST/bloch"
 
 success "Installed: $DEST/bloch"
-note "You can verify with: bloch --version'"
+note "You can verify with: bloch --version"
 
 # Offer to add DEST to PATH if not already there
 path_has_dest=0
