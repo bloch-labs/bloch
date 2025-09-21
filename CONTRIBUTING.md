@@ -131,7 +131,9 @@ Notes:
     - files: `snake_case.cpp`
     - classes: `PascalCase`
     - methods: `camelCase`
-- You can format manually by running 
+- Format everything via the helper script before committing:
+
 ```bash
-clang-format -i $(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')
+. ./scripts/format.sh          # rewrites files in-place
+. ./scripts/format.sh --check  # CI-style verification without modifying files
 ```
