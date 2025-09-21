@@ -72,7 +72,7 @@ git checkout -b feature/xx    # label with ticket number
 - Keep commits focused and descriptive
 - Reference the issue number in your commit message e.g.
 ```bash
-git commit -m "#15: fix bug" 
+git commit -m "bugfix: short description (#123)" 
 ```
 
 ### Add to the CHANGELOG
