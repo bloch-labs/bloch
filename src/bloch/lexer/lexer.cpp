@@ -106,10 +106,10 @@ namespace bloch {
         // Fast paths for common leading characters
         if (std::isdigit(static_cast<unsigned char>(c))) {
             return scanNumber();
-}
+        }
         if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
             return scanIdentifierOrKeyword();
-}
+        }
 
         switch (c) {
             case '=':
@@ -134,7 +134,7 @@ namespace bloch {
             case '-':
                 if (match('>')) {
                     return makeToken(TokenType::Arrow, "->");
-}
+                }
                 return match('-') ? makeToken(TokenType::MinusMinus, "--")
                                   : makeToken(TokenType::Minus, "-");
             case '*':
@@ -186,13 +186,13 @@ namespace bloch {
         size_t start = m_position - 1;
         while (std::isdigit(static_cast<unsigned char>(peek()))) {
             (void)advance();
-}
+        }
 
         if (peek() == '.') {
             (void)advance();
             while (std::isdigit(static_cast<unsigned char>(peek()))) {
                 (void)advance();
-}
+            }
             if (peek() == 'f') {
                 (void)advance();
                 return makeToken(TokenType::FloatLiteral,
@@ -233,7 +233,7 @@ namespace bloch {
         size_t start = m_position - 1;
         while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_') {
             (void)advance();
-}
+        }
 
         std::string_view text = m_source.substr(start, m_position - start);
 
@@ -280,7 +280,7 @@ namespace bloch {
         while (m_position < m_source.size() && peek() != '"') {
             if (peek() == '\n') {
                 m_line++;
-}
+            }
             (void)advance();
         }
 
@@ -300,7 +300,7 @@ namespace bloch {
         size_t start = m_position;
         if (m_position < m_source.size()) {
             (void)advance();
-}
+        }
 
         if (peek() == '\'') {
             (void)advance();

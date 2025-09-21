@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
     bool echoAll = echoOpt.empty() ? (!shotsProvided || shots == 1) : (echoOpt == "all");
     if (shotsProvided && shots > 1 && echoOpt.empty()) {
         bloch::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
-}
+    }
 
     std::ifstream in(file);
     if (!in) {
@@ -125,16 +125,16 @@ int main(int argc, char** argv) {
                 // Suppress per-shot warnings; only show for last shot
                 if (s < shots - 1) {
                     evaluator.setWarnOnExit(false);
-}
+                }
                 evaluator.execute(*program);
                 if (s == shots - 1) {
                     qasm = evaluator.getQasm();
-}
+                }
                 for (const auto& vk : evaluator.trackedCounts()) {
                     for (const auto& vv : vk.second) {
                         aggregate[vk.first][vv.first] += vv.second;
-}
-}
+                    }
+                }
             }
             auto end = std::chrono::steady_clock::now();
             double elapsed =
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
             if (aggregate.empty()) {
                 bloch::blochWarning(0, 0,
                                     "No tracked variables. Use @tracked to collect statistics.");
-}
+            }
 
             std::cout << "Shots: " << shots << "\n";
             std::cout << "Backend: Bloch Ideal Simulator\n";
@@ -169,21 +169,21 @@ int main(int argc, char** argv) {
                         bool bb = isBinary(b.first);
                         if (ab != bb) {
                             return ab;  // binary outcomes first; e.g., place '?' at end
-}
+                        }
                         if (!ab && !bb) {
                             return a.first < b.first;
-}
+                        }
                         // Both binary: compare as integers, prefer shorter width first
                         if (a.first.size() != b.first.size()) {
                             return a.first.size() < b.first.size();
-}
+                        }
                         return std::stoi(a.first, nullptr, 2) < std::stoi(b.first, nullptr, 2);
                     });
                     // Dynamic column sizing for outcome strings
                     size_t outcomeWidth = 7;
                     for (const auto& p : vals) {
                         outcomeWidth = std::max(outcomeWidth, p.first.size());
-}
+                    }
                     std::cout << std::left << std::setw(static_cast<int>(outcomeWidth)) << "outcome"
                               << " | " << std::right << std::setw(5) << "count"
                               << " | " << std::setw(5) << "prob"

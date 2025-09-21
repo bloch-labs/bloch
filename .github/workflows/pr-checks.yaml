@@ -99,7 +99,7 @@ jobs:
             # -n --Werror = dry-run, fail if reformat needed
             if ! echo "$FILES" | xargs -r "$CLANG_FORMAT_BIN" -style=file -n --Werror > /dev/null; then
               echo "::error ::Code is not formatted per .clang-format."
-              echo "Run: $CLANG_FORMAT_BIN -i \$(find . -regex '.*\\.(cpp|hpp|c|h)')"
+              echo "Run: $CLANG_FORMAT_BIN -i $(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
               exit 1
             fi
           fi

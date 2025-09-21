@@ -165,8 +165,8 @@ TEST(RuntimeTest, TracksVariableMultipleShots) {
         for (const auto& vk : eval.trackedCounts()) {
             for (const auto& vv : vk.second) {
                 agg[vk.first][vv.first] += vv.second;
-}
-}
+            }
+        }
     }
     ASSERT_EQ(agg["qubit q"]["?"], 5);
 }

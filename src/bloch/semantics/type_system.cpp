@@ -20,25 +20,25 @@ namespace bloch {
         // Map source-level type names to our compact enum.
         if (name == "int") {
             return ValueType::Int;
-}
+        }
         if (name == "float") {
             return ValueType::Float;
-}
+        }
         if (name == "string") {
             return ValueType::String;
-}
+        }
         if (name == "char") {
             return ValueType::Char;
-}
+        }
         if (name == "qubit") {
             return ValueType::Qubit;
-}
+        }
         if (name == "bit") {
             return ValueType::Bit;
-}
+        }
         if (name == "void") {
             return ValueType::Void;
-}
+        }
         return ValueType::Unknown;
     }
 
@@ -71,7 +71,7 @@ namespace bloch {
     void SymbolTable::declare(const std::string& name, bool isFinal, ValueType type) {
         if (m_scopes.empty()) {
             return;
-}
+        }
         m_scopes.back()[name] = SymbolInfo{isFinal, type};
     }
 
@@ -79,7 +79,7 @@ namespace bloch {
         for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
             if (it->count(name)) {
                 return true;
-}
+            }
         }
         return false;
     }
@@ -89,7 +89,7 @@ namespace bloch {
             auto found = it->find(name);
             if (found != it->end()) {
                 return found->second.isFinal;
-}
+            }
         }
         return false;
     }
@@ -99,7 +99,7 @@ namespace bloch {
             auto found = it->find(name);
             if (found != it->end()) {
                 return found->second.type;
-}
+            }
         }
         return ValueType::Unknown;
     }

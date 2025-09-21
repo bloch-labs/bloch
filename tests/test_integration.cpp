@@ -96,7 +96,7 @@ namespace {
                 std::error_code ec;
                 if (fs::exists(p, ec)) {
                     return fs::weakly_canonical(p, ec);
-}
+                }
             }
             return exe;
         };
@@ -106,7 +106,7 @@ namespace {
         std::string cmd = std::string("\"") + blochBin.string() + "\"";
         if (!options.empty()) {
             cmd += " " + options;
-}
+        }
         cmd += std::string(" \"") + fs::absolute(blochFile).string() + "\" 2>&1";
         std::string result;
         // Redirect stdout/stderr to a file and read it back (more portable than popen on Windows)
@@ -153,7 +153,7 @@ namespace {
                         char ch = result[i++];
                         if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) {
                             break;
-}
+                        }
                     }
                 } else {
                     tmp.push_back(static_cast<char>(c));
