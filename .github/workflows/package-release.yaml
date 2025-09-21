@@ -14,6 +14,9 @@ env:
   RELEASE_VERSION: ${{ github.event.inputs.version }}
   RELEASE_REF: ${{ github.event.inputs.ref || github.event.inputs.version }}
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     name: Validate inputs
