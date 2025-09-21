@@ -26,8 +26,9 @@ namespace bloch {
     }
 
     ValueType SemanticAnalyser::inferType(Expression* expr) const {
-        if (!expr)
+        if (!expr) {
             return ValueType::Unknown;
+}
         if (auto lit = dynamic_cast<LiteralExpression*>(expr)) {
             return typeFromString(lit->literalType);
         }
@@ -43,60 +44,74 @@ namespace bloch {
         if (auto call = dynamic_cast<CallExpression*>(expr)) {
             if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
                 auto it = m_functionInfo.find(callee->name);
-                if (it != m_functionInfo.end())
+                if (it != m_functionInfo.end()) {
                     return it->second.returnType;
+}
                 auto bi = builtInGates.find(callee->name);
-                if (bi != builtInGates.end())
+                if (bi != builtInGates.end()) {
                     return bi->second.returnType;
+}
             }
             return ValueType::Unknown;
         }
         if (auto bin = dynamic_cast<BinaryExpression*>(expr)) {
             // Comparison and logical ops yield bit
             if (bin->op == "==" || bin->op == "!=" || bin->op == "<" || bin->op == ">" ||
-                bin->op == "<=" || bin->op == ">=" || bin->op == "&&" || bin->op == "||")
+                bin->op == "<=" || bin->op == ">=" || bin->op == "&&" || bin->op == "||") {
                 return ValueType::Bit;
+}
             auto lt = inferType(bin->left.get());
             auto rt = inferType(bin->right.get());
             // String concatenation
-            if (bin->op == "+" && (lt == ValueType::String || rt == ValueType::String))
+            if (bin->op == "+" && (lt == ValueType::String || rt == ValueType::String)) {
                 return ValueType::String;
+}
             if (bin->op == "+" || bin->op == "-" || bin->op == "*" || bin->op == "/" ||
                 bin->op == "%") {
-                if (lt == ValueType::Float || rt == ValueType::Float)
+                if (lt == ValueType::Float || rt == ValueType::Float) {
                     return ValueType::Float;
+}
                 return ValueType::Int;
             }
             if (bin->op == "&" || bin->op == "|" || bin->op == "^") {
-                if (lt == ValueType::Bit && rt == ValueType::Bit)
+                if (lt == ValueType::Bit && rt == ValueType::Bit) {
                     return ValueType::Bit;
+}
                 return ValueType::Unknown;
             }
             return ValueType::Unknown;
         }
         if (auto un = dynamic_cast<UnaryExpression*>(expr)) {
             auto rt = inferType(un->right.get());
-            if (un->op == "-")
+            if (un->op == "-") {
                 return (rt == ValueType::Float) ? ValueType::Float : ValueType::Int;
-            if (un->op == "!")
+}
+            if (un->op == "!") {
                 return ValueType::Bit;
-            if (un->op == "~")
+}
+            if (un->op == "~") {
                 return (rt == ValueType::Bit) ? ValueType::Bit : ValueType::Unknown;
+}
             return ValueType::Unknown;
         }
         if (auto post = dynamic_cast<PostfixExpression*>(expr)) {
-            if (auto v = dynamic_cast<VariableExpression*>(post->left.get()))
+            if (auto v = dynamic_cast<VariableExpression*>(post->left.get())) {
                 return getVariableType(v->name);
+}
             return ValueType::Unknown;
         }
-        if (dynamic_cast<IndexExpression*>(expr))
+        if (dynamic_cast<IndexExpression*>(expr)) {
             return ValueType::Unknown;  // not tracked at this level
-        if (dynamic_cast<ArrayLiteralExpression*>(expr))
+}
+        if (dynamic_cast<ArrayLiteralExpression*>(expr)) {
             return ValueType::Unknown;  // element type depends on context
-        if (dynamic_cast<AssignmentExpression*>(expr))
+}
+        if (dynamic_cast<AssignmentExpression*>(expr)) {
             return ValueType::Unknown;
-        if (dynamic_cast<ArrayAssignmentExpression*>(expr))
+}
+        if (dynamic_cast<ArrayAssignmentExpression*>(expr)) {
             return ValueType::Unknown;
+}
         return ValueType::Unknown;
     }
 
@@ -106,9 +121,9 @@ namespace bloch {
                              "'" + node.name + "' is already declared in this scope");
         }
         ValueType type = ValueType::Unknown;
-        if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get()))
+        if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {
             type = typeFromString(prim->name);
-        else if (dynamic_cast<VoidType*>(node.varType.get())) {
+        } else if (dynamic_cast<VoidType*>(node.varType.get())) {
             // Variables cannot be of type 'void'
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                              "variables cannot have type 'void'");
@@ -127,8 +142,9 @@ namespace bloch {
             if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {
                 valid = (prim->name == "qubit");
             } else if (auto arr = dynamic_cast<ArrayType*>(node.varType.get())) {
-                if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get()))
+                if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
                     valid = (elem->name == "qubit");
+}
             }
             if (!valid) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -163,7 +179,8 @@ namespace bloch {
             if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {
                 ValueType target = typeFromString(prim->name);
                 ValueType initT = inferType(node.initializer.get());
-                if (target != ValueType::Unknown && initT != ValueType::Unknown && target != initT) {
+                if (target != ValueType::Unknown && initT != ValueType::Unknown &&
+                    target != initT) {
                     // Special guidance for common literal mistakes
                     if (prim->name == "bit") {
                         if (auto lit = dynamic_cast<LiteralExpression*>(node.initializer.get())) {
@@ -192,13 +209,16 @@ namespace bloch {
 
     void SemanticAnalyser::visit(BlockStatement& node) {
         beginScope();
-        for (auto& stmt : node.statements) stmt->accept(*this);
+        for (auto& stmt : node.statements) {
+            stmt->accept(*this);
+}
         endScope();
     }
 
     void SemanticAnalyser::visit(ExpressionStatement& node) {
-        if (node.expression)
+        if (node.expression) {
             node.expression->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(ReturnStatement& node) {
@@ -243,46 +263,59 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(IfStatement& node) {
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
-        if (node.thenBranch)
+}
+        if (node.thenBranch) {
             node.thenBranch->accept(*this);
-        if (node.elseBranch)
+}
+        if (node.elseBranch) {
             node.elseBranch->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(TernaryStatement& node) {
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
-        if (node.thenBranch)
+}
+        if (node.thenBranch) {
             node.thenBranch->accept(*this);
-        if (node.elseBranch)
+}
+        if (node.elseBranch) {
             node.elseBranch->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(ForStatement& node) {
         beginScope();
-        if (node.initializer)
+        if (node.initializer) {
             node.initializer->accept(*this);
-        if (node.condition)
+}
+        if (node.condition) {
             node.condition->accept(*this);
-        if (node.increment)
+}
+        if (node.increment) {
             node.increment->accept(*this);
-        if (node.body)
+}
+        if (node.body) {
             node.body->accept(*this);
+}
         endScope();
     }
 
     void SemanticAnalyser::visit(WhileStatement& node) {
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
-        if (node.body)
+}
+        if (node.body) {
             node.body->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(EchoStatement& node) {
-        if (node.value)
+        if (node.value) {
             node.value->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(ResetStatement& node) {
@@ -336,15 +369,18 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(BinaryExpression& node) {
-        if (node.left)
+        if (node.left) {
             node.left->accept(*this);
-        if (node.right)
+}
+        if (node.right) {
             node.right->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(UnaryExpression& node) {
-        if (node.right)
+        if (node.right) {
             node.right->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(PostfixExpression& node) {
@@ -360,14 +396,16 @@ namespace bloch {
             // Postfix operators are only valid for integer variables
             ValueType t = getVariableType(var->name);
             if (t != ValueType::Int) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "Postfix operator '" + node.op + "' requires variable of type 'int'");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "Postfix operator '" + node.op + "' requires variable of type 'int'");
             }
         } else if (node.left) {
             // Only variables are valid lvalues for postfix operators
             node.left->accept(*this);
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "Postfix operator '" + node.op + "' can only be applied to a variable");
+            throw BlochError(
+                ErrorCategory::Semantic, node.line, node.column,
+                "Postfix operator '" + node.op + "' can only be applied to a variable");
         }
     }
 
@@ -396,8 +434,9 @@ namespace bloch {
             for (size_t i = 0; i < node.arguments.size() && i < types.size(); ++i) {
                 auto& arg = node.arguments[i];
                 ValueType expectedType = types[i];
-                if (expectedType == ValueType::Unknown)
+                if (expectedType == ValueType::Unknown) {
                     continue;
+}
                 if (auto argVar = dynamic_cast<VariableExpression*>(arg.get())) {
                     ValueType actual = getVariableType(argVar->name);
                     if (actual != ValueType::Unknown && actual != expectedType) {
@@ -430,26 +469,32 @@ namespace bloch {
         } else if (node.callee) {
             node.callee->accept(*this);
         }
-        for (auto& arg : node.arguments) arg->accept(*this);
+        for (auto& arg : node.arguments) {
+            arg->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(ArrayLiteralExpression& node) {
         for (auto& elem : node.elements) {
-            if (elem)
+            if (elem) {
                 elem->accept(*this);
+}
         }
     }
 
     void SemanticAnalyser::visit(IndexExpression& node) {
-        if (node.collection)
+        if (node.collection) {
             node.collection->accept(*this);
-        if (node.index)
+}
+        if (node.index) {
             node.index->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(ParenthesizedExpression& node) {
-        if (node.expression)
+        if (node.expression) {
             node.expression->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(MeasureExpression& node) {
@@ -530,10 +575,12 @@ namespace bloch {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                              "Assignment target must be a variable array");
         }
-        if (node.index)
+        if (node.index) {
             node.index->accept(*this);
-        if (node.value)
+}
+        if (node.value) {
             node.value->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(PrimitiveType&) {}
@@ -541,8 +588,9 @@ namespace bloch {
     void SemanticAnalyser::visit(VoidType&) {}
 
     void SemanticAnalyser::visit(Parameter& node) {
-        if (node.type)
+        if (node.type) {
             node.type->accept(*this);
+}
     }
 
     void SemanticAnalyser::visit(AnnotationNode&) {}
@@ -553,8 +601,9 @@ namespace bloch {
             if (dynamic_cast<VoidType*>(node.returnType.get())) {
                 valid = true;
             } else if (auto prim = dynamic_cast<PrimitiveType*>(node.returnType.get())) {
-                if (prim->name == "bit")
+                if (prim->name == "bit") {
                     valid = true;
+}
             }
             if (!valid) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -562,22 +611,24 @@ namespace bloch {
             }
         }
         ValueType prevReturn = m_currentReturnType;
-        if (auto prim = dynamic_cast<PrimitiveType*>(node.returnType.get()))
+        if (auto prim = dynamic_cast<PrimitiveType*>(node.returnType.get())) {
             m_currentReturnType = typeFromString(prim->name);
-        else if (dynamic_cast<VoidType*>(node.returnType.get()))
+        } else if (dynamic_cast<VoidType*>(node.returnType.get())) {
             m_currentReturnType = ValueType::Void;
-        else
+        } else {
             m_currentReturnType = ValueType::Unknown;
+}
 
         FunctionInfo info;
         info.returnType = m_currentReturnType;
         for (auto& param : node.params) {
-            if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get()))
+            if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get())) {
                 info.paramTypes.push_back(typeFromString(prim->name));
-            else if (dynamic_cast<VoidType*>(param->type.get()))
+            } else if (dynamic_cast<VoidType*>(param->type.get())) {
                 info.paramTypes.push_back(ValueType::Void);
-            else
+            } else {
                 info.paramTypes.push_back(ValueType::Unknown);
+}
         }
         m_functionInfo[node.name] = info;
 
@@ -593,13 +644,15 @@ namespace bloch {
             if (dynamic_cast<VoidType*>(param->type.get())) {
                 throw BlochError(ErrorCategory::Semantic, param->line, param->column,
                                  "parameters cannot have type 'void'");
-            } else if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get()))
+            } else if (auto prim = dynamic_cast<PrimitiveType*>(param->type.get())) {
                 type = typeFromString(prim->name);
+}
             declare(param->name, false, type);
             param->accept(*this);
         }
-        if (node.body)
+        if (node.body) {
             node.body->accept(*this);
+}
         if (m_currentReturnType != ValueType::Void && !m_foundReturn) {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                              "Non-void function must have a 'return' statement.");
@@ -618,8 +671,12 @@ namespace bloch {
             }
             declareFunction(fn->name);
         }
-        for (auto& fn : node.functions) fn->accept(*this);
-        for (auto& stmt : node.statements) stmt->accept(*this);
+        for (auto& fn : node.functions) {
+            fn->accept(*this);
+}
+        for (auto& stmt : node.statements) {
+            stmt->accept(*this);
+}
     }
 
     void SemanticAnalyser::beginScope() { m_symbols.beginScope(); }
@@ -646,21 +703,25 @@ namespace bloch {
 
     size_t SemanticAnalyser::getFunctionParamCount(const std::string& name) const {
         auto it = m_functionInfo.find(name);
-        if (it != m_functionInfo.end())
+        if (it != m_functionInfo.end()) {
             return it->second.paramTypes.size();
+}
         auto builtin = builtInGates.find(name);
-        if (builtin != builtInGates.end())
+        if (builtin != builtInGates.end()) {
             return builtin->second.paramTypes.size();
+}
         return 0;
     }
 
     std::vector<ValueType> SemanticAnalyser::getFunctionParamTypes(const std::string& name) const {
         auto it = m_functionInfo.find(name);
-        if (it != m_functionInfo.end())
+        if (it != m_functionInfo.end()) {
             return it->second.paramTypes;
+}
         auto builtin = builtInGates.find(name);
-        if (builtin != builtInGates.end())
+        if (builtin != builtInGates.end()) {
             return builtin->second.paramTypes;
+}
         return {};
     }
 
@@ -670,11 +731,13 @@ namespace bloch {
 
     bool SemanticAnalyser::returnsVoid(const std::string& name) const {
         auto it = m_functionInfo.find(name);
-        if (it != m_functionInfo.end())
+        if (it != m_functionInfo.end()) {
             return it->second.returnType == ValueType::Void;
+}
         auto builtin = builtInGates.find(name);
-        if (builtin != builtInGates.end())
+        if (builtin != builtInGates.end()) {
             return builtin->second.returnType == ValueType::Void;
+}
         return false;
     }
 

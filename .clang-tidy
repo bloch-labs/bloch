@@ -1,0 +1,11 @@
+Checks: >
+  -*,
+  readability-braces-around-statements
+
+WarningsAsErrors: 'readability-braces-around-statements'
+
+CheckOptions:
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: '0'
+  - key: readability-braces-around-statements.BraceWrappingAfterControlStatement
+    value: 'true'

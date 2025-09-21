@@ -123,7 +123,9 @@ namespace bloch {
         size_t bit = size_t{1} << q;
         double norm0 = 0.0;
         for (size_t i = 0; i < m_state.size(); ++i) {
-            if (!(i & bit)) norm0 += std::norm(m_state[i]);
+            if (!(i & bit)) {
+                norm0 += std::norm(m_state[i]);
+            }
         }
 
         if (norm0 == 0.0) {
@@ -154,18 +156,21 @@ namespace bloch {
         // Compute probability of |1>, sample, and collapse the state accordingly.
         size_t bit = size_t{1} << q;
         double p1 = 0;
-        for (size_t i = 0; i < m_state.size(); ++i)
-            if (i & bit)
+        for (size_t i = 0; i < m_state.size(); ++i) {
+            if (i & bit) {
                 p1 += std::norm(m_state[i]);
+            }
+        }
         std::uniform_real_distribution<double> dist(0.0, 1.0);
         double r = dist(rng);
         int res = r < p1 ? 1 : 0;
         double norm = std::sqrt(res ? p1 : 1 - p1);
         for (size_t i = 0; i < m_state.size(); ++i) {
-            if (((i & bit) ? 1 : 0) != res)
+            if (((i & bit) ? 1 : 0) != res) {
                 m_state[i] = 0;
-            else
+            } else {
                 m_state[i] /= norm;
+            }
         }
         m_ops += "measure q[" + std::to_string(q) + "] -> c[" + std::to_string(q) + "];\n";
         return res;

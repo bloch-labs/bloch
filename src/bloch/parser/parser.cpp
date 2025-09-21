@@ -23,19 +23,22 @@ namespace bloch {
 
     // Token manipulation
     const Token& Parser::peek() const {
-        if (m_current >= m_tokens.size())
+        if (m_current >= m_tokens.size()) {
             return m_tokens.back();
+}
         return m_tokens[m_current];
     }
     const Token& Parser::previous() const { return m_tokens[m_current - 1]; }
     const Token& Parser::advance() {
-        if (!isAtEnd())
+        if (!isAtEnd()) {
             m_current++;
+}
         return previous();
     }
     const Token& Parser::expect(TokenType type, const std::string& message) {
-        if (check(type))
+        if (check(type)) {
             return advance();
+}
         reportError(message);
         return peek();
     }
@@ -49,20 +52,24 @@ namespace bloch {
         return false;
     }
     bool Parser::check(TokenType type) const {
-        if (isAtEnd())
+        if (isAtEnd()) {
             return false;
+}
         return peek().type == type;
     }
     bool Parser::checkNext(TokenType type) const {
-        if (m_current + 1 >= m_tokens.size())
+        if (m_current + 1 >= m_tokens.size()) {
             return false;
+}
         return m_tokens[m_current + 1].type == type;
     }
     bool Parser::checkFunctionAnnotation() const {
-        if (!check(TokenType::At))
+        if (!check(TokenType::At)) {
             return false;
-        if (!checkNext(TokenType::Quantum))
+}
+        if (!checkNext(TokenType::Quantum)) {
             return false;
+}
         return true;
     }
 
@@ -138,8 +145,9 @@ namespace bloch {
 
             func->params.push_back(std::move(param));
 
-            if (!match(TokenType::Comma))
+            if (!match(TokenType::Comma)) {
                 break;
+}
         }
         (void)expect(TokenType::RParen, "Expected ')' after parameters");
 
@@ -168,8 +176,9 @@ namespace bloch {
         // Annotations
         var->annotations = parseAnnotations();
         for (auto& ann : var->annotations) {
-            if (ann->name == "tracked")
+            if (ann->name == "tracked") {
                 var->isTracked = true;
+}
         }
 
         if (preParsedType) {
@@ -193,18 +202,22 @@ namespace bloch {
         }
 
         bool isQubitType = false;
-        if (auto prim = dynamic_cast<PrimitiveType*>(var->varType.get()))
+        if (auto prim = dynamic_cast<PrimitiveType*>(var->varType.get())) {
             isQubitType = prim->name == "qubit";
+}
 
         bool hasInitializer = var->initializer != nullptr;
         // Support comma-separated qubit declarations (qubit a, b, c;).
         while (match(TokenType::Comma)) {
-            if (!allowMultiple)
+            if (!allowMultiple) {
                 reportError("Multiple declarations not allowed in this context");
-            if (!isQubitType)
+}
+            if (!isQubitType) {
                 reportError("only 'qubit' may be multi-declared");
-            if (hasInitializer)
+}
+            if (hasInitializer) {
                 reportError("Cannot initialise multiple qubit declarations");
+}
             const Token& extraToken =
                 expect(TokenType::Identifier, "Expected variable name after ','");
             auto extraVar = std::make_unique<VariableDeclaration>();
@@ -250,8 +263,9 @@ namespace bloch {
 
     // Statements
     std::unique_ptr<Statement> Parser::parseStatement() {
-        if (check(TokenType::LBrace))
+        if (check(TokenType::LBrace)) {
             return parseBlock();
+}
 
         bool isFinal = match(TokenType::Final);
 
@@ -263,23 +277,31 @@ namespace bloch {
         }
 
         // Standard statements
-        if (match(TokenType::Return))
+        if (match(TokenType::Return)) {
             return parseReturn();
-        if (match(TokenType::If))
+}
+        if (match(TokenType::If)) {
             return parseIf();
-        if (match(TokenType::For))
+}
+        if (match(TokenType::For)) {
             return parseFor();
-        if (match(TokenType::While))
+}
+        if (match(TokenType::While)) {
             return parseWhile();
-        if (match(TokenType::Echo))
+}
+        if (match(TokenType::Echo)) {
             return parseEcho();
-        if (match(TokenType::Reset))
+}
+        if (match(TokenType::Reset)) {
             return parseReset();
-        if (match(TokenType::Measure))
+}
+        if (match(TokenType::Measure)) {
             return parseMeasure();
+}
 
-        if (check(TokenType::Identifier) && checkNext(TokenType::Equals))
+        if (check(TokenType::Identifier) && checkNext(TokenType::Equals)) {
             return parseAssignment();
+}
 
         auto expr = parseExpression();
         if (match(TokenType::Question)) {
@@ -791,8 +813,9 @@ namespace bloch {
             if (match(TokenType::LBracket)) {
                 int arrSize = -1;
                 if (!check(TokenType::RBracket)) {
-                    if (!check(TokenType::IntegerLiteral))
+                    if (!check(TokenType::IntegerLiteral)) {
                         reportError("Expected optional integer size in array type");
+}
                     const Token& sizeTok = advance();
                     try {
                         arrSize = std::stoi(sizeTok.value);
@@ -849,8 +872,9 @@ namespace bloch {
 
             parameters.push_back(std::move(param));
 
-            if (!match(TokenType::Comma))
+            if (!match(TokenType::Comma)) {
                 break;
+}
         }
 
         return parameters;
@@ -871,25 +895,31 @@ namespace bloch {
     }
 
     std::unique_ptr<Type> Parser::cloneType(const Type& type) {
-        if (auto prim = dynamic_cast<const PrimitiveType*>(&type))
+        if (auto prim = dynamic_cast<const PrimitiveType*>(&type)) {
             return std::make_unique<PrimitiveType>(prim->name);
-        if (auto array = dynamic_cast<const ArrayType*>(&type))
+}
+        if (auto array = dynamic_cast<const ArrayType*>(&type)) {
             return std::make_unique<ArrayType>(cloneType(*array->elementType), array->size);
-        if (dynamic_cast<const VoidType*>(&type))
+}
+        if (dynamic_cast<const VoidType*>(&type)) {
             return std::make_unique<VoidType>();
+}
         return nullptr;
     }
 
     std::vector<std::unique_ptr<AnnotationNode>> Parser::cloneAnnotations(
         const std::vector<std::unique_ptr<AnnotationNode>>& annotations) {
         std::vector<std::unique_ptr<AnnotationNode>> result;
-        for (const auto& ann : annotations)
+        for (const auto& ann : annotations) {
             result.push_back(std::make_unique<AnnotationNode>(ann->name, ann->value));
+}
         return result;
     }
 
     void Parser::flushExtraStatements(std::vector<std::unique_ptr<Statement>>& dest) {
-        for (auto& stmt : m_extraStatements) dest.push_back(std::move(stmt));
+        for (auto& stmt : m_extraStatements) {
+            dest.push_back(std::move(stmt));
+}
         m_extraStatements.clear();
     }
 }

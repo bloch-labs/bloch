@@ -162,8 +162,11 @@ TEST(RuntimeTest, TracksVariableMultipleShots) {
     for (int i = 0; i < 5; ++i) {
         RuntimeEvaluator eval;
         eval.execute(*program);
-        for (const auto& vk : eval.trackedCounts())
-            for (const auto& vv : vk.second) agg[vk.first][vv.first] += vv.second;
+        for (const auto& vk : eval.trackedCounts()) {
+            for (const auto& vv : vk.second) {
+                agg[vk.first][vv.first] += vv.second;
+}
+}
     }
     ASSERT_EQ(agg["qubit q"]["?"], 5);
 }
@@ -331,8 +334,7 @@ TEST(RuntimeTest, UnaryTildeOnIntThrows) {
 }
 
 TEST(RuntimeTest, RyRzAppearInQasm) {
-    const char* src =
-        "function main() -> void { qubit q; ry(q, 1.0f); rz(q, 0.5f); }";
+    const char* src = "function main() -> void { qubit q; ry(q, 1.0f); rz(q, 0.5f); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);

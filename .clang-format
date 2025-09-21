@@ -1,7 +1,5 @@
-# Style base
 BasedOnStyle: Google
-
-# Style
+Language: Cpp
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
@@ -13,11 +11,9 @@ PointerAlignment: Left
 SortIncludes: true
 IncludeBlocks: Preserve
 AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
 NamespaceIndentation: All
 FixNamespaceComments: false
-
-# C++ specific
-Language: Cpp
-
-# Quoting style
 AlwaysBreakTemplateDeclarations: Yes

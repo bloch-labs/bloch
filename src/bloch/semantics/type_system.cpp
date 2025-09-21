@@ -18,20 +18,27 @@ namespace bloch {
 
     ValueType typeFromString(const std::string& name) {
         // Map source-level type names to our compact enum.
-        if (name == "int")
+        if (name == "int") {
             return ValueType::Int;
-        if (name == "float")
+}
+        if (name == "float") {
             return ValueType::Float;
-        if (name == "string")
+}
+        if (name == "string") {
             return ValueType::String;
-        if (name == "char")
+}
+        if (name == "char") {
             return ValueType::Char;
-        if (name == "qubit")
+}
+        if (name == "qubit") {
             return ValueType::Qubit;
-        if (name == "bit")
+}
+        if (name == "bit") {
             return ValueType::Bit;
-        if (name == "void")
+}
+        if (name == "void") {
             return ValueType::Void;
+}
         return ValueType::Unknown;
     }
 
@@ -62,15 +69,17 @@ namespace bloch {
     void SymbolTable::endScope() { m_scopes.pop_back(); }
 
     void SymbolTable::declare(const std::string& name, bool isFinal, ValueType type) {
-        if (m_scopes.empty())
+        if (m_scopes.empty()) {
             return;
+}
         m_scopes.back()[name] = SymbolInfo{isFinal, type};
     }
 
     bool SymbolTable::isDeclared(const std::string& name) const {
         for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
-            if (it->count(name))
+            if (it->count(name)) {
                 return true;
+}
         }
         return false;
     }
@@ -78,8 +87,9 @@ namespace bloch {
     bool SymbolTable::isFinal(const std::string& name) const {
         for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
             auto found = it->find(name);
-            if (found != it->end())
+            if (found != it->end()) {
                 return found->second.isFinal;
+}
         }
         return false;
     }
@@ -87,8 +97,9 @@ namespace bloch {
     ValueType SymbolTable::getType(const std::string& name) const {
         for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
             auto found = it->find(name);
-            if (found != it->end())
+            if (found != it->end()) {
                 return found->second.type;
+}
         }
         return ValueType::Unknown;
     }

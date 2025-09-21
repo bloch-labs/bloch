@@ -2,7 +2,7 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [develop, release-v*]
+    branches: [develop]
     types: [opened, edited, synchronize, reopened]
 
 permissions:
@@ -23,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ---------- PR title format + issue link ----------
+      # ---------- PR title rule ----------
       - name: Enforce PR title format and link issue
         uses: actions/github-script@v7
         with:
@@ -31,21 +31,16 @@ jobs:
             const pr = context.payload.pull_request;
             const title = pr.title || '';
 
-            // Allowed types (lowercase recommended in titles)
             const types = ['feat','fix','bugfix','chore','docs','refactor','perf','test','build','ci'];
             const typeGroup = types.join('|');
-
-            // Require: "<type>: <desc> (#123)" exactly at end
-            const re = new RegExp(`^(${typeGroup}):\\s.+\\s\\(#(\\d+)\\)$`, 'i');
+            const re = new RegExp(`^(${typeGroup}):\\s.+\\s\\(#(\\d+)\\)$`,'i');
             const m = title.match(re);
             if (!m) {
               core.setFailed(
-                `PR title must match: "type: description (#123)". Allowed types: ${types.join(', ')}. ` +
-                `Example: "bugfix: fixed parser bug (#123)".`
+                `PR title must match: "type: description (#123)". Allowed: ${types.join(', ')}.`
               );
               return;
             }
-
             const issueNum = m[2];
             const body = pr.body || '';
             if (!body.includes(`Closes #${issueNum}`)) {
@@ -73,55 +68,53 @@ jobs:
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           git diff --name-only "$BASE_SHA"...HEAD > changed.txt
-          echo "Changed files:"
-          cat changed.txt || true
-
-          # Exempt docs/tests/ci-only PRs
-          if grep -Evq '^(docs/|README\.md|\.github/|test/|tests/|CMakeLists\.txt$|\.clang-format$)' changed.txt; then
+          echo "Changed files:"; cat changed.txt || true
+          if grep -Evq '^(docs/|README\.md|\.github/|test/|tests/|CMakeLists\.txt$|\.clang-format$|\.clang-tidy$)' changed.txt; then
             NEED_CHANGELOG="yes"
           else
             NEED_CHANGELOG="no"
           fi
-
           if [ "$NEED_CHANGELOG" = "yes" ]; then
             if ! grep -qx "CHANGELOG.md" changed.txt; then
-              echo "::error ::Please update CHANGELOG.md (or add [no-changelog] if truly not user-facing)."
+              echo "::error ::Please update CHANGELOG.md (or add [no-changelog] if not user-facing)."
               exit 1
             fi
           else
-            echo "Docs/Tests/CI-only change detected → no changelog required."
+            echo "Docs/Tests/CI-only change → no changelog required."
           fi
 
       # ---------- Toolchain ----------
       - name: Install toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ gcovr lcov $CLANG_FORMAT_BIN
+          sudo apt-get install -y cmake ninja-build g++ gcovr lcov $CLANG_FORMAT_BIN clang-tidy
 
-      # ---------- Format check ----------
+      # ---------- clang-format ----------
       - name: clang-format check
         run: |
           set -euo pipefail
           "$CLANG_FORMAT_BIN" --version
           FILES=$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')
           if [ -n "$FILES" ]; then
+            # -n --Werror = dry-run, fail if reformat needed
             if ! echo "$FILES" | xargs -r "$CLANG_FORMAT_BIN" -style=file -n --Werror > /dev/null; then
-              echo ""
-              echo "❌ Code is not formatted correctly."
-              echo "👉 Run: $CLANG_FORMAT_BIN -i \$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
-              echo ""
+              echo "::error ::Code is not formatted per .clang-format."
+              echo "Run: $CLANG_FORMAT_BIN -i \$(find . -regex '.*\\.(cpp|hpp|c|h)')"
               exit 1
             fi
           fi
           echo "✅ Formatting looks good."
 
-      # ---------- Configure, build, test (with coverage flags) ----------
+      # ---------- Configure & build (with coverage flags) ----------
       - name: Configure (CMake + coverage)
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_FLAGS="--coverage" \
-            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          # expose compile_commands.json at repo root for clang-tidy
+          cp build/compile_commands.json .
 
       - name: Build
         run: cmake --build build -j
@@ -129,14 +122,29 @@ jobs:
       - name: Run tests
         run: ctest --test-dir build --output-on-failure
 
+      # ---------- clang-tidy ----------
+      - name: Enforce braces around statements (clang-tidy)
+        run: |
+          # Fail if any unbraced control statements exist.
+          # Limit to your sources to avoid third-party dirs if needed.
+          set -e
+          FILES=$(git ls-files '*.cpp' '*.cc' '*.cxx')
+          if [ -z "$FILES" ]; then
+            echo "No C/C++ sources found for clang-tidy."
+          else
+            clang-tidy -p . \
+              -warnings-as-errors='*' \
+              -checks='readability-braces-around-statements' \
+              $FILES
+          fi
+
       # ---------- Coverage ----------
       - name: Generate coverage (gcovr)
         run: |
           gcovr -r . --xml-pretty -o build/coverage.xml
           gcovr -r . --branches --txt > build/coverage.txt
           gcovr -r . --html-details -o build/coverage.html || true
-          echo "---- coverage.txt ----"
-          tail -n +1 build/coverage.txt || true
+          echo "---- coverage.txt ----"; tail -n +1 build/coverage.txt || true
 
       - name: Enforce coverage threshold
         run: |
@@ -148,7 +156,7 @@ jobs:
             exit 1
           fi
 
-      - name: Upload coverage artifact (HTML + XML)
+      - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage
@@ -156,20 +164,3 @@ jobs:
             build/coverage.html
             build/coverage.xml
             build/coverage.txt
-
-      - name: Comment coverage summary
-        if: github.event.pull_request.number != ''
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let txt = '';
-            try { txt = fs.readFileSync('build/coverage.txt', 'utf8'); } catch(e) {}
-            const lines = txt.trim().split('\n');
-            const last = lines[lines.length - 1] || '';
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: `**Coverage summary:**\n\n\`\`\`\n${last}\n\`\`\`\n_Threshold:_ ${process.env.COVERAGE_MIN}%`
-            });
