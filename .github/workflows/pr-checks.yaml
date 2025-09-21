@@ -1,51 +1,175 @@
 name: PR Checks
+
 on:
   pull_request:
-    branches:
-      - 'develop'
+    branches: [develop, release-v*]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+env:
+  COVERAGE_MIN: "90"
+  CLANG_FORMAT_BIN: "clang-format-14"
 
 jobs:
-  build-and-test:
+  pr-checks:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++ clang-format-14
+      # ---------- PR title format + issue link ----------
+      - name: Enforce PR title format and link issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title || '';
 
-      - name: Check formatting
+            // Allowed types (lowercase recommended in titles)
+            const types = ['feat','fix','bugfix','chore','docs','refactor','perf','test','build','ci'];
+            const typeGroup = types.join('|');
+
+            // Require: "<type>: <desc> (#123)" exactly at end
+            const re = new RegExp(`^(${typeGroup}):\\s.+\\s\\(#(\\d+)\\)$`, 'i');
+            const m = title.match(re);
+            if (!m) {
+              core.setFailed(
+                `PR title must match: "type: description (#123)". Allowed types: ${types.join(', ')}. ` +
+                `Example: "bugfix: fixed parser bug (#123)".`
+              );
+              return;
+            }
+
+            const issueNum = m[2];
+            const body = pr.body || '';
+            if (!body.includes(`Closes #${issueNum}`)) {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                body: (body + `\n\nCloses #${issueNum}\n`).trim()
+              });
+            }
+            core.notice(`Title OK. Linked to issue #${issueNum}.`);
+
+      # ---------- Changelog check (skippable) ----------
+      - name: Skip flag if last commit has [no-changelog]
+        id: skip_changelog
         run: |
-          set -euo pipefail
-          CLANG_FORMAT=clang-format-14
-          "$CLANG_FORMAT" --version
-          # Use -print0 + xargs -0 to handle spaces and large file sets
-          FILES=$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')
-          if [ -n "$FILES" ]; then
-            echo "Checking formatting for files:"
-            echo "$FILES"
-            if ! find . -regex '.*\.\(cpp\|hpp\|c\|h\)' -print0 \
-              | xargs -0 -r "$CLANG_FORMAT" -style=file -n --Werror; then
-              echo ""
-              echo "❌ Code is not formatted correctly."
-              echo "👉 Please run: clang-format-14 -i \$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
-              echo ""
-              exit 1
-            else
-              echo "✅ Formatting looks good!"
-            fi
+          if git log -1 --pretty=%B | grep -q '\[no-changelog\]'; then
+            echo "skip=true" >> $GITHUB_OUTPUT
           else
-            echo "No C/C++ source files found."
+            echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Configure CMake
-        run: cmake -S . -B build
+      - name: Require CHANGELOG.md when not skipped and not docs/tests/ci-only
+        if: steps.skip_changelog.outputs.skip == 'false'
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          git diff --name-only "$BASE_SHA"...HEAD > changed.txt
+          echo "Changed files:"
+          cat changed.txt || true
+
+          # Exempt docs/tests/ci-only PRs
+          if grep -Evq '^(docs/|README\.md|\.github/|test/|tests/|CMakeLists\.txt$|\.clang-format$)' changed.txt; then
+            NEED_CHANGELOG="yes"
+          else
+            NEED_CHANGELOG="no"
+          fi
+
+          if [ "$NEED_CHANGELOG" = "yes" ]; then
+            if ! grep -qx "CHANGELOG.md" changed.txt; then
+              echo "::error ::Please update CHANGELOG.md (or add [no-changelog] if truly not user-facing)."
+              exit 1
+            fi
+          else
+            echo "Docs/Tests/CI-only change detected → no changelog required."
+          fi
+
+      # ---------- Toolchain ----------
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ gcovr lcov $CLANG_FORMAT_BIN
+
+      # ---------- Format check ----------
+      - name: clang-format check
+        run: |
+          set -euo pipefail
+          "$CLANG_FORMAT_BIN" --version
+          FILES=$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')
+          if [ -n "$FILES" ]; then
+            if ! echo "$FILES" | xargs -r "$CLANG_FORMAT_BIN" -style=file -n --Werror > /dev/null; then
+              echo ""
+              echo "❌ Code is not formatted correctly."
+              echo "👉 Run: $CLANG_FORMAT_BIN -i \$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
+              echo ""
+              exit 1
+            fi
+          fi
+          echo "✅ Formatting looks good."
+
+      # ---------- Configure, build, test (with coverage flags) ----------
+      - name: Configure (CMake + coverage)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="--coverage" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
 
       - name: Build
-        run: cmake --build build
+        run: cmake --build build -j
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure
+
+      # ---------- Coverage ----------
+      - name: Generate coverage (gcovr)
+        run: |
+          gcovr -r . --xml-pretty -o build/coverage.xml
+          gcovr -r . --branches --txt > build/coverage.txt
+          gcovr -r . --html-details -o build/coverage.html || true
+          echo "---- coverage.txt ----"
+          tail -n +1 build/coverage.txt || true
+
+      - name: Enforce coverage threshold
+        run: |
+          PCT=$(grep -Eo 'lines:\s+[0-9\.]+%' build/coverage.txt | tail -1 | grep -Eo '[0-9\.]+' || echo "0")
+          echo "Total line coverage: $PCT% (min required: ${COVERAGE_MIN}%)"
+          PCT_INT=${PCT%.*}
+          if [ "$PCT_INT" -lt "${COVERAGE_MIN}" ]; then
+            echo "::error ::Coverage $PCT% is below threshold ${COVERAGE_MIN}%."
+            exit 1
+          fi
+
+      - name: Upload coverage artifact (HTML + XML)
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            build/coverage.html
+            build/coverage.xml
+            build/coverage.txt
+
+      - name: Comment coverage summary
+        if: github.event.pull_request.number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let txt = '';
+            try { txt = fs.readFileSync('build/coverage.txt', 'utf8'); } catch(e) {}
+            const lines = txt.trim().split('\n');
+            const last = lines[lines.length - 1] || '';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `**Coverage summary:**\n\n\`\`\`\n${last}\n\`\`\`\n_Threshold:_ ${process.env.COVERAGE_MIN}%`
+            });
