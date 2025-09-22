@@ -129,6 +129,7 @@ jobs:
   release:
     name: Publish GitHub release
     needs:
+      - validate
       - build-linux
       - build-macos
     runs-on: ubuntu-22.04
@@ -143,17 +144,20 @@ jobs:
           mkdir -p release
           find staging -type f -name '*.tar.gz' -exec cp {} release/ \;
           find staging -type f -name '*.tar.gz.sha256' -exec cp {} release/ \;
-          find staging -type f -name '*.tar.gz.sha256' -exec cat {} + > release/checksums.txt
+          sha256sum release/*.tar.gz > release/checksums.txt
           sort -u release/checksums.txt -o release/checksums.txt
           ls -1 release
       - name: Create or update release
-        uses: ncipollo/release-action@v1
+        uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ env.RELEASE_VERSION }}
+          tag_name: ${{ env.RELEASE_VERSION }}
           name: Bloch ${{ env.RELEASE_VERSION }}
           body: "Automated packaging run for ${{ env.RELEASE_VERSION }}"
-          prerelease: ${{ needs.validate.outputs.prerelease }}
-          artifacts: release/*
-          replacesArtifacts: true
-          allowUpdates: true
+          prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
+          draft: false
+          fail_on_unmatched_files: true
+          files: |
+            release/*.tar.gz
+            release/*.tar.gz.sha256
+            release/checksums.txt
