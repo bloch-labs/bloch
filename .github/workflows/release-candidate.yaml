@@ -1,0 +1,160 @@
+name: Release Candidate Build
+
+on:
+  push:
+    tags:
+      - 'v*-rc.*'
+
+permissions:
+  contents: write
+
+jobs:
+  verify_source_branch:
+    name: Verify tag is from release-v* branch
+    runs-on: ubuntu-18.04
+    outputs:
+      allowed: ${{ steps.check.outputs.allowed }}
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check branch ancestry
+        id: check
+        run: |
+          echo "Tag ref: $GITHUB_REF_NAME at $GITHUB_SHA"
+          echo "Finding branches containing commit..."
+          branches=$(git branch -r --contains "$GITHUB_SHA" | sed 's/^ *//')
+          echo "Branches containing commit:\n$branches"
+          if echo "$branches" | grep -E '^origin/release-v' >/dev/null; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            echo "Tag belongs to a release-v* branch. Proceed."
+          else
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "Tag does not belong to a release-v* branch. Skipping build."
+          fi
+
+  build:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: verify_source_branch
+    if: needs.verify_source_branch.outputs.allowed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04, macos-latest]
+    env:
+      BLOCH_VERSION: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout (with tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure CMake (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+
+      - name: Build
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Run unit tests
+        run: |
+          ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package artifact (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          BIN="build/bin/bloch"
+          if [ ! -f "$BIN" ]; then
+            # Fallbacks for non-default generators
+            [ -f "build/bloch" ] && BIN="build/bloch" || true
+            [ -f "build/Release/bloch" ] && BIN="build/Release/bloch" || true
+          fi
+          if [ ! -f "$BIN" ]; then
+            echo "Could not find built binary at $BIN" >&2
+            ls -R build || true
+            exit 1
+          fi
+          ASSET="bloch-${TAG_NAME}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz"
+          cp "$BIN" dist/bloch
+          cp LICENSE dist/ 2>/dev/null || true
+          if [ -f scripts/install.sh ]; then cp scripts/install.sh dist/install.sh; fi
+          # include installer if available
+          if [ -f dist/install.sh ]; then
+            chmod +x dist/install.sh || true
+            tar -C dist -czf "$ASSET" bloch LICENSE install.sh 2>/dev/null || tar -C dist -czf "$ASSET" bloch LICENSE
+          else
+            tar -C dist -czf "$ASSET" bloch LICENSE 2>/dev/null || tar -C dist -czf "$ASSET" bloch
+          fi
+          echo "Packaged $ASSET"
+
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bloch-${{ github.ref_name }}-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            *.tar.gz
+            *.zip
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-18.04
+    needs: build
+    if: needs.verify_source_branch.outputs.allowed == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: |
+          ls -R dist
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(dist/*.tar.gz dist/*.zip)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No artifacts found to checksum" >&2
+            exit 1
+          fi
+          if command -v sha256sum >/dev/null 2>&1; then
+            (cd dist && sha256sum *.tar.gz *.zip > checksums.txt 2>/dev/null || sha256sum *.tar.gz > checksums.txt)
+          else
+            (cd dist && shasum -a 256 *.tar.gz *.zip > checksums.txt 2>/dev/null || shasum -a 256 *.tar.gz > checksums.txt)
+          fi
+          echo "Generated dist/checksums.txt"
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Bloch ${{ github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            dist/**.tar.gz
+            dist/**.zip
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
