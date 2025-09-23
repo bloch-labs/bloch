@@ -1,12 +1,70 @@
 name: PR Checks
+
 on:
   pull_request:
     branches:
-      - 'develop'
+      - develop
+      - 'release-v*'
+      - master
 
 jobs:
-  build-and-test:
+  conventional-commits:
+    name: Conventional Commits
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Fetch base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git fetch origin "$BASE_REF"
+
+      - name: Validate commit messages
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          commits=$(git rev-list --no-merges "origin/${BASE_REF}..HEAD")
+          if [ -z "$commits" ]; then
+            echo "No commits to validate"
+            exit 0
+          fi
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|release|deps)(\([A-Za-z0-9_.\-/ ]+\))?(!)?: .+'
+          failed=0
+          while IFS= read -r sha; do
+            subject=$(git log -1 --pretty=%s "$sha")
+            if [[ "$subject" =~ ^Merge ]]; then
+              continue
+            fi
+            if [[ "$subject" =~ ^Revert ]]; then
+              continue
+            fi
+            if [[ "$subject" =~ $pattern ]]; then
+              continue
+            fi
+            echo "Commit $sha does not follow Conventional Commits:" >&2
+            echo "  $subject" >&2
+            failed=1
+          done <<< "$commits"
+          if [ "$failed" -ne 0 ]; then
+            cat <<'EOF'
+Expected format: <type>(optional-scope)!: short summary
+
+Allowed types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test, release, deps
+Use BREAKING CHANGE: in the commit body for breaking changes if you omit the ! marker.
+EOF
+            exit 1
+          fi
+
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    needs: conventional-commits
 
     steps:
       - name: Checkout repository
@@ -22,7 +80,6 @@ jobs:
           set -euo pipefail
           CLANG_FORMAT=clang-format-14
           "$CLANG_FORMAT" --version
-          # Use -print0 + xargs -0 to handle spaces and large file sets
           FILES=$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')
           if [ -n "$FILES" ]; then
             echo "Checking formatting for files:"
@@ -49,3 +106,69 @@ jobs:
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure
+
+  release-readiness:
+    name: Release packaging dry run
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.base_ref == 'master'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+
+      - name: Configure CMake (Release)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Release)
+        run: cmake --build build --config Release --parallel
+
+      - name: Run unit tests (Release)
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package release artifact (dry run)
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          BIN="build/bin/bloch"
+          if [ ! -f "$BIN" ]; then
+            [ -f "build/bloch" ] && BIN="build/bloch" || true
+            [ -f "build/Release/bloch" ] && BIN="build/Release/bloch" || true
+          fi
+          if [ ! -f "$BIN" ]; then
+            echo "Could not find built binary at $BIN" >&2
+            ls -R build || true
+            exit 1
+          fi
+          TAG_NAME="${BASE_REF:-master}-${PR_NUMBER:-dry-run}"
+          TAG_NAME=${TAG_NAME//\//-}
+          ASSET="bloch-${TAG_NAME}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz"
+          cp "$BIN" dist/bloch
+          cp LICENSE dist/ 2>/dev/null || true
+          if [ -f scripts/install.sh ]; then cp scripts/install.sh dist/install.sh; fi
+          if [ -f dist/install.sh ]; then
+            chmod +x dist/install.sh || true
+            tar -C dist -czf "$ASSET" bloch LICENSE install.sh 2>/dev/null || tar -C dist -czf "$ASSET" bloch LICENSE
+          else
+            tar -C dist -czf "$ASSET" bloch LICENSE 2>/dev/null || tar -C dist -czf "$ASSET" bloch
+          fi
+          echo "Packaged $ASSET"
+
+      - name: Upload dry-run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bloch-pr-${{ github.event.pull_request.number }}-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            *.tar.gz
+          if-no-files-found: error

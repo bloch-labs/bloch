@@ -3,7 +3,8 @@ name: Check for Changelog Update
 on:
   pull_request:
     branches:
-      - 'develop'
+      - develop
+      - 'release-v*'
 
 jobs:
   check-changelog:
@@ -14,24 +15,41 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch base develop branch
-        run: git fetch origin develop
-
-      - name: Check for [no-changelog] in last commit
+      - name: Determine if changelog check should be skipped
         id: check_commit
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          if git log -1 --pretty=%B | grep -q '\[no-changelog\]'; then
-            echo "skip=true" >> $GITHUB_OUTPUT  
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          if git log -1 --pretty=%B | grep -qi '\[no-changelog\]'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          if echo "$PR_TITLE" | grep -qi '\[no-changelog\]'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if echo "$PR_BODY" | grep -qi '\[no-changelog\]'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch base branch
+        if: steps.check_commit.outputs.skip == 'false'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git fetch origin "$BASE_REF"
 
       - name: Check if CHANGELOG.md was updated
         if: steps.check_commit.outputs.skip == 'false'
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          if git diff --name-only origin/develop...HEAD | grep -q '^CHANGELOG.md$'; then
+          if git diff --name-only "origin/$BASE_REF"...HEAD | grep -q '^CHANGELOG.md$'; then
             echo "CHANGELOG.md updated."
           else
             echo "CHANGELOG.md not updated. Please add a changelog entry"
             exit 1
-          fi 
+          fi

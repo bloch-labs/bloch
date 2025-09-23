@@ -1,0 +1,13 @@
+{
+  "branches": [
+    {
+      "branch": "develop",
+      "release-type": "simple",
+      "changelog-path": "CHANGELOG.md",
+      "include-v-in-tag": true,
+      "handle-gh-release": false,
+      "draft": true,
+      "pull-request-title-pattern": "chore: prepare release ${version}"
+    }
+  ]
+}
