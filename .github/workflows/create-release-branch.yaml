@@ -1,0 +1,83 @@
+name: Prepare Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (defaults to VERSION file)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  seed-release-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine release version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION}"
+          if [ -z "$version" ]; then
+            if [ ! -f VERSION ]; then
+              echo "VERSION file not found and no version input supplied" >&2
+              exit 1
+            fi
+            version=$(tr -d ' \n' < VERSION)
+          fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Version must look like X.Y.Z (got '$version')" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create release branch and initial RC tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          release_branch="release-v${VERSION}"
+
+          # ensure develop is up to date for branching
+          git fetch origin develop
+
+          if git ls-remote --exit-code --heads origin "$release_branch" >/dev/null 2>&1; then
+            if git show-ref --verify --quiet "refs/heads/$release_branch"; then
+              git checkout "$release_branch"
+              git pull --ff-only origin "$release_branch"
+            else
+              git checkout -b "$release_branch" "origin/$release_branch"
+            fi
+          else
+            git checkout origin/develop
+            git checkout -b "$release_branch"
+            git push origin "$release_branch"
+          fi
+
+          git fetch --tags origin
+
+          existing_tag=$(git tag -l "v${VERSION}-rc.*" | sort -V | tail -n1)
+          if [ -n "$existing_tag" ]; then
+            echo "Existing RC tag $existing_tag found. Skipping new tag creation."
+            exit 0
+          fi
+
+          rc_tag="v${VERSION}-rc.1"
+          git tag -a "$rc_tag" -m "Release candidate 1 for v${VERSION}"
+          git push origin "$release_branch"
+          git push origin "$rc_tag"
+
+          echo "Created $release_branch and $rc_tag"

@@ -1,23 +1,24 @@
 # Contributing to Bloch
 
-Thank you for your interest in contributing to Bloch! 🎉
+Thank you for your interest in contributing to Bloch!
 
-We’re building an exciting quantum programming language, and contributions from the community are crucial to its success.
-
-## How to Contribute
-
-This guide explains how to propose changes, which branches to target, and how our CI/CD and release flow works.
+## Quick Reference
+- Branches come from `develop` (or the active `release-v*` branch for RC fixes).
+- Name branches `type/ISSUE-NUMBER` (for example `feature/123`, `bugfix/49`).
+- Commits must follow [Conventional Commits](https://www.conventionalcommits.org/) and are linted in CI.
+- PR titles must look like `type(optional scope): short summary (#123)` so they link back to an issue.
+- CI enforces formatting, build + test success, and **line coverage ≥ 90%**.
+- `CHANGELOG.md`, `VERSION`, and release tagging are automated by [release-please](https://github.com/googleapis/release-please).
+- See the living documents in [/docs](docs) for architecture notes, workflow deep dives, and release playbooks – these will power the upcoming GitHub wiki.
 
 ## Building Locally
 
 ### Prerequisites
-
 - C++20-compatible compiler (GCC ≥ 10, Clang ≥ 10, or MSVC 19.28+)
 - CMake ≥ 3.16
 - Git
 
 ### Clone and Build
-
 ```bash
 git clone https://github.com/bloch-labs/bloch.git
 cd bloch
@@ -27,113 +28,84 @@ cmake --build . --config Release --parallel
 ```
 
 ### Run Tests
-
 ```bash
 ctest --output-on-failure -C Release
 ```
 
-## TL;DR
-- Open PRs against `develop` for BAU feature development.
-- If fixing bugs identified in a release candidate (RC) then open a PR against the appropriate `release-v*` branch.
-- Maintainers will cut release candidates from`develop`; stable and released code tags live on `master`.
+## Branch Strategy
+- **`master`** – Published and stable releases only. Automation tags every release commit (`vX.Y.Z`).
+- **`develop`** – Default branch for day-to-day development. All feature PRs land here.
+- **`release-v*`** – Temporary release branches created automatically when a release-please PR is merged. RC fixes target these branches.
+- **`feature/*`, `bugfix/*`, `refactor/*`, `docs/*`, `test/*`** – Short-lived topic branches named `type/ISSUE-NUMBER` off `develop` (or the active release branch for RC fixes).
+- **`hotfix/*`** – Maintainer-only emergency fixes cut from `master`.
 
-## Branches
-**`master`**  
-- Stable, **released** code only. Every commit here corresponds to a published tag (e.g. `v1.0.3`, `v1.1.0`).
-
-**`develop`**
-- This is the main development branch. All PRs should be merged here in BAU development.
-
-**`release-v*`**  
-- Release branches from which RCs are cut.
-
-**`feature/xx`, `bugfix/xx`, `refactor/xx`, `docs/xx`, `tests/xx`**  
-- Short-lived branches for your work, these follow the convention *issue-type/issue-number*.
-- These should be merged into `develop `
-
-**`hotfix/*`** (maintainers)  
-- Emergency fixes based off `master`.
-
-## Raising a PR
-### Clone the repo
-```bash
-git clone https://github.com/your-username/bloch.git
-cd bloch
+### Branch Naming
 ```
-
-### Create a Branch
-```bash
-git checkout develop          # develop is the default branch
-git checkout -b feature/xx    # label with ticket number  
+<type>/<issue-number>  # example: feature/123, bugfix/49
 ```
+Allowed types mirror our commit types: `feat`, `fix`, `bugfix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`.
 
-### Make Changes
-- Follow the C++ coding standards used in the repo
-- Keep commits focused and descriptive
-- Reference the issue number in your commit message e.g.
-```bash
-git commit -m "bugfix: short description (#123)" 
+## Conventional Commits
+Commits are linted with commitlint and must follow the Conventional Commits spec:
 ```
+<type>[optional scope]: <short summary, including issue number>
 
-### Add to the CHANGELOG
-- Add an entry to `CHANGELOG.md` describing your change and referencing the issue number eg
-```md
-#100 - Added 100 new `.bloch` code examples
+[optional body]
+
+[optional footer]
 ```
+Use imperative tense for the summary. Reference issues in the footer or body (e.g. `Refs #123`) when useful. Commits such as `feat(parser): add support for ...` or `fix: guard against null handles` will pass linting.
 
-### Open a PR 
-- Clear title and description, reference the issue number in your title e.g. `bugfix: fixing bugs (#15)`
-- Target the correct release branch
-> Please make sure to target `develop`, this should be automatic. Do not target `master` with your PR, only RC tags and hotfixes (maintainers) are merged directly to `master`
+## Working on a Change
+1. Make sure an issue exists (open one if needed).
+2. Branch from `develop` using the naming convention above.
+3. Implement your change, keeping commits focused and lint-friendly.
+4. Run `scripts/format.sh` before committing to avoid CI failures.
+5. Build and run tests locally (`cmake`, `ctest`) to catch regressions early.
 
-### PR Reviews
-- We’ll review your PR as quickly as possible.
-- Please be open to feedback and changes.
+### Pull Request Checklist
+- Target `develop` for feature work, or the active `release-v*` branch for RC fixes.
+- Keep the PR title in the format `type: summary (#123)` so the automation links the issue.
+- Do **not** edit `CHANGELOG.md`, `VERSION`, or `.release-please-manifest.json` manually. Release automation owns these files.
+- Expect the PR pipeline to run:
+  - Conventional commit linting (all commits in the PR).
+  - clang-format verification.
+  - Debug build with unit tests and gcovr; fails if total line coverage is below 90%.
+  - On PRs targeting `master`, an additional Release build matrix validates packaging across macOS and Linux.
+- Release-please runs on `develop` and keeps the changelog up to date; pull requests no longer add entries directly.
 
-## Release & Versioning
+## Release Flow
+1. **release-please gating** – Every push to `develop` runs `release-please`. When the repo is ready, it opens a PR titled `chore(develop): release vX.Y.Z` that bumps `VERSION` and updates `CHANGELOG.md`.
+2. **Merge the release PR** – When that PR is merged into `develop`, automation immediately:
+   - Creates `release-vX.Y.Z` from the merge commit.
+   - Tags `vX.Y.Z-rc.1`, which triggers the release-candidate workflow.
+3. **Release-candidate builds** – Each `vX.Y.Z-rc.N` tag runs a full pre-release build on Linux/macOS that:
+   - Verifies formatting, builds, and runs tests in `Release` mode.
+   - Packages binaries per platform, generates checksums, and publishes a GitHub pre-release with uploaded artifacts.
+4. **Iterating on RCs** – Fix issues directly on `release-vX.Y.Z` and create new tags (`git tag -a vX.Y.Z-rc.2`) to spin another candidate. Every RC tag repeats the pre-release pipeline.
+5. **Final release PR** – When the branch is stable, open a PR from `release-vX.Y.Z` to `master`. The PR checks run the usual lint/build/test flow plus a Release-mode build+package matrix to ensure the final bundle is healthy.
+6. **Publishing the release** – Merging that PR bumps `master`. Automation tags the merge commit as `vX.Y.Z`, which triggers the final release workflow:
+   - Builds and tests Release binaries on Linux and macOS.
+   - Packages artifacts, generates checksums, extracts the latest `CHANGELOG` section, and opens a draft GitHub Release with editable notes.
+   - Maintainers review/edit the draft release notes and click “Publish release” when satisfied.
 
-Maintainers will:
-
-1) Create a release branch from develop:
-   - `git checkout -b release-v1.x.x origin/develop`
-
-2) Tag the first RC on the release branch and push:
-   - `git tag -a v1.x.x-rc.1 -m "RC 1"`
-   - `git push origin v1.x.x-rc.1`
-
-   This triggers the pre-release workflow for all OSes and publishes a GitHub pre-release with binaries.
-
-3) Install the RC locally and test:
-
-4) Iterate on the release branch as needed:
-   - Commit fixes to `release-v1.x.x` and cut `v1.x.x-rc.2`, `v1.x.x-rc.3`, etc.
-
-5) When stable, merge to master and tag final:
-   - `git checkout master && git merge --no-ff release-v1.x.x`
-   - `git tag -a v1.x.x -m "Bloch 1.x.x"`
-   - `git push origin master v1.x.x`
-
-Notes:
-- RC tags are always `vX.Y.Z-rc.N` created on `release-v*` branches.
-- Final tags are `vX.Y.Z` and must point to `master` HEAD.
+For maintainers, [docs/release-process.md](docs/release-process.md) expands each stage with troubleshooting notes and CLI snippets. The GitHub wiki will mirror those details once published.
 
 ## ✅ Code Style
-- Adhere to the `.clang-format` file in the repo
-- Set up auto-formatting on file save in your `.vscode/settings.json` file as follows
+- Adhere to the repository `.clang-format` file.
+- Recommended VS Code settings:
 ```json
 "editor.formatOnSave": true,
 "C_Cpp.clang_format_style": "file",
 "[cpp]": {
-   "editor.defaultFormatter": "ms-vscode.cpptools"
+  "editor.defaultFormatter": "ms-vscode.cpptools"
 }
 ```
-- Follow consistent naming conventions:
-    - files: `snake_case.cpp`
-    - classes: `PascalCase`
-    - methods: `camelCase`
-- Format everything via the helper script before committing:
-
+- Preferred naming: files `snake_case.cpp`, classes `PascalCase`, methods `camelCase`.
+- Use the helper script to format locally:
 ```bash
-. ./scripts/format.sh          # rewrites files in-place
-. ./scripts/format.sh --check  # CI-style verification without modifying files
+./scripts/format.sh          # rewrites files in place
+./scripts/format.sh --check  # CI-style verification
 ```
+
+Thanks again for helping build Bloch! If anything in this guide is unclear, open an issue so we can improve it.

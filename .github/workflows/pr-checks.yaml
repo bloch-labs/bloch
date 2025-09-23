@@ -2,7 +2,7 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [develop, release-v*]
+    branches: [develop, release-v*, master]
     types: [opened, edited, synchronize, reopened]
 
 permissions:
@@ -19,40 +19,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ---------- PR title ----------
-      - name: Enforce PR title format and link issue
-        uses: actions/github-script@v7
+      - name: Lint commits
+        uses: wagoid/commitlint-github-action@v6
         with:
-          script: |
-            const pr = context.payload.pull_request;
-            const title = pr.title || '';
-
-            const types = ['feat','fix','bugfix','chore','docs','refactor','perf','test','build','ci'];
-            const typeGroup = types.join('|');
-            const re = new RegExp(`^(${typeGroup}):\\s.+\\s\\(#(\\d+)\\)$`,'i');
-            const m = title.match(re);
-            if (!m) {
-              core.setFailed(
-                `PR title must match: "type: description (#123)". Allowed: ${types.join(', ')}.`
-              );
-              return;
-            }
-            const issueNum = m[2];
-            const body = pr.body || '';
-            if (!body.includes(`Closes #${issueNum}`)) {
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                body: (body + `\n\nCloses #${issueNum}\n`).trim()
-              });
-            }
-            core.notice(`Title OK. Linked to issue #${issueNum}.`);
+          configFile: commitlint.config.cjs
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++ clang-format-14
+          sudo apt-get install -y cmake g++ clang-format-14 gcovr
 
       - name: Check formatting
         run: |
@@ -78,11 +53,68 @@ jobs:
             echo "No C/C++ source files found."
           fi
 
-      - name: Configure CMake
-        run: cmake -S . -B build
+      - name: Configure CMake (coverage)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBLOCH_ENABLE_COVERAGE=ON
 
       - name: Build
-        run: cmake --build build
+        run: cmake --build build --config Debug
 
       - name: Run tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build -C Debug --output-on-failure
+
+      - name: Enforce coverage ≥ 90%
+        working-directory: build
+        run: |
+          set -euo pipefail
+          gcovr --root .. \
+                --print-summary \
+                --exclude 'tests/' \
+                --fail-under-line 90
+
+  release-build:
+    if: github.event.pull_request.base.ref == 'master'
+    runs-on: ${{ matrix.os }}
+    needs: build-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest]
+
+    steps:
+      - name: Checkout (with tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang-format-14
+
+      - name: Verify formatting
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLANG_FORMAT=$(command -v clang-format-14 || command -v clang-format)
+          if [ -z "$CLANG_FORMAT" ]; then
+            echo "clang-format not found" >&2
+            exit 1
+          fi
+          find . -regex '.*\\.\(cpp\|hpp\|c\|h\)' -print0 \
+            | xargs -0 -r "$CLANG_FORMAT" -style=file -n --Werror
+
+      - name: Configure CMake (Release)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Release)
+        run: cmake --build build --config Release --parallel
+
+      - name: Run unit tests (Release)
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Dry-run package build
+        run: |
+          set -euo pipefail
+          cmake --build build --config Release --target package --parallel

@@ -7,6 +7,19 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 
+option(BLOCH_ENABLE_COVERAGE "Enable coverage instrumentation" OFF)
+
+if(BLOCH_ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(STATUS "Coverage instrumentation enabled")
+        add_compile_options(-O0 -g --coverage)
+        add_link_options(--coverage)
+    else()
+        message(WARNING "Coverage instrumentation not supported for compiler ${CMAKE_CXX_COMPILER_ID}")
+    endif()
+endif()
+
+
 # Determine version from CI tag or local git
 set(BLOCH_VERSION "unknown")
 if(DEFINED ENV{BLOCH_VERSION} AND NOT "$ENV{BLOCH_VERSION}" STREQUAL "")

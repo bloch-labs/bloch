@@ -1,5 +1,11 @@
-file(GLOB_RECURSE BLOCH_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/*.cpp
+set(BLOCH_SOURCES
+    bloch/lexer/lexer.cpp
+    bloch/parser/parser.cpp
+    bloch/semantics/semantic_analyser.cpp
+    bloch/semantics/type_system.cpp
+    bloch/semantics/built_ins.cpp
+    bloch/runtime/runtime_evaluator.cpp
+    bloch/runtime/qasm_simulator.cpp
 )
 
 add_library(bloch_lib ${BLOCH_SOURCES})

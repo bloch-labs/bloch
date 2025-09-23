@@ -1,45 +1,18 @@
-name: Release Candidate Build
+name: Publish Release
 
 on:
   push:
     tags:
-      - 'v*-rc.*'
+      - 'v*'
 
 permissions:
   contents: write
 
 jobs:
-  verify_source_branch:
-    name: Verify tag is from release-v* branch
-    runs-on: ubuntu-22.04
-    outputs:
-      allowed: ${{ steps.check.outputs.allowed }}
-    steps:
-      - name: Checkout (full history)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check branch ancestry
-        id: check
-        run: |
-          echo "Tag ref: $GITHUB_REF_NAME at $GITHUB_SHA"
-          echo "Finding branches containing commit..."
-          branches=$(git branch -r --contains "$GITHUB_SHA" | sed 's/^ *//')
-          echo "Branches containing commit:\n$branches"
-          if echo "$branches" | grep -E '^origin/release-v' >/dev/null; then
-            echo "allowed=true" >> "$GITHUB_OUTPUT"
-            echo "Tag belongs to a release-v* branch. Proceed."
-          else
-            echo "allowed=false" >> "$GITHUB_OUTPUT"
-            echo "Tag does not belong to a release-v* branch. Skipping build."
-          fi
-
   build:
-    name: Build and test (${{ matrix.os }})
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-rc.') }}
+    name: Build release (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    needs: verify_source_branch
-    if: needs.verify_source_branch.outputs.allowed == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -53,22 +26,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure CMake (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: |
-          cmake --build build --config Release --parallel
+        run: cmake --build build --config Release --parallel
 
       - name: Run unit tests
-        run: |
-          ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build -C Release --output-on-failure
 
-      - name: Package artifact (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Package artifact
         shell: bash
         env:
           TAG_NAME: ${{ github.ref_name }}
@@ -77,7 +44,6 @@ jobs:
           mkdir -p dist
           BIN="build/bin/bloch"
           if [ ! -f "$BIN" ]; then
-            # Fallbacks for non-default generators
             [ -f "build/bloch" ] && BIN="build/bloch" || true
             [ -f "build/Release/bloch" ] && BIN="build/Release/bloch" || true
           fi
@@ -90,7 +56,6 @@ jobs:
           cp "$BIN" dist/bloch
           cp LICENSE dist/ 2>/dev/null || true
           if [ -f scripts/install.sh ]; then cp scripts/install.sh dist/install.sh; fi
-          # include installer if available
           if [ -f dist/install.sh ]; then
             chmod +x dist/install.sh || true
             tar -C dist -czf "$ASSET" bloch LICENSE install.sh 2>/dev/null || tar -C dist -czf "$ASSET" bloch LICENSE
@@ -98,7 +63,6 @@ jobs:
             tar -C dist -czf "$ASSET" bloch LICENSE 2>/dev/null || tar -C dist -czf "$ASSET" bloch
           fi
           echo "Packaged $ASSET"
-
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -110,13 +74,15 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: Create GitHub Release
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-rc.') }}
+    name: Publish GitHub release
     runs-on: ubuntu-22.04
     needs: build
-    if: needs.verify_source_branch.outputs.allowed == 'true'
     steps:
-      - name: Checkout
+      - name: Checkout tag
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -145,16 +111,24 @@ jobs:
           fi
           echo "Generated dist/checksums.txt"
 
-      - name: Create GitHub Release and upload assets
+      - name: Extract release notes
+        id: notes
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          python3 scripts/ci/extract_release_notes.py "$TAG" "$VERSION" dist/release-notes.md
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Bloch ${{ github.ref_name }}
-          prerelease: true
-          generate_release_notes: true
+          draft: true
           files: |
             dist/**.tar.gz
             dist/**.zip
             dist/checksums.txt
+          body_path: dist/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

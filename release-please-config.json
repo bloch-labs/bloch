@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "include-component-in-tag": false,
+  "pull-request-title-pattern": "chore(develop): release v${version}",
+  "pull-request-header": "chore(develop): release v${version}",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "initial-version": "1.0.0",
+      "changelog-path": "CHANGELOG.md",
+      "skip-github-release": true,
+      "bump-minor-pre-major": true,
+      "extra-files": [
+        "VERSION"
+      ]
+    }
+  }
+}

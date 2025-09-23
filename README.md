@@ -47,6 +47,10 @@ bloch --version
 ## Contributing
 Bloch is an open-source project and we welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and local build instructions.
 
+## Documentation
+- Developer guides live in [/docs](docs) and cover the [architecture](docs/architecture.md), [day-to-day workflow](docs/development-workflow.md), and [release process](docs/release-process.md).
+- We are drafting a comprehensive GitHub wiki using these documents as the source of truth. Watch this space for richer tutorials and design notes.
+
 ## Community & Updates
 
 - Website & blog: [bloch-labs.com](https://bloch-labs.com)
