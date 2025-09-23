@@ -1,16 +1,53 @@
 name: PR Checks
+
 on:
   pull_request:
-    branches:
-      - 'develop'
+    branches: [develop, release-v*]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ---------- PR title ----------
+      - name: Enforce PR title format and link issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title || '';
+
+            const types = ['feat','fix','bugfix','chore','docs','refactor','perf','test','build','ci'];
+            const typeGroup = types.join('|');
+            const re = new RegExp(`^(${typeGroup}):\\s.+\\s\\(#(\\d+)\\)$`,'i');
+            const m = title.match(re);
+            if (!m) {
+              core.setFailed(
+                `PR title must match: "type: description (#123)". Allowed: ${types.join(', ')}.`
+              );
+              return;
+            }
+            const issueNum = m[2];
+            const body = pr.body || '';
+            if (!body.includes(`Closes #${issueNum}`)) {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                body: (body + `\n\nCloses #${issueNum}\n`).trim()
+              });
+            }
+            core.notice(`Title OK. Linked to issue #${issueNum}.`);
 
       - name: Install dependencies
         run: |

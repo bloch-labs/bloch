@@ -2,8 +2,7 @@ name: Check for Changelog Update
 
 on:
   pull_request:
-    branches:
-      - 'develop'
+    branches: [develop, release-v*]
 
 jobs:
   check-changelog:

@@ -211,6 +211,55 @@ TEST(RuntimeTest, MeasuredTrackedQubit) {
     ASSERT_EQ(counts.at("qubit q").at("1"), 1);
 }
 
+TEST(RuntimeTest, GateAfterMeasurementThrows) {
+    const char* src = "function main() -> void { qubit q; measure q; h(q); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
+TEST(RuntimeTest, GateAfterMeasurementReportsLocation) {
+    const char* src =
+        "function main() -> void {\n"
+        "    qubit q;\n"
+        "    measure q;\n"
+        "    h(q);\n"
+        "}";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    bool caught = false;
+    try {
+        eval.execute(*program);
+    } catch (const BlochError& err) {
+        caught = true;
+        EXPECT_EQ(err.line, 4);
+        EXPECT_EQ(err.column, 5);
+    }
+    EXPECT_TRUE(caught);
+}
+
+TEST(RuntimeTest, ResetAfterMeasurementThrows) {
+    const char* src = "function main() -> void { qubit q; measure q; reset q; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
+TEST(RuntimeTest, MeasureExpressionAfterMeasurementThrows) {
+    const char* src = "function main() -> void { qubit q; bit a = measure q; bit b = measure q; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
 TEST(RuntimeTest, ResetClearsQubit) {
     const char* src =
         "@quantum function main() -> bit { qubit q; x(q); reset q; bit r = measure q; return r; }";
@@ -331,8 +380,7 @@ TEST(RuntimeTest, UnaryTildeOnIntThrows) {
 }
 
 TEST(RuntimeTest, RyRzAppearInQasm) {
-    const char* src =
-        "function main() -> void { qubit q; ry(q, 1.0f); rz(q, 0.5f); }";
+    const char* src = "function main() -> void { qubit q; ry(q, 1.0f); rz(q, 0.5f); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);

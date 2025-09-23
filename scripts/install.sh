@@ -14,8 +14,9 @@ warn()    { printf "%b!%b %s\n" "$YELLOW" "$RESET" "$*" >&2; }
 error()   { printf "%b✗%b %s\n" "$RED" "$RESET" "$*" >&2; }
 note()    { printf "%b%s%b\n" "$DIM" "$*" "$RESET"; }
 
-is_interactive() {
-  [[ -t 0 && -t 1 ]]
+has_tty() {
+  # Consider interactive if stdout or stderr is a TTY, or FORCE_INTERACTIVE is set
+  [[ -t 1 || -t 2 || -n "${FORCE_INTERACTIVE:-}" ]]
 }
 
 # Bloch installer for Linux/macOS
@@ -108,12 +109,35 @@ BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
 ASSET_URL="${BASE_URL}/${ASSET}"
 CHECKSUMS_URL="${BASE_URL}/checksums.txt"
 
-# Destination directory logic
-DEST=${INSTALL_DIR:-/usr/local/bin}
-if [[ ! -w "$DEST" ]]; then
-  # fallback to ~/.local/bin if not writable
-  DEST="$HOME/.local/bin"
-fi
+# Destination directory logic: prefer ~/.local/bin, then /usr/local/bin, then ~/bin
+choose_dest() {
+  if [[ -n "${INSTALL_DIR:-}" ]]; then
+    echo "$INSTALL_DIR"
+    return
+  fi
+  # Prefer ~/.local/bin (create if possible)
+  if mkdir -p "$HOME/.local/bin" 2>/dev/null; then
+    if [[ -w "$HOME/.local/bin" ]]; then
+      echo "$HOME/.local/bin"
+      return
+    fi
+  fi
+  # Then /usr/local/bin if writable (no sudo)
+  if [[ -d "/usr/local/bin" && -w "/usr/local/bin" ]]; then
+    echo "/usr/local/bin"
+    return
+  fi
+  # Fallback to ~/bin (create if possible)
+  if mkdir -p "$HOME/bin" 2>/dev/null; then
+    echo "$HOME/bin"
+    return
+  fi
+  # Last resort
+  echo "$HOME/.local/bin"
+}
+
+DEST=$(choose_dest)
+mkdir -p "$DEST"
 mkdir -p "$DEST"
 
 TMPDIR=$(mktemp -d)
@@ -170,11 +194,21 @@ if [[ ! -f "$TMPDIR/bloch" ]]; then
   exit 1
 fi
 
+
 chmod +x "$TMPDIR/bloch"
+if ! BLOCH_PROBE_OUTPUT=$("$TMPDIR/bloch" --version 2>&1); then
+  error "Downloaded binary failed to run on this system."
+  if [[ "$BLOCH_PROBE_OUTPUT" == *"GLIBC_"* || "$BLOCH_PROBE_OUTPUT" == *"GLIBCXX_"* ]]; then
+    warn "Bloch requires glibc >= 2.35 and libstdc++ >= 3.4.30."
+    warn "Upgrade to a newer Linux distribution or build from source."
+  fi
+  echo "$BLOCH_PROBE_OUTPUT" >&2
+  exit 1
+fi
 install -m 0755 "$TMPDIR/bloch" "$DEST/bloch"
 
 success "Installed: $DEST/bloch"
-note "You can verify with: '$DEST/bloch --version'"
+note "You can verify with: bloch --version"
 
 # Offer to add DEST to PATH if not already there
 path_has_dest=0
@@ -183,47 +217,59 @@ case ":$PATH:" in
 esac
 
 if ! command -v bloch >/dev/null 2>&1 || [[ $path_has_dest -eq 0 ]]; then
-  if is_interactive; then
-    SHELL_NAME=$(basename "${SHELL:-}")
-    if [[ "$SHELL_NAME" == "fish" ]]; then
-      warn "Detected fish shell. Automatic PATH update is not supported."
-      echo "Add this line to ~/.config/fish/config.fish:" >&2
-      echo "  set -gx PATH \"$DEST\" \$PATH" >&2
-    else
-      # Choose a profile file
-      PROFILE=""
-      if [[ "$SHELL_NAME" == "zsh" ]]; then
-        PROFILE="$HOME/.zshrc"
-      elif [[ "$SHELL_NAME" == "bash" ]]; then
-        if [[ "$OS" == "macOS" ]]; then
-          PROFILE=${HOME}/.bash_profile
-        else
-          PROFILE=${HOME}/.bashrc
-        fi
-      fi
-      # Fallbacks
-      [[ -z "$PROFILE" ]] && PROFILE="$HOME/.profile"
-      [[ -f "$HOME/.zprofile" && "$SHELL_NAME" == "zsh" ]] && PROFILE="$HOME/.zprofile"
-
-      step "'bloch' is not on PATH"
-      read -r -p "Would you like to add '$DEST' to your PATH by updating $(basename "$PROFILE")? [y/N] " reply || reply="n"
-      if [[ "$reply" == [yY] || "$reply" == "yes" || "$reply" == "YES" ]]; then
-        mkdir -p "$(dirname "$PROFILE")"
-        # Append only if not already present
-        if ! grep -Fq "$DEST" "$PROFILE" 2>/dev/null; then
-          printf "\n# Added by Bloch installer\nexport PATH=\"%s:\$PATH\"\n" "$DEST" >> "$PROFILE"
-          success "Updated $(basename "$PROFILE"): added $DEST to PATH"
-          note "Open a new terminal or run: source $PROFILE"
-        else
-          note "PATH already contains $DEST in $(basename "$PROFILE")"
-        fi
+  SHELL_NAME=$(basename "${SHELL:-}")
+  if [[ "$SHELL_NAME" == "fish" ]]; then
+    warn "Detected fish shell. Automatic PATH update not applied."
+    echo "Add this line to ~/.config/fish/config.fish:" >&2
+    echo "  set -gx PATH \"$DEST\" \$PATH" >&2
+  else
+    # Choose a profile file
+    PROFILE=""
+    if [[ "$SHELL_NAME" == "zsh" ]]; then
+      PROFILE="$HOME/.zshrc"
+      # Prefer .zprofile for login shells if it exists
+      [[ -f "$HOME/.zprofile" ]] && PROFILE="$HOME/.zprofile"
+    elif [[ "$SHELL_NAME" == "bash" ]]; then
+      if [[ "$OS" == "macOS" ]]; then
+        PROFILE=${HOME}/.bash_profile
       else
-        note "Skipped updating PATH. You can add it manually with:"
-        echo "  echo 'export PATH=\"$DEST:\$PATH\"' >> ~/.profile && source ~/.profile"
+        PROFILE=${HOME}/.bashrc
       fi
     fi
-  else
-    warn "Non-interactive shell: 'bloch' may not be on PATH."
-    echo "Add to your shell profile: export PATH=\"$DEST:\$PATH\"" >&2
+    # Fallback
+    [[ -z "$PROFILE" ]] && PROFILE="$HOME/.profile"
+
+    step "Adding $DEST to PATH via $(basename "$PROFILE")"
+    mkdir -p "$(dirname "$PROFILE")" || true
+    if [[ -w "$(dirname "$PROFILE")" ]] || [[ ! -e "$PROFILE" ]]; then
+      # Append only if not already present
+      if ! grep -Fq "$DEST" "$PROFILE" 2>/dev/null; then
+        printf "\n# Added by Bloch installer\nexport PATH=\"%s:\$PATH\"\n" "$DEST" >> "$PROFILE" 2>/dev/null || {
+          warn "Could not write to $(basename "$PROFILE")."
+          echo "Add to your shell profile manually: export PATH=\"$DEST:\$PATH\"" >&2
+        }
+        success "Updated $(basename "$PROFILE"): added $DEST to PATH"
+        # Best-effort: export into this process for immediate use
+        export PATH="$DEST:$PATH"
+        # If running bash and profile is bash-compatible, source it for this subshell
+        if [[ "$SHELL_NAME" == "bash" ]] && [[ "$(basename "$PROFILE")" =~ ^(\.bashrc|\.bash_profile|\.profile)$ ]]; then
+          step "Refreshing current shell environment"
+          # shellcheck disable=SC1090
+          . "$PROFILE" 2>/dev/null || true
+          hash -r 2>/dev/null || true
+        fi
+        # Advise user how to refresh their parent shell
+        if [[ "$SHELL_NAME" == "zsh" ]]; then
+          note "Open a new terminal or run: exec zsh -l (or 'rehash')"
+        else
+          note "Open a new terminal or run: exec $SHELL -l"
+        fi
+      else
+        note "PATH already contains $DEST in $(basename "$PROFILE")"
+      fi
+    else
+      warn "No write permission for $(dirname "$PROFILE")."
+      echo "Add to your shell profile manually: export PATH=\"$DEST:\$PATH\"" >&2
+    fi
   fi
 fi

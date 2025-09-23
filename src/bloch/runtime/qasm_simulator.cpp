@@ -17,6 +17,7 @@
 #include <cmath>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 
 namespace bloch {
 
@@ -26,6 +27,10 @@ namespace bloch {
         // Grow the state by a factor of two, keeping existing amplitudes
         // in the |...0> subspace and zeroing the |...1> subspace.
         int index = m_qubits++;
+        if (index >= static_cast<int>(m_measured.size()))
+            m_measured.resize(index + 1, false);
+        else
+            m_measured[index] = false;
         std::vector<std::complex<double>> newState(m_state.size() * 2);
         for (size_t i = 0; i < m_state.size(); ++i) {
             newState[i] = m_state[i];
@@ -36,6 +41,7 @@ namespace bloch {
     }
 
     void QasmSimulator::applySingleQubitGate(int q, const std::array<std::complex<double>, 4>& m) {
+        ensureQubitActive(q);
         // Standard blocked application over basis pairs differing at bit q.
         size_t step = size_t{1} << q;
         size_t size = m_state.size();
@@ -103,6 +109,8 @@ namespace bloch {
     }
 
     void QasmSimulator::cx(int control, int target) {
+        ensureQubitActive(control);
+        ensureQubitActive(target);
         // Swap amplitudes where control is 1 and target is 0 to flip target.
         size_t cbit = size_t{1} << control;
         size_t tbit = size_t{1} << target;
@@ -116,6 +124,7 @@ namespace bloch {
     }
 
     void QasmSimulator::reset(int q) {
+        ensureQubitActive(q);
         // Put qubit q into |0>.
         // If the state already has amplitude in the |...0> subspace, zero the |...1> subspace
         // and renormalize. If all amplitude is in |...1>, deterministically move it into
@@ -123,7 +132,8 @@ namespace bloch {
         size_t bit = size_t{1} << q;
         double norm0 = 0.0;
         for (size_t i = 0; i < m_state.size(); ++i) {
-            if (!(i & bit)) norm0 += std::norm(m_state[i]);
+            if (!(i & bit))
+                norm0 += std::norm(m_state[i]);
         }
 
         if (norm0 == 0.0) {
@@ -151,6 +161,7 @@ namespace bloch {
     }
 
     int QasmSimulator::measure(int q) {
+        ensureQubitActive(q);
         // Compute probability of |1>, sample, and collapse the state accordingly.
         size_t bit = size_t{1} << q;
         double p1 = 0;
@@ -168,6 +179,8 @@ namespace bloch {
                 m_state[i] /= norm;
         }
         m_ops += "measure q[" + std::to_string(q) + "] -> c[" + std::to_string(q) + "];\n";
+        if (q >= 0 && q < static_cast<int>(m_measured.size()))
+            m_measured[q] = true;
         return res;
     }
 
@@ -180,4 +193,14 @@ namespace bloch {
         return out.str();
     }
 
+    void QasmSimulator::ensureQubitActive(int q) const {
+        if (q < 0 || q >= m_qubits) {
+            throw BlochError(ErrorCategory::Runtime, 0, 0,
+                             "qubit index " + std::to_string(q) + " is out of range");
+        }
+        if (q < static_cast<int>(m_measured.size()) && m_measured[q]) {
+            throw BlochError(ErrorCategory::Runtime, 0, 0,
+                             "cannot operate on measured qubit q[" + std::to_string(q) + "]");
+        }
+    }
 }

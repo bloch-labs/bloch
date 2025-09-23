@@ -1,5 +1,4 @@
 # Bloch — A Modern Open-Source Quantum Programming Language
-> ⚠️ **Active development:** APIs, syntax, and tooling are still evolving and subject to change.
 
 Bloch is a modern, strongly typed, interpreted quantum programming language from [Bloch Labs](https://bloch-labs.com). Paired with our upcoming **Bloch Studio** web IDE and circuit builder, it aims to *unify the quantum development stack* by offering a clean, language‑first, and vendor‑agnostic workflow that scales from research experiments to production circuits. By open-sourcing the core language, we invite the community to help build a sustainable, hardware-agnostic foundation for tomorrow’s quantum applications.
 
@@ -7,7 +6,7 @@ Bloch is a modern, strongly typed, interpreted quantum programming language from
 ![Demo of `/examples/superposition2.bloch`](demo/superposition2-demo.gif)
 
 ## Docs
-> Official docs are coming soon!
+- [Official docs](https://docs.bloch-labs.com/bloch/overview)
 - [Official VSCode extension](https://github.com/bloch-labs/bloch-vscode)
 
 ## Installation
@@ -15,16 +14,17 @@ Bloch is a modern, strongly typed, interpreted quantum programming language from
 Quick install (Linux/macOS):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- v1.0.0-rc.1
+curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- latest
 ```
 
 Notes:
-- This downloads the `bloch` binary for your OS/arch from the GitHub release `v1.0.0-rc.1`, verifies its checksum, and installs it to `/usr/local/bin` (falls back to `~/.local/bin` if not writable).
-- To install a different version, pass the tag (e.g., `v1.0.0`). You can also use `latest` (stable) or `latest-rc` (requires `jq`).
+- The script downloads the `bloch` binary for your OS/arch, verifies its checksum, and installs it. By default it installs to `~/.local/bin` (preferred), then `/usr/local/bin` if writable, otherwise `~/bin`.
+- To install a different version, pass the tag (e.g., `v1.0.0`) or use `latest` (stable) / `latest-rc` (pre-release, requires `jq`).
+- If your shell session doesn't pick up `~/.local/bin` automatically, the installer appends a PATH update to your shell profile and suggests reloading your shell (e.g., `exec $SHELL -l`). Opening a new terminal also works.
 - To choose a custom install directory:
 
   ```bash
-  INSTALL_DIR=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- v1.0.0-rc.1
+  INSTALL_DIR=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- latest
   ```
 
 Manual install:
