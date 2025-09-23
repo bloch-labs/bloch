@@ -1,0 +1,15 @@
+@quantum
+function createBellState(qubit a, qubit b) -> void {
+    h(a);
+    cx(a, b);
+}
+
+function main() -> void {
+    @tracked qubit[2] qreg;
+
+    createBellState(qreg[0], qreg[1]);
+
+    bit[2] out = {measure qreg[0], measure qreg[1]};
+
+    echo(out);
+}
