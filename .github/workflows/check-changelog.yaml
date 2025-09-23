@@ -34,11 +34,15 @@ jobs:
             echo "Please remove manual changes to CHANGELOG.md. The changelog is managed automatically by release-please." >&2
             exit 1
           fi
-          if git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | grep -q '^\.release-please-manifest.json$'; then
-            echo "Please do not edit .release-please-manifest.json directly." >&2
-            exit 1
+          if git ls-tree -r origin/${{ github.event.pull_request.base.ref }} --name-only | grep -q '^\.release-please-manifest.json$'; then
+            if git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | grep -q '^\.release-please-manifest.json$'; then
+              echo "Please do not edit .release-please-manifest.json directly." >&2
+              exit 1
+            fi
           fi
-          if git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | grep -q '^VERSION$'; then
-            echo "Please do not bump VERSION manually. release-please controls the version." >&2
-            exit 1
+          if git ls-tree -r origin/${{ github.event.pull_request.base.ref }} --name-only | grep -q '^VERSION$'; then
+            if git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | grep -q '^VERSION$'; then
+              echo "Please do not bump VERSION manually. release-please controls the version." >&2
+              exit 1
+            fi
           fi

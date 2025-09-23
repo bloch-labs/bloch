@@ -483,7 +483,7 @@ namespace bloch {
                 assign->line = line;
                 assign->column = column;
                 return assign;
-            } else if (auto idxExpr = dynamic_cast<IndexExpression*>(expr.get())) {
+            } else if (dynamic_cast<IndexExpression*>(expr.get())) {
                 // Take ownership of the IndexExpression to move its parts
                 std::unique_ptr<IndexExpression> idx(static_cast<IndexExpression*>(expr.release()));
                 int line = idx->line;
