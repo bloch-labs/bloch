@@ -1,0 +1,79 @@
+name: Promote Release
+
+on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - closed
+
+permissions:
+  contents: write
+
+jobs:
+  create-release-branch:
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release-please--')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse release version
+        id: version
+        run: |
+          set -euo pipefail
+          title="${{ github.event.pull_request.title }}"
+          if [[ "$title" =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            version="${BASH_REMATCH[1]}"
+          else
+            echo "Unable to parse version from PR title: $title" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Determine if branch or tag already exist
+        id: refs
+        run: |
+          set -euo pipefail
+          version='${{ steps.version.outputs.version }}'
+          branch="release-v${version}"
+          tag="v${version}-rc.1"
+
+          create="true"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "Branch $branch already exists on origin. Skipping creation."
+            create="false"
+          fi
+          if git ls-remote --exit-code --tags origin "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists on origin. Skipping tag creation."
+            create="false"
+          fi
+
+          echo "create=$create" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create release branch and RC tag
+        if: steps.refs.outputs.create == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          BRANCH: ${{ steps.refs.outputs.branch }}
+          TAG: ${{ steps.refs.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -z "$MERGE_SHA" ]; then
+            MERGE_SHA='${{ github.event.pull_request.base.sha }}'
+            echo "merge_commit_sha missing, falling back to base SHA $MERGE_SHA"
+          fi
+          git branch "$BRANCH" "$MERGE_SHA"
+          git push origin "$BRANCH"
+          git tag "$TAG" "$MERGE_SHA"
+          git push origin "$TAG"
+          echo "Created $BRANCH and tag $TAG from $MERGE_SHA"
