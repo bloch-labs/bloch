@@ -1,11 +1,6 @@
 name: Static Analysis
 
 on:
-  push:
-    branches:
-      - develop
-      - master
-      - 'release-v*'
   pull_request:
     branches:
       - develop
