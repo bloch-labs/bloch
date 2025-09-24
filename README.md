@@ -50,6 +50,7 @@ bloch --version
 - Merges to `develop` wake the release-please bot, which maintains the changelog and raises a `chore: release X.Y.Z` PR.
 - Merging that PR automatically creates `release-vX.Y.Z`, tags `vX.Y.Z-rc.1`, and runs the release-candidate workflow to build binaries and publish a prerelease.
 - Release fixes target the release branch and run the same quality checks; a final PR into `master` runs release dry runs, and tagging `vX.Y.Z` publishes production artifacts via GitHub Releases.
+- Use squash merges so each PR contributes a single Conventional Commit; Release Please now builds changelog entries from merged PR titles.
 
 ## Contributing
 Bloch is an open-source project and we welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and local build instructions.
