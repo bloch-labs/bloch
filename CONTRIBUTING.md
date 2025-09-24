@@ -73,6 +73,7 @@ PR titles follow the same format as commits so that automation can pick up the i
    - Normal work → base `develop`
    - Release hardening fixes → base `release-vX.Y.Z`
 4. Fill in the PR template and ensure it references the issue the PR closes.
+5. Merge via **squash-and-merge** so a single Conventional Commit summarises the change for release automation.
 
 ### Automated checks on every PR
 - **PR Quality (`.github/workflows/pr-checks.yaml`)**
@@ -107,7 +108,7 @@ Our CI/CD pipeline automates the full release process end-to-end:
    - Merge the PR and tag `master` with `vX.Y.Z`.
    - The `Publish Release` workflow runs on that tag: it rebuilds artifacts for Linux/macOS, generates checksums, extracts release notes from the changelog, and publishes the GitHub release with assets attached.
 
-All automation runs from the repository’s default tokens; no manual changelog edits are needed because release-please owns `CHANGELOG.md`.
+All automation runs from the repository’s default tokens; no manual changelog edits are needed because release-please owns `CHANGELOG.md`. Merge PRs with **squash merge** so the release bot sees a single Conventional Commit per change; the changelog is now generated from PR titles via GitHub release notes.
 
 ---
 
