@@ -44,6 +44,13 @@ To verify your installation:
 bloch --version
 ```
 
+## CI/CD & Release Automation
+- Feature work branches from `develop` using the `type/issue-number` convention (e.g. `feat/142`).
+- Every PR triggers PR Quality checks (formatting, build, unit tests, commit lint) plus CodeQL static analysis.
+- Merges to `develop` wake the release-please bot, which maintains the changelog and raises a `chore: release X.Y.Z` PR.
+- Merging that PR automatically creates `release-vX.Y.Z`, tags `vX.Y.Z-rc.1`, and runs the release-candidate workflow to build binaries and publish a prerelease.
+- Release fixes target the release branch and run the same quality checks; a final PR into `master` runs release dry runs, and tagging `vX.Y.Z` publishes production artifacts via GitHub Releases.
+
 ## Contributing
 Bloch is an open-source project and we welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and local build instructions.
 

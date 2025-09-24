@@ -1,53 +1,77 @@
-name: PR Checks
+name: PR Quality Checks
 
 on:
   pull_request:
-    branches: [develop, release-v*]
-    types: [opened, edited, synchronize, reopened]
+    branches:
+      - develop
+      - 'release-v*'
+    types: [opened, edited, synchronize, reopened, ready_for_review]
 
 permissions:
-  pull-requests: write
   contents: read
+  pull-requests: read
 
 jobs:
-  build-and-test:
+  branch-policy:
+    name: Enforce branch & PR title policy
     runs-on: ubuntu-latest
+    steps:
+      - name: Validate naming conventions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const headRef = pr.head.ref;
+            const title = pr.title || '';
 
+            const allowedTypes = ['feat','fix','bugfix','hotfix','chore','docs','refactor','perf','test','build','ci','style','revert'];
+            const branchPattern = new RegExp(`^(?:${allowedTypes.join('|')})\/\\d+$`, 'i');
+            const releasePleaseBranch = headRef.startsWith('release-please--');
+            const releaseBranch = headRef.startsWith('release-v');
+
+            if (!releasePleaseBranch && !releaseBranch && !branchPattern.test(headRef)) {
+              core.setFailed(`Branch "${headRef}" must follow type/issue-number (e.g. feat/123). Allowed types: ${allowedTypes.join(', ')}.`);
+              return;
+            }
+
+            const titlePattern = new RegExp(`^(?:${allowedTypes.join('|')})(?:\\([^)]+\\))?!?:\\s.+\\s\\(#\\d+\\)$`, 'i');
+            if (!releasePleaseBranch && !titlePattern.test(title)) {
+              core.setFailed('PR title must follow "type: summary (#123)" and use an allowed type.');
+              return;
+            }
+
+            core.notice('Branch and title follow the conventions.');
+
+  lint-commits:
+    name: Lint commits
+    needs: branch-policy
+    runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ---------- PR title ----------
-      - name: Enforce PR title format and link issue
-        uses: actions/github-script@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          script: |
-            const pr = context.payload.pull_request;
-            const title = pr.title || '';
+          node-version: '18'
 
-            const types = ['feat','fix','bugfix','chore','docs','refactor','perf','test','build','ci'];
-            const typeGroup = types.join('|');
-            const re = new RegExp(`^(${typeGroup}):\\s.+\\s\\(#(\\d+)\\)$`,'i');
-            const m = title.match(re);
-            if (!m) {
-              core.setFailed(
-                `PR title must match: "type: description (#123)". Allowed: ${types.join(', ')}.`
-              );
-              return;
-            }
-            const issueNum = m[2];
-            const body = pr.body || '';
-            if (!body.includes(`Closes #${issueNum}`)) {
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                body: (body + `\n\nCloses #${issueNum}\n`).trim()
-              });
-            }
-            core.notice(`Title OK. Linked to issue #${issueNum}.`);
+      - name: lint commits
+        uses: wagoid/commitlint-github-action@v5
+        with:
+          configFile: commitlint.config.js
+
+  build-test:
+    name: Format, build & test
+    needs: branch-policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install dependencies
         run: |
@@ -55,34 +79,28 @@ jobs:
           sudo apt-get install -y cmake g++ clang-format-14
 
       - name: Check formatting
+        env:
+          CLANG_FORMAT: clang-format-14
         run: |
           set -euo pipefail
-          CLANG_FORMAT=clang-format-14
-          "$CLANG_FORMAT" --version
-          # Use -print0 + xargs -0 to handle spaces and large file sets
-          FILES=$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')
-          if [ -n "$FILES" ]; then
-            echo "Checking formatting for files:"
-            echo "$FILES"
-            if ! find . -regex '.*\.\(cpp\|hpp\|c\|h\)' -print0 \
-              | xargs -0 -r "$CLANG_FORMAT" -style=file -n --Werror; then
-              echo ""
-              echo "❌ Code is not formatted correctly."
-              echo "👉 Please run: clang-format-14 -i \$(find . -regex '.*\.\(cpp\|hpp\|c\|h\)')"
-              echo ""
-              exit 1
-            else
-              echo "✅ Formatting looks good!"
-            fi
-          else
-            echo "No C/C++ source files found."
+          if ! command -v "$CLANG_FORMAT" >/dev/null 2>&1; then
+            echo "clang-format not found" >&2
+            exit 1
           fi
+          mapfile -t files < <(find src tests -type f \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \))
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No C/C++ files to format."
+            exit 0
+          fi
+          echo "Checking formatting for ${#files[@]} files"
+          printf '%s\0' "${files[@]}" | xargs -0 "$CLANG_FORMAT" -style=file --dry-run --Werror
 
-      - name: Configure CMake
-        run: cmake -S . -B build
+      - name: Configure CMake (Release)
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build
+        run: cmake --build build --parallel
 
-      - name: Run tests
+      - name: Run unit tests
         run: ctest --test-dir build --output-on-failure
