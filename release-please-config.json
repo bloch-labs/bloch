@@ -1,10 +1,15 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "include-components-in-titles": false,
   "include-v-in-tag": true,
   "pull-request-title-pattern": "chore: release ${version}",
   "pull-request-header": "\uD83D\uDE80 Prepare the next Bloch release",
   "pull-request-footer": "This PR was generated automatically by release-please.",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "bugfix", "section": "Bug Fixes" },
+    { "type": "docs", "section": "Documentation" }
+  ],
   "packages": {
     ".": {
       "component": "bloch",
