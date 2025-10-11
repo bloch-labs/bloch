@@ -53,10 +53,10 @@ Use `type/issue-number` (such as `feat/142` or `fix/275`). If you are experiment
 CI expects Conventional Commits with an issue number suffix:
 
 ```
-<type>(optional-scope): <summary> (#<issue>)
+<type>(optional-scope): <summary>
 ```
 
-Examples: `feat: add runtime cache (#142)`, `fix(parser): handle trailing commas (#278)`. PR titles should mirror the final squash commit so release automation and changelog tooling stay in sync. If there is no issue yet, create one or coordinate with a maintainer so we can link the work.
+Examples: `feat: add runtime cache (#142)`, `fix(parser): handle trailing commas`. PR titles should mirror the final squash commit so release automation and changelog tooling stay in sync. If there is no issue yet, create one or coordinate with a maintainer so we can link the work.
 
 ### Pull Requests
 1. Push your branch and open a PR against `develop`.
