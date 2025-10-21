@@ -72,7 +72,6 @@ Additional generator options (Ninja, CLion toolchains, etc.) are covered in [CON
 ## VS Code Extension
 [bloch-labs/bloch-vscode](https://github.com/bloch-labs/bloch-vscode)
 
-
 ## Contributing
 Contributions are welcome! [CONTRIBUTING.md](CONTRIBUTING.md) covers the development environment, conventions, and the lightweight review process we follow while the language is in active development.
 
