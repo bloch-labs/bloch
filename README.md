@@ -63,9 +63,14 @@ Additional generator options (Ninja, CLion toolchains, etc.) are covered in [CON
 - `tests` — unit and integration tests covering the compiler and runtime.
 - `scripts` — helper scripts used from CI and local development.
 
-## Documentation & Tooling
-- Language docs: [docs.bloch-labs.com/bloch/overview](https://docs.bloch-labs.com/bloch/overview)
-- VS Code extension: [bloch-labs/bloch-vscode](https://github.com/bloch-labs/bloch-vscode)
+## User Documentation
+[docs.bloch-labs.com/bloch/overview](https://docs.bloch-labs.com/bloch/overview)
+
+## Developer Documenation
+[Wiki](https://github.com/bloch-labs/bloch/wiki/)
+
+## VS Code Extension
+[bloch-labs/bloch-vscode](https://github.com/bloch-labs/bloch-vscode)
 
 ## Contributing
 Contributions are welcome! [CONTRIBUTING.md](CONTRIBUTING.md) covers the development environment, conventions, and the lightweight review process we follow while the language is in active development.

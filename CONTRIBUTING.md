@@ -50,19 +50,27 @@ These commands generate `build/Bloch.sln`, which you can open in Visual Studio f
 Use `type/issue-number` (such as `feat/142` or `fix/275`). If you are experimenting, feel free to work on a draft branch locally and rename it before opening a PR.
 
 ### Commits & PR Titles
-CI expects Conventional Commits with an issue number suffix:
+CI expects Conventional Commits:
 
 ```
 <type>(optional-scope): <summary>
 ```
 
-Examples: `feat: add runtime cache (#142)`, `fix(parser): handle trailing commas`. PR titles should mirror the final squash commit so release automation and changelog tooling stay in sync. If there is no issue yet, create one or coordinate with a maintainer so we can link the work.
+Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR titles should mirror the final squash commit so release automation and changelog tooling stay in sync. Reference related issues in the PR body if needed.
 
 ### Pull Requests
 1. Push your branch and open a PR against `develop`.
 2. Fill in the PR template so reviewers know what changed and how you validated it.
 3. Run the basic checks locally (`clang-format`, build, unit tests). Our GitHub workflows rerun them plus CodeQL analysis.
 4. We use squash-merge to keep history tidy. The squash commit should match the Conventional Commit format above.
+
+---
+
+## Feature Flags
+
+- Work for future features often lands behind feature flags. Review the process on the [Feature Flags wiki page](https://github.com/bloch-labs/bloch/wiki/Feature-Flags) before starting a branch.
+- When developing behind a flag, enable it during configuration (`cmake -S . -B build -DBLOCH_FEATURE_<FLAG>=ON`) and ensure the runtime helpers report the expected state.
+- Update the documentation entries whenever you introduce or retire a flag.
 
 ---
 
