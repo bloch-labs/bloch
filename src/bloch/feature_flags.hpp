@@ -34,85 +34,80 @@
 
 namespace bloch::feature_flags {
 
-struct FeatureFlag {
-    std::string_view name;
-    bool enabled;
-};
-
-inline constexpr std::string_view BLOCH_CLASS_SYSTEM = "BLOCH_CLASS_SYSTEM";
-
-namespace detail {
-    inline constexpr auto registry = std::array{
-        FeatureFlag{BLOCH_CLASS_SYSTEM, BLOCH_FEATURE_BLOCH_CLASS_SYSTEM}
+    struct FeatureFlag {
+        std::string_view name;
+        bool enabled;
     };
 
-    inline constexpr auto enabled_count = [] {
-        std::size_t count = 0;
-        for (const auto& entry : registry)
-            if (entry.enabled)
-                ++count;
-        return count;
+    inline constexpr std::string_view BLOCH_CLASS_SYSTEM = "BLOCH_CLASS_SYSTEM";
+
+    namespace detail {
+        inline constexpr auto registry =
+            std::array{FeatureFlag{BLOCH_CLASS_SYSTEM, BLOCH_FEATURE_BLOCH_CLASS_SYSTEM}};
+
+        inline constexpr auto enabled_count = [] {
+            std::size_t count = 0;
+            for (const auto& entry : registry)
+                if (entry.enabled)
+                    ++count;
+            return count;
+        }();
+    }  // namespace detail
+
+    inline constexpr auto all_flags = [] {
+        std::array<std::string_view, detail::registry.size()> names{};
+        for (std::size_t idx = 0; idx < detail::registry.size(); ++idx)
+            names[idx] = detail::registry[idx].name;
+        return names;
     }();
-}  // namespace detail
 
-inline constexpr auto all_flags = [] {
-    std::array<std::string_view, detail::registry.size()> names{};
-    for (std::size_t idx = 0; idx < detail::registry.size(); ++idx)
-        names[idx] = detail::registry[idx].name;
-    return names;
-}();
-
-[[nodiscard]] inline constexpr std::span<const FeatureFlag> defined_flags() {
-    return detail::registry;
-}
-
-[[nodiscard]] inline constexpr std::size_t flag_count() {
-    return detail::registry.size();
-}
-
-[[nodiscard]] inline constexpr std::size_t enabled_flag_count() {
-    return detail::enabled_count;
-}
-
-[[nodiscard]] inline constexpr bool is_known(std::string_view flag) {
-    for (auto candidate : all_flags) {
-        if (candidate == flag)
-            return true;
+    [[nodiscard]] inline constexpr std::span<const FeatureFlag> defined_flags() {
+        return detail::registry;
     }
-    return false;
-}
 
-[[nodiscard]] inline constexpr bool is_enabled(std::string_view flag) {
-    for (const auto& entry : detail::registry) {
-        if (entry.name == flag)
-            return entry.enabled;
+    [[nodiscard]] inline constexpr std::size_t flag_count() { return detail::registry.size(); }
+
+    [[nodiscard]] inline constexpr std::size_t enabled_flag_count() {
+        return detail::enabled_count;
     }
-    return false;
-}
 
-[[nodiscard]] inline constexpr bool any_enabled() {
-    return detail::enabled_count > 0;
-}
-
-[[nodiscard]] inline std::vector<std::string_view> enabled_flags() {
-    std::vector<std::string_view> result;
-    result.reserve(detail::enabled_count);
-    for (const auto& entry : detail::registry) {
-        if (entry.enabled)
-            result.push_back(entry.name);
+    [[nodiscard]] inline constexpr bool is_known(std::string_view flag) {
+        for (auto candidate : all_flags) {
+            if (candidate == flag)
+                return true;
+        }
+        return false;
     }
-    return result;
-}
 
-[[nodiscard]] inline std::vector<std::string_view> disabled_flags() {
-    std::vector<std::string_view> result;
-    result.reserve(detail::registry.size() - detail::enabled_count);
-    for (const auto& entry : detail::registry) {
-        if (!entry.enabled)
-            result.push_back(entry.name);
+    [[nodiscard]] inline constexpr bool is_enabled(std::string_view flag) {
+        for (const auto& entry : detail::registry) {
+            if (entry.name == flag)
+                return entry.enabled;
+        }
+        return false;
     }
-    return result;
-}
+
+    [[nodiscard]] inline constexpr bool any_enabled() { return detail::enabled_count > 0; }
+
+    [[nodiscard]] inline std::vector<std::string_view> enabled_flags() {
+        std::vector<std::string_view> result;
+        result.reserve(detail::enabled_count);
+        for (const auto& entry : detail::registry) {
+            if (entry.enabled)
+                result.push_back(entry.name);
+        }
+        return result;
+    }
+
+    [[nodiscard]] inline std::vector<std::string_view> disabled_flags() {
+        std::vector<std::string_view> result;
+        result.reserve(detail::registry.size() - detail::enabled_count);
+        for (const auto& entry : detail::registry) {
+            if (!entry.enabled)
+                result.push_back(entry.name);
+        }
+        return result;
+    }
 
 }  // namespace bloch::feature_flags
 
@@ -124,5 +119,4 @@ inline constexpr auto all_flags = [] {
 #ifdef BLOCH_FEATURE_IS_ENABLED
 #undef BLOCH_FEATURE_IS_ENABLED
 #endif
-#define BLOCH_FEATURE_IS_ENABLED(flag_literal) \
-    (::bloch::feature_flags::is_enabled(flag_literal))
+#define BLOCH_FEATURE_IS_ENABLED(flag_literal) (::bloch::feature_flags::is_enabled(flag_literal))
