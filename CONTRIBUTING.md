@@ -66,6 +66,14 @@ Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR t
 
 ---
 
+## Feature Flags
+
+- Work for future features often lands behind feature flags. Review the process on the [Feature Flags wiki page](https://github.com/bloch-labs/bloch/wiki/Feature-Flags) before starting a branch.
+- When developing behind a flag, enable it during configuration (`cmake -S . -B build -DBLOCH_FEATURE_<FLAG>=ON`) and ensure the runtime helpers report the expected state.
+- Update the documentation entries whenever you introduce or retire a flag.
+
+---
+
 ## Code Style & Tooling
 - `.clang-format` defines the canonical style—run `clang-format -i <files>` or let your editor handle it.
 - Prefer `snake_case` filenames, `PascalCase` types, and `camelCase` functions/methods.
