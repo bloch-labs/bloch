@@ -24,7 +24,7 @@ jobs:
             const headRef = pr.head.ref;
             const title = pr.title || '';
 
-            const allowedTypes = ['feat','fix','bugfix','hotfix','chore','docs','refactor','perf','test','build','ci','style','revert'];
+            const allowedTypes = ['build','chore','ci','docs','feat','fix','perf','refactor','revert','style','test'];
             const branchPattern = new RegExp(`^(?:${allowedTypes.join('|')})\/\\d+$`, 'i');
             const releasePleaseBranch = headRef.startsWith('release-please--');
             const releaseBranch = headRef.startsWith('release-v');
@@ -34,9 +34,9 @@ jobs:
               return;
             }
 
-            const titlePattern = new RegExp(`^(?:${allowedTypes.join('|')})(?:\\([^)]+\\))?!?:\\s.+\\s\\(#\\d+\\)$`, 'i');
+            const titlePattern = new RegExp(`^(?:${allowedTypes.join('|')})(?:\\([^)]+\\))?!?:\\s.+$`, 'i');
             if (!releasePleaseBranch && !titlePattern.test(title)) {
-              core.setFailed('PR title must follow "type: summary (#123)" and use an allowed type.');
+              core.setFailed('PR title must follow Conventional Commit style, e.g. "feat: summary".');
               return;
             }
 

@@ -50,13 +50,13 @@ These commands generate `build/Bloch.sln`, which you can open in Visual Studio f
 Use `type/issue-number` (such as `feat/142` or `fix/275`). If you are experimenting, feel free to work on a draft branch locally and rename it before opening a PR.
 
 ### Commits & PR Titles
-CI expects Conventional Commits with an issue number suffix:
+CI expects Conventional Commits:
 
 ```
 <type>(optional-scope): <summary>
 ```
 
-Examples: `feat: add runtime cache (#142)`, `fix(parser): handle trailing commas`. PR titles should mirror the final squash commit so release automation and changelog tooling stay in sync. If there is no issue yet, create one or coordinate with a maintainer so we can link the work.
+Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR titles should mirror the final squash commit so release automation and changelog tooling stay in sync. Reference related issues in the PR body if needed.
 
 ### Pull Requests
 1. Push your branch and open a PR against `develop`.
