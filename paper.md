@@ -1,5 +1,5 @@
 ---
-title: "Bloch: a strongly typed, hardware-agnostic quantum programming language"
+title: "Bloch: a strongly typed, hardware-agnostic, hybrid quantum programming language"
 tags:
   - quantum computing
   - programming languages
@@ -7,12 +7,12 @@ tags:
   - simulation
 authors:
   - name: Akshay Pal
-    orcid: 0000-0000-0000-0000
+    orcid: 0009-0004-0465-4420
     affiliation: 1
 affiliations:
   - name: Independent Researcher
     index: 1
-date: 2025-11-16
+date: 2025-11-21
 bibliography: paper.bib
 ---
 
@@ -38,7 +38,7 @@ simulation or hardware execution. Researchers building higher-level language
 abstractions (e.g., Silq [@silq] and Quipper [@quipper]) typically need to choose
 between tightly coupled vendor ecosystems or experimenting with new type
 systems without a reference interpreter capable of emitting standard assembly
-formats (OpenQASM [@openqasm3]). Bloch fills this gap by delivering a
+formats (OpenQASM 2 [@openqasm2]). Bloch fills this gap by delivering a
 self-contained toolchain that:
 
 * enforces a compact, explicit type system over both classical and quantum data
@@ -48,8 +48,8 @@ self-contained toolchain that:
   programs into downstream simulators or device backends without rewriting
   kernels; and
 * exposes deterministic multi-shot execution with aggregated statistics so that
-  algorithm designers can validate probabilistic behaviour without bolting on
-  custom data-loggers.
+  algorithm designers can validate probabilistic behaviour before running on expensive
+  quantum hardware.
 
 By targeting developers who are comfortable with systems languages but need a
 high-level quantum DSL, Bloch reduces the friction between research sketches
@@ -67,7 +67,7 @@ Bloch’s architecture is intentionally modular:
   symbol table and a compact `ValueType` universe to ensure that only valid
   combinations of classical and quantum operations progress to execution. It
   also enforces Bloch-specific rules, such as restricting `@quantum` functions
-  to `bit` return values and rejecting `@tracked` annotations on unsupported
+  to `bit` or `void` return values and rejecting `@tracked` annotations on unsupported
   types.
 * **Runtime & simulator.** The interpreter (`src/bloch/runtime`) evaluates the
   AST, orchestrates an ideal statevector simulator, and records measurement
@@ -82,7 +82,7 @@ Bloch’s architecture is intentionally modular:
 
 The project distributes platform-agnostic CMake build files and is validated on
 Linux, macOS, and Windows. Users interact with the CLI (`bloch <file.bloch>`)
-which offers `--emit-qasm`, `--shots=N`, and `--echo` knobs for reproducible
+which offers `--emit-qasm`, `--shots=N`, and `--echo` parameters for reproducible
 experiments.
 
 # Quality Control
@@ -130,7 +130,7 @@ Apache-2.0 license. The repository bundles setup instructions, contribution
 guidelines, and a list of feature flags so that new contributors can propose
 language extensions while maintaining release stability. Pre-built binaries are
 not required; the CMake toolchain builds the CLI across major platforms, and the
-project’s documentation hub (docs.bloch-labs.com) provides user guides and API
+project’s documentation hub (https://docs.bloch-labs.com) provides user guides and API
 notes.
 
 # Acknowledgements

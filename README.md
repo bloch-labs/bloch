@@ -89,6 +89,9 @@ v1.0.0 will ship manually while we build the release pipeline. Run the **Manual 
 ## Contributing
 Contributions are welcome! [CONTRIBUTING.md](CONTRIBUTING.md) covers the development environment, conventions, and the lightweight review process we follow while the language is in active development.
 
+## How to Cite
+- If you use Bloch in research, cite it via the repository’s [`CITATION.cff`](CITATION.cff) file (GitHub exposes a “Cite this repository” button) or copy the metadata directly into your BibTeX database. The entry tracks the software release and the forthcoming JOSS article so reviewers can attribute the correct artifact.
+
 ## Community
 - Website & blog: [bloch-labs.com](https://bloch-labs.com)
 - X/Twitter: [@blochlabs](https://x.com/blochlabs) · [@bloch_akshay](https://x.com/bloch_akshay)
