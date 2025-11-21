@@ -56,7 +56,7 @@ CI expects Conventional Commits:
 <type>(optional-scope): <summary>
 ```
 
-Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR titles should mirror the final squash commit so release automation and changelog tooling stay in sync. Reference related issues in the PR body if needed.
+Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR titles should mirror the final squash commit to keep history tidy. Reference related issues in the PR body if needed.
 
 ### Pull Requests
 1. Push your branch and open a PR against `develop`.
@@ -74,6 +74,11 @@ Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR t
 
 ---
 
+## Releases
+The automated release pipeline is paused while we rebuild it based on new architecture (ADR-009). v1.0.0 is cut manually using a short checklist. Use the **Manual Packager** workflow (Actions → “Manual Packager”) with the branch and tag you want to publish to produce Linux, macOS, and Windows artifacts plus per-platform checksums, then follow the Release Checklist on the GitHub Wiki.
+
+---
+
 ## Code Style & Tooling
 - `.clang-format` defines the canonical style—run `clang-format -i <files>` or let your editor handle it.
 - Prefer `snake_case` filenames, `PascalCase` types, and `camelCase` functions/methods.
@@ -85,4 +90,5 @@ Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR t
 - Open an issue on GitHub for bugs or feature discussions.
 - Reach out at [hello@bloch-labs.com](mailto:hello@bloch-labs.com) if you need maintainer feedback or want to coordinate on larger work.
 
-Happy coding!
+---
+

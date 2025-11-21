@@ -1,0 +1,117 @@
+name: Manual Packager
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch/ref to build from
+        required: true
+        default: develop
+      tag:
+        description: Version tag to embed in artifacts (e.g., v1.0.0-rc1 or v1.0.0)
+        required: true
+
+env:
+  BLOCH_VERSION: ${{ inputs.tag }}
+
+jobs:
+  package:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os_name: Linux
+            arch: X64
+            cpack_generator: TGZ
+            artifact_ext: tar.gz
+          - runner: macos-13
+            os_name: macOS
+            arch: X64
+            cpack_generator: TGZ
+            artifact_ext: tar.gz
+          - runner: macos-14
+            os_name: macOS
+            arch: ARM64
+            cpack_generator: TGZ
+            artifact_ext: tar.gz
+          - runner: windows-latest
+            os_name: Windows
+            arch: X64
+            cpack_generator: ZIP
+            artifact_ext: zip
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Install build deps (Linux)
+        if: matrix.runner == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+
+      - name: Configure
+        shell: bash
+        run: |
+          if [[ "${{ matrix.runner }}" == "windows-latest" ]]; then
+            cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+          else
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          fi
+
+      - name: Build
+        shell: bash
+        run: |
+          if [[ "${{ matrix.runner }}" == "windows-latest" ]]; then
+            cmake --build build --config Release
+          else
+            cmake --build build --parallel
+          fi
+
+      - name: Run tests
+        shell: bash
+        run: |
+          if [[ "${{ matrix.runner }}" == "windows-latest" ]]; then
+            ctest --test-dir build --config Release --output-on-failure
+          else
+            ctest --test-dir build --output-on-failure
+          fi
+
+      - name: Package
+        shell: bash
+        run: |
+          cpack -G "${{ matrix.cpack_generator }}" -B dist --config build/CPackConfig.cmake
+          shopt -s nullglob
+          files=(dist/*.${{ matrix.artifact_ext }})
+          if [[ ${#files[@]} -ne 1 ]]; then
+            echo "Expected exactly one package, found ${#files[@]}." >&2
+            exit 1
+          fi
+          dest="dist/bloch-${{ inputs.tag }}-${{ matrix.os_name }}-${{ matrix.arch }}.${{ matrix.artifact_ext }}"
+          mv "${files[0]}" "$dest"
+          if command -v python3 >/dev/null 2>&1; then
+            PYTHON_BIN=python3
+          elif command -v python >/dev/null 2>&1; then
+            PYTHON_BIN=python
+          else
+            echo "Python is required to compute checksums" >&2
+            exit 1
+          fi
+          PKG_PATH="$dest" "$PYTHON_BIN" - <<'PY' > "dist/checksums-${{ matrix.os_name }}-${{ matrix.arch }}.txt"
+import hashlib, pathlib, os
+path = pathlib.Path(os.environ["PKG_PATH"])
+digest = hashlib.sha256(path.read_bytes()).hexdigest()
+print(f"{digest}  {path.name}")
+PY
+          ls -l dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bloch-${{ inputs.tag }}-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: |
+            dist/bloch-${{ inputs.tag }}-${{ matrix.os_name }}-${{ matrix.arch }}.${{ matrix.artifact_ext }}
+            dist/checksums-${{ matrix.os_name }}-${{ matrix.arch }}.txt

@@ -1,6 +1,6 @@
-# Bloch - Modern Quantum Programming
+# Bloch - A Modern Strongly Typed, Hybrid Quantum Programming
 
-Bloch is a strongly typed, interpreted quantum programming language from [Bloch Labs](https://bloch-labs.com). The language is designed to feel familiar to systems developers while staying hardware-agnostic, so you can move from research sketches to production-grade circuits without switching stacks.
+Bloch is a strongly typed, interpreted, hybrid quantum programming language from [Bloch Labs](https://bloch-labs.com). The language is designed to feel familiar to systems developers while staying hardware-agnostic, so you can move from research sketches to production-grade circuits without switching stacks.
 
 ## Highlights
 - Seamless classical/quantum integration with clear type boundaries.
@@ -31,9 +31,26 @@ function main() -> void {
 ```
 
 ## Get Started
-We are currently distributing Bloch from source while we stabilise the toolchain. The commands below assume the prerequisites in [CONTRIBUTING.md](CONTRIBUTING.md) are installed.
+Bloch is available as source plus manually produced release archives until the automated pipeline lands. The instructions below cover installing pre-built artifacts as well as building from source (the developer workflow described in [CONTRIBUTING.md](CONTRIBUTING.md)).
 
-### Linux & macOS
+### Install a release build
+
+#### Linux & macOS
+```bash
+curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/v1.0.0/scripts/install.sh | sh -s -- v1.0.0
+```
+
+Change the tag (`v1.0.0`, `v1.0.0-rc1`, etc.) to the artifact you want. The script downloads the correct archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `sh` to override the destination.
+
+#### Windows
+1. Download the latest `bloch-<tag>-Windows-X64.zip` from the GitHub Releases page.
+2. Extract it to a directory such as `%LOCALAPPDATA%\Programs\Bloch`.
+3. Add that directory to your `PATH` (Windows Settings → “Edit the system environment variables” → “Environment Variables…” → select `Path` → **Edit** → **New** → paste the folder).
+4. Open a new terminal (PowerShell, CMD, or Windows Terminal) and run `bloch.exe --version` to confirm the installation.
+
+### Build from source
+
+#### Linux & macOS
 ```bash
 git clone https://github.com/bloch-labs/bloch.git
 cd bloch
@@ -57,17 +74,14 @@ This produces a `build/Bloch.sln` you can open directly in Visual Studio for edi
 
 Additional generator options (Ninja, CLion toolchains, etc.) are covered in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Project Layout
-- `src` — core language implementation.
-- `examples` — executable Bloch snippets, including the Bell state demo above.
-- `tests` — unit and integration tests covering the compiler and runtime.
-- `scripts` — helper scripts used from CI and local development.
-
 ## User Documentation
 [docs.bloch-labs.com/bloch/overview](https://docs.bloch-labs.com/bloch/overview)
 
 ## Developer Documenation
 [Wiki](https://github.com/bloch-labs/bloch/wiki/)
+
+## Releases
+v1.0.0 will ship manually while we build the release pipeline. Run the **Manual Packager** workflow (Actions → “Manual Packager”) against the desired branch/tag to produce Linux, macOS, and Windows archives plus checksums; the GitHub Wiki documents the end-to-end checklist.
 
 ## VS Code Extension
 [bloch-labs/bloch-vscode](https://github.com/bloch-labs/bloch-vscode)

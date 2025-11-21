@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - develop
-      - 'release-v*'
+      - master
     types: [opened, edited, synchronize, reopened, ready_for_review]
 
 permissions:
@@ -26,16 +26,14 @@ jobs:
 
             const allowedTypes = ['build','chore','ci','docs','feat','fix','perf','refactor','revert','style','test'];
             const branchPattern = new RegExp(`^(?:${allowedTypes.join('|')})\/\\d+$`, 'i');
-            const releasePleaseBranch = headRef.startsWith('release-please--');
-            const releaseBranch = headRef.startsWith('release-v');
 
-            if (!releasePleaseBranch && !releaseBranch && !branchPattern.test(headRef)) {
+            if (!branchPattern.test(headRef)) {
               core.setFailed(`Branch "${headRef}" must follow type/issue-number (e.g. feat/123). Allowed types: ${allowedTypes.join(', ')}.`);
               return;
             }
 
             const titlePattern = new RegExp(`^(?:${allowedTypes.join('|')})(?:\\([^)]+\\))?!?:\\s.+$`, 'i');
-            if (!releasePleaseBranch && !titlePattern.test(title)) {
+            if (!titlePattern.test(title)) {
               core.setFailed('PR title must follow Conventional Commit style, e.g. "feat: summary".');
               return;
             }
@@ -46,7 +44,6 @@ jobs:
     name: Lint commits
     needs: branch-policy
     runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
