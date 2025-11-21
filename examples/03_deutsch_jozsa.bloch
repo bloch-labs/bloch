@@ -1,0 +1,46 @@
+@quantum
+function prepareDeutschJozsaRegister(qubit[2] q) -> void {
+    x(q[1]);
+    h(q[0]);
+    h(q[1]);
+}
+
+@quantum
+function oracleConstant(qubit data, qubit ancilla) -> void {
+    // Represents f(x) = 0, so nothing changes.
+}
+
+@quantum
+function oracleBalanced(qubit data, qubit ancilla) -> void {
+    // Represents f(x) = x, so flip the ancilla conditioned on the data qubit.
+    cx(data, ancilla);
+}
+
+function runConstantOracle() -> bit {
+    @tracked qubit[2] q;
+    prepareDeutschJozsaRegister(q);
+    oracleConstant(q[0], q[1]);
+    h(q[0]);
+    bit result = measure q[0];
+    return result;
+}
+
+function runBalancedOracle() -> bit {
+    @tracked qubit[2] q;
+    prepareDeutschJozsaRegister(q);
+    oracleBalanced(q[0], q[1]);
+    h(q[0]);
+    bit result = measure q[0];
+    return result;
+}
+
+function main() -> void {
+    bit constant = runConstantOracle();
+    bit balanced = runBalancedOracle();
+
+    echo("Deutsch-Jozsa constant oracle measurement:");
+    echo(constant);
+
+    echo("Deutsch-Jozsa balanced oracle measurement:");
+    echo(balanced);
+}
