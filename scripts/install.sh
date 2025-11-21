@@ -138,7 +138,6 @@ choose_dest() {
 
 DEST=$(choose_dest)
 mkdir -p "$DEST"
-mkdir -p "$DEST"
 
 TMPDIR=$(mktemp -d)
 cleanup() { rm -rf "$TMPDIR"; }

@@ -16,26 +16,18 @@ bloch examples/01_hadamard.bloch --shots=1024
 
 **Notes**
 - `--shots=N` repeats the program N times and aggregates tracked measurement outcomes.
-- Place `@tracked` **before** a `qubit` or `qubit[]` declaration to auto-print counts and probabilities for those qubits.
+- Place `@tracked` **before** a `qubit` or `qubit[]` variable declaration to auto-print counts and probabilities for those qubits.
 - Outputs are simulated pseudo-random samples from the statevector; with many shots they converge to theory.
 
 ## Files
-
 - `01_hadamard.bloch` — Hadamard on |0⟩ → ~50/50 outcome of 0 and 1  
-- `02_bell_state.bloch` — Bell pair ((|00⟩+|11⟩)/√2) → ~50/50 `00` and `11`
+- `02_bell_state.bloch` — Bell pair ((|00⟩+|11⟩)/√2) → ~50/50 `00` and `11`  
+- `03_deutsch_jozsa.bloch` — Deutsch-Jozsa algorithm comparing constant vs balanced oracles  
+- `04_grover_search.bloch` — Grover search over 2 qubits, marking `11` as the winner
 
 ## 01 Hadamard on |0⟩
 
 **File:** `examples/01_hadamard.bloch`
-```bloch
-function main() -> void {
-    @tracked qubit q;
-
-    h(q);
-    bit b = measure q;
-    echo(b);
-}
-```
 
 **Try:**
 ```bash
@@ -59,30 +51,13 @@ outcome | count |  prob
 ## 02 Bell state ((|00⟩+|11⟩)/√2)
 
 **File:** `examples/02_bell_state.bloch`
-```bloch
-@quantum
-function createBellState(qubit a, qubit b) -> void {
-    h(a);
-    cx(a, b);
-}
-
-function main() -> void {
-    @tracked qubit[2] qreg;
-
-    createBellState(qreg[0], qreg[1]);
-
-    bit[2] out = {measure qreg[0], measure qreg[1]};
-
-    echo(out);
-}
-```
 
 **Try:**
 ```bash
 bloch examples/02_bell_state.bloch --shots=1024
 ```
 
-**Expected output (typical):**
+**Expected output:**
 ```
 [INFO]: suppressing echo; to view them use --echo=all
 Shots: 1024
@@ -94,6 +69,47 @@ outcome | count |  prob
 --------+-------+-----
 00      |   506 | 0.494
 11      |   518 | 0.506
+```
+
+## 03 Deutsch-Jozsa (constant vs balanced)
+
+**File:** `examples/03_deutsch_jozsa.bloch`
+
+**Try:**
+```bash
+bloch examples/03_deutsch_jozsa.bloch
+```
+
+**Expected output:**
+```
+[WARNING]: Qubit q was left unmeasured. No classical value will be returned.
+[WARNING]: Qubit q was left unmeasured. No classical value will be returned.
+Deutsch-Jozsa constant oracle measurement:
+0
+Deutsch-Jozsa balanced oracle measurement:
+1
+```
+
+## 04 Grover search (N = 4)
+
+**File:** `examples/04_grover_search.bloch`
+
+**Try:**
+```bash
+bloch examples/04_grover_search.bloch --shots=1024
+```
+
+**Expected output:**
+```
+[INFO]: suppressing echo; to view them use --echo=all
+Shots: 1024
+Backend: Bloch Ideal Simulator
+Elapsed: 0.147s
+
+qubit[] data
+outcome | count |  prob
+--------+-------+-----
+11      |  1024 | 1.000
 ```
 
 ## FAQ
