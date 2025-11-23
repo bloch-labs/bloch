@@ -37,10 +37,10 @@ Bloch is available as source plus manually produced release archives until the a
 
 #### Linux & macOS
 ```bash
-curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/v1.0.0/scripts/install.sh | sh -s -- v1.0.0
+curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | sh -s -- latest
 ```
 
-Change the tag (`v1.0.0`, `v1.0.0-rc1`, etc.) to the artifact you want. The script downloads the correct archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `sh` to override the destination.
+Swap `latest` for a specific tag (`v1.0.0`, `v1.0.0-rc1`, etc.) or `latest-rc` to pick up the newest prerelease (requires `jq` installed). The script downloads the correct archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `sh` to override the destination.
 
 #### Windows
 1. Download the latest `bloch-<tag>-Windows-X64.zip` from the GitHub Releases page.
@@ -88,6 +88,9 @@ v1.0.0 will ship manually while we build the release pipeline. Run the **Manual 
 
 ## Contributing
 Contributions are welcome! [CONTRIBUTING.md](CONTRIBUTING.md) covers the development environment, conventions, and the lightweight review process we follow while the language is in active development.
+
+## How to Cite
+- If you use Bloch in research, cite it via the repository’s [`CITATION.cff`](CITATION.cff) file (GitHub exposes a “Cite this repository” button) or copy the metadata directly into your BibTeX database. The entry tracks the software release and the forthcoming JOSS article so reviewers can attribute the correct artifact.
 
 ## Community
 - Website & blog: [bloch-labs.com](https://bloch-labs.com)

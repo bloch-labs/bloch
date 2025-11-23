@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: "Bloch: a strongly typed, hardware-agnostic, hybrid quantum programming language"
+message: "If you use Bloch in your work, please cite it using the metadata below."
+type: software
+version: "v1.0.0"
+repository-code: https://github.com/bloch-labs/bloch
+license: Apache-2.0
+keywords:
+  - quantum computing
+  - programming languages
+  - compilers
+  - simulation
+authors:
+  - family-names: Pal
+    given-names: Akshay
+    orcid: https://orcid.org/0009-0004-0465-4420
+preferred-citation:
+  type: software
+  title: "Bloch: a strongly typed, hardware-agnostic, hybrid quantum programming language"
+  authors:
+    - family-names: Pal
+      given-names: Akshay
+      orcid: https://orcid.org/0009-0004-0465-4420
+  version: "v1.0.0"
+  repository-code: https://github.com/bloch-labs/bloch
+  license: Apache-2.0
+  notes: "JOSS article submission pending; update this entry with the DOI once accepted."
