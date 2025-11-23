@@ -109,6 +109,15 @@ BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
 ASSET_URL="${BASE_URL}/${ASSET}"
 CHECKSUMS_URL="${BASE_URL}/checksums.txt"
 
+download_checksums() {
+  local url="$1" dest="$2"
+  if [[ -t 1 ]]; then
+    curl -fsSL -# "$url" -o "$dest"
+  else
+    curl -fsSL "$url" -o "$dest"
+  fi
+}
+
 # Destination directory logic: prefer ~/.local/bin, then /usr/local/bin, then ~/bin
 choose_dest() {
   if [[ -n "${INSTALL_DIR:-}" ]]; then
@@ -152,29 +161,33 @@ else
 fi
 
 step "Downloading checksums: ${CHECKSUMS_URL}"
-if [[ -t 1 ]]; then
-  curl -fsSL -# "$CHECKSUMS_URL" -o "$TMPDIR/checksums.txt" || {
-    warn "checksums.txt not found; skipping verification"
-    NO_CHECKSUM=1
-  }
+CHECKSUMS_PATH=""
+if download_checksums "$CHECKSUMS_URL" "$TMPDIR/checksums.txt"; then
+  CHECKSUMS_PATH="$TMPDIR/checksums.txt"
+  CHECKSUMS_LABEL="checksums.txt"
 else
-  curl -fsSL "$CHECKSUMS_URL" -o "$TMPDIR/checksums.txt" || {
-    warn "checksums.txt not found; skipping verification"
+  warn "checksums.txt not found; trying OS/arch-specific checksum file"
+  ALT_CHECKSUMS_URL="${BASE_URL}/checksums-${OS}-${ARCH}.txt"
+  if download_checksums "$ALT_CHECKSUMS_URL" "$TMPDIR/checksums-${OS}-${ARCH}.txt"; then
+    CHECKSUMS_PATH="$TMPDIR/checksums-${OS}-${ARCH}.txt"
+    CHECKSUMS_LABEL="checksums-${OS}-${ARCH}.txt"
+  else
+    warn "No checksum file found; skipping verification"
     NO_CHECKSUM=1
-  }
+  fi
 fi
 
 if [[ -z "${NO_CHECKSUM:-}" ]]; then
-  step "Verifying checksum"
+  step "Verifying checksum (${CHECKSUMS_LABEL})"
   if command -v sha256sum >/dev/null 2>&1; then
-    EXPECTED=$(grep "  ${ASSET}$" "$TMPDIR/checksums.txt" | awk '{print $1}')
+    EXPECTED=$(grep -F "  ${ASSET}" "$CHECKSUMS_PATH" | awk '{print $1}')
     ACTUAL=$(sha256sum "$TMPDIR/$ASSET" | awk '{print $1}')
   else
-    EXPECTED=$(grep "  ${ASSET}$" "$TMPDIR/checksums.txt" | awk '{print $1}')
+    EXPECTED=$(grep -F "  ${ASSET}" "$CHECKSUMS_PATH" | awk '{print $1}')
     ACTUAL=$(shasum -a 256 "$TMPDIR/$ASSET" | awk '{print $1}')
   fi
   if [[ -z "${EXPECTED:-}" ]]; then
-    warn "expected checksum not found for ${ASSET}; skipping verification"
+    warn "expected checksum not found for ${ASSET} in ${CHECKSUMS_LABEL}; skipping verification"
   elif [[ "$EXPECTED" != "$ACTUAL" ]]; then
     error "checksum mismatch for ${ASSET}"
     echo "Expected: $EXPECTED" >&2
@@ -188,14 +201,20 @@ fi
 step "Extracting"
 tar -C "$TMPDIR" -xzf "$TMPDIR/$ASSET"
 
-if [[ ! -f "$TMPDIR/bloch" ]]; then
-  error "extracted archive did not contain 'bloch' binary"
+BLOCH_BIN_CANDIDATES=$(find "$TMPDIR" -maxdepth 5 -type f -name 'bloch')
+if [[ -z "${BLOCH_BIN_CANDIDATES// }" ]]; then
+  error "extracted archive did not contain a 'bloch' binary"
   exit 1
 fi
 
+candidate_count=$(printf "%s\n" "$BLOCH_BIN_CANDIDATES" | sed '/^$/d' | wc -l | tr -d '[:space:]')
+if [[ "$candidate_count" != "1" ]]; then
+  warn "Multiple bloch binaries found; using the first match"
+fi
+BLOCH_BIN=$(printf "%s\n" "$BLOCH_BIN_CANDIDATES" | sed '/^$/d' | head -n1)
 
-chmod +x "$TMPDIR/bloch"
-if ! BLOCH_PROBE_OUTPUT=$("$TMPDIR/bloch" --version 2>&1); then
+chmod +x "$BLOCH_BIN"
+if ! BLOCH_PROBE_OUTPUT=$("$BLOCH_BIN" --version 2>&1); then
   error "Downloaded binary failed to run on this system."
   if [[ "$BLOCH_PROBE_OUTPUT" == *"GLIBC_"* || "$BLOCH_PROBE_OUTPUT" == *"GLIBCXX_"* ]]; then
     warn "Bloch requires glibc >= 2.35 and libstdc++ >= 3.4.30."
@@ -204,7 +223,7 @@ if ! BLOCH_PROBE_OUTPUT=$("$TMPDIR/bloch" --version 2>&1); then
   echo "$BLOCH_PROBE_OUTPUT" >&2
   exit 1
 fi
-install -m 0755 "$TMPDIR/bloch" "$DEST/bloch"
+install -m 0755 "$BLOCH_BIN" "$DEST/bloch"
 
 success "Installed: $DEST/bloch"
 note "You can verify with: bloch --version"
