@@ -40,14 +40,14 @@ Bloch is available as source plus manually produced release archives until the a
 curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- latest
 ```
 
-The script downloads the correct archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `bash` to override the destination.
+Swap `latest` for a specific tag (eg `v1.0.0`). The script downloads the matching archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `bash` to override the destination.
 
 #### Windows
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.ps1 -UseBasicParsing -OutFile bloch-install.ps1; .\bloch-install.ps1 -Version latest"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.ps1 -UseBasicParsing -OutFile $env:TEMP\\bloch-install.ps1; & $env:TEMP\\bloch-install.ps1 -Version latest"
 ```
 
-The script downloads the Windows ZIP, verifies its checksum, installs `bloch.exe` into `%LOCALAPPDATA%\Programs\Bloch` by default, and adds that directory to your user `PATH` (opens in new shells).
+Swap `-Version latest` for any tag you want. The script downloads the Windows ZIP, verifies its checksum, installs `bloch.exe` into `%LOCALAPPDATA%\Programs\Bloch` by default, and adds that directory to your user `PATH` (opens in new shells).
 
 ### Build from source
 
