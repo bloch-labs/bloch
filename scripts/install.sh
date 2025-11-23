@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+
+if [ -z "${BASH_VERSION:-}" ]; then
+  echo "This installer requires bash. Re-run with: curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- <version>" >&2
+  exit 1
+fi
+
 set -euo pipefail
 
 # Pretty output helpers
