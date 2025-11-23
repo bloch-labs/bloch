@@ -6,8 +6,8 @@ Param(
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-function Step($msg)    { Write-Host "➜ $msg" }
-function Ok($msg)      { Write-Host "✓ $msg" -ForegroundColor Green }
+function Step($msg)    { Write-Host "-> $msg" }
+function Ok($msg)      { Write-Host "[OK] $msg" -ForegroundColor Green }
 function Warn($msg)    { Write-Warning $msg }
 function Fail($msg)    { Write-Error $msg; exit 1 }
 
