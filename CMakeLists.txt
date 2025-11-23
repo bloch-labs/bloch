@@ -35,6 +35,25 @@ else()
 endif()
 message(STATUS "Bloch version: ${BLOCH_VERSION}")
 
+# Capture short commit hash if available (best-effort)
+set(BLOCH_COMMIT_HASH "unknown")
+if(NOT GIT_FOUND)
+    find_package(Git QUIET)
+endif()
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE BLOCH_COMMIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE GIT_HASH_RESULT
+    )
+    if(NOT GIT_HASH_RESULT EQUAL 0 OR "${BLOCH_COMMIT_HASH}" STREQUAL "")
+        set(BLOCH_COMMIT_HASH "unknown")
+    endif()
+endif()
+message(STATUS "Bloch commit: ${BLOCH_COMMIT_HASH}")
+
 
 # Treat warnings as errors
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

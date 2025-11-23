@@ -49,7 +49,10 @@ if(_BLOCH_ENABLED_FEATURE_LABELS)
 endif()
 
 # Embed the version string into the binary
-target_compile_definitions(bloch PRIVATE BLOCH_VERSION="${BLOCH_VERSION}")
+target_compile_definitions(bloch PRIVATE
+    BLOCH_VERSION="${BLOCH_VERSION}"
+    BLOCH_COMMIT_HASH="${BLOCH_COMMIT_HASH}"
+)
 
 # Install target for local development installs
 install(TARGETS bloch RUNTIME DESTINATION bin)

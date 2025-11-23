@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -31,9 +32,21 @@
 #ifndef BLOCH_VERSION
 #define BLOCH_VERSION "dev"
 #endif
+#ifndef BLOCH_COMMIT_HASH
+#define BLOCH_COMMIT_HASH "unknown"
+#endif
+
+static std::string formattedVersion() {
+    constexpr std::string_view unknown = "unknown";
+    const std::string_view hash = BLOCH_COMMIT_HASH;
+    if (hash == unknown || hash.empty()) {
+        return BLOCH_VERSION;
+    }
+    return std::string(BLOCH_VERSION) + " (" + std::string(hash) + ")";
+}
 
 static void printHelp() {
-    std::cout << "Bloch " << BLOCH_VERSION << "\n"
+    std::cout << "Bloch " << formattedVersion() << "\n"
               << "Usage: bloch [options] <file.bloch>\n\n"
               << "Options:\n"
               << "  --help          Show this help and exit\n"
@@ -47,7 +60,7 @@ static void printHelp() {
               << std::endl;
 }
 
-static void printVersion() { std::cout << BLOCH_VERSION << std::endl; }
+static void printVersion() { std::cout << formattedVersion() << std::endl; }
 
 int main(int argc, char** argv) {
     if (argc < 2) {
