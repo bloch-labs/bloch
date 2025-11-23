@@ -12,7 +12,7 @@ authors:
 affiliations:
   - name: Independent Researcher
     index: 1
-date: 2025-11-23
+date: 23 November 2025
 bibliography: paper.bib
 ---
 
