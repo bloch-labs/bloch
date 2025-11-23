@@ -75,7 +75,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ matrix.runner }}" == "windows-latest" ]]; then
-            ctest --test-dir build --config Release --output-on-failure
+            ctest --test-dir build -C Release --output-on-failure
           else
             ctest --test-dir build --output-on-failure
           fi
