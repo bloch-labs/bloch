@@ -40,13 +40,14 @@ Bloch is available as source plus manually produced release archives until the a
 curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- latest
 ```
 
-Swap `latest` for a specific tag (`v1.0.0`, `v1.0.0-rc2`, etc.). The script downloads the correct archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `bash` to override the destination.
+The script downloads the correct archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `bash` to override the destination.
 
 #### Windows
-1. Download the latest `bloch-<tag>-Windows-X64.zip` from the GitHub Releases page.
-2. Extract it to a directory such as `%LOCALAPPDATA%\Programs\Bloch`.
-3. Add that directory to your `PATH` (Windows Settings → “Edit the system environment variables” → “Environment Variables…” → select `Path` → **Edit** → **New** → paste the folder).
-4. Open a new terminal (PowerShell, CMD, or Windows Terminal) and run `bloch.exe --version` to confirm the installation.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.ps1 -UseBasicParsing -OutFile bloch-install.ps1; .\bloch-install.ps1 -Version latest"
+```
+
+The script downloads the Windows ZIP, verifies its checksum, installs `bloch.exe` into `%LOCALAPPDATA%\Programs\Bloch` by default, and adds that directory to your user `PATH` (opens in new shells).
 
 ### Build from source
 
