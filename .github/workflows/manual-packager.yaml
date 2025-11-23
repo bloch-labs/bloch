@@ -101,11 +101,11 @@ jobs:
             exit 1
           fi
           PKG_PATH="$dest" "$PYTHON_BIN" - <<'PY' > "dist/checksums-${{ matrix.os_name }}-${{ matrix.arch }}.txt"
-import hashlib, pathlib, os
-path = pathlib.Path(os.environ["PKG_PATH"])
-digest = hashlib.sha256(path.read_bytes()).hexdigest()
-print(f"{digest}  {path.name}")
-PY
+          import hashlib, pathlib, os
+          path = pathlib.Path(os.environ["PKG_PATH"])
+          digest = hashlib.sha256(path.read_bytes()).hexdigest()
+          print(f"{digest}  {path.name}")
+          PY
           ls -l dist
 
       - name: Upload artifacts
