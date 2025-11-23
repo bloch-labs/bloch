@@ -33,3 +33,7 @@ dist/
 
 # Examples folder
 examples/*.qasm
+
+# JOSS
+jats/
+paper.pdf
