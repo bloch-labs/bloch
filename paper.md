@@ -10,7 +10,7 @@ authors:
     orcid: 0009-0004-0465-4420
     affiliation: 1
 affiliations:
-  - name: Independent Researcher
+  - name: Independent Researcher, United Kingdom
     index: 1
 date: 23 November 2025
 bibliography: paper.bib
@@ -135,7 +135,7 @@ notes.
 
 # Acknowledgements
 
-I thank the Bloch community for issue reports, early design feedback, and
+I thank the Bloch open source community for issue reports, early design feedback, and
 preview testing, as well as the maintainers of the upstream projects cited in
 this paper whose work makes Bloch interoperability possible.
 
