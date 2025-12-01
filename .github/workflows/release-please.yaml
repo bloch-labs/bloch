@@ -1,7 +1,7 @@
 name: release-please
 on:
   push:
-    branches: [ develop ]
+    branches: [develop]
   workflow_dispatch:
 
 permissions:
