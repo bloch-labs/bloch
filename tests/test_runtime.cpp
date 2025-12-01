@@ -252,13 +252,16 @@ TEST(RuntimeTest, GateAfterMeasurementReportsLocation) {
     EXPECT_TRUE(caught);
 }
 
-TEST(RuntimeTest, ResetAfterMeasurementThrows) {
-    const char* src = "function main() -> void { qubit q; measure q; reset q; }";
+TEST(RuntimeTest, ResetAfterMeasurementUnblocksQubit) {
+    const char* src = "function main() -> void { qubit q; measure q; reset q; x(q); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
     RuntimeEvaluator eval;
-    EXPECT_THROW(eval.execute(*program), BlochError);
+    EXPECT_NO_THROW(eval.execute(*program));
+    std::string qasm = eval.getQasm();
+    EXPECT_NE(qasm.find("reset q[0]"), std::string::npos);
+    EXPECT_NE(qasm.find("x q[0]"), std::string::npos);
 }
 
 TEST(RuntimeTest, MeasureExpressionAfterMeasurementThrows) {

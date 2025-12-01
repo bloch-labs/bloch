@@ -108,6 +108,7 @@ namespace bloch {
         void markMeasured(int index);
         void unmarkMeasured(int index);
         void ensureQubitActive(int index, int line, int column);
+        void ensureQubitExists(int index, int line, int column);
         void warnUnmeasured() const;
 
         // Scope & output helpers

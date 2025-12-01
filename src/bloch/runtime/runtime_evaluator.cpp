@@ -385,7 +385,7 @@ namespace bloch {
                 m_echoBuffer.push_back(valueToString(v));
         } else if (auto reset = dynamic_cast<ResetStatement*>(s)) {
             Value q = eval(reset->target.get());
-            ensureQubitActive(q.qubit, reset->line, reset->column);
+            ensureQubitExists(q.qubit, reset->line, reset->column);
             m_sim.reset(q.qubit);
             unmarkMeasured(q.qubit);
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
@@ -981,9 +981,13 @@ namespace bloch {
             m_qubits[index].measured = true;
     }
 
-    void RuntimeEvaluator::ensureQubitActive(int index, int line, int column) {
+    void RuntimeEvaluator::ensureQubitExists(int index, int line, int column) {
         if (index < 0 || index >= static_cast<int>(m_qubits.size()))
             throw BlochError(ErrorCategory::Runtime, line, column, "invalid qubit reference");
+    }
+
+    void RuntimeEvaluator::ensureQubitActive(int index, int line, int column) {
+        ensureQubitExists(index, line, column);
         if (m_qubits[index].measured) {
             std::string label = m_qubits[index].name.empty()
                                     ? std::string("q[") + std::to_string(index) + "]"
