@@ -168,6 +168,16 @@ TEST(RuntimeTest, TracksVariableMultipleShots) {
     ASSERT_EQ(agg["qubit q"]["?"], 5);
 }
 
+TEST(RuntimeTest, ExecuteIsSingleUse) {
+    const char* src = "function main() -> void { qubit q; x(q); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
 TEST(RuntimeTest, EchoModes) {
     const char* src = "function main() -> void { echo(1); }";
     auto program = parseProgram(src);

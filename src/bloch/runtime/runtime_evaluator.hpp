@@ -84,6 +84,7 @@ namespace bloch {
         std::unordered_map<std::string, std::unordered_map<std::string, int>> m_trackedCounts;
         bool m_echoEnabled = true;
         bool m_warnOnExit = true;
+        bool m_executed = false;  // single-use guard
         // Buffer for echo outputs so logs (INFO/WARNING/ERROR)
         // can be displayed first before normal program output.
         std::vector<std::string> m_echoBuffer;
