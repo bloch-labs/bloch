@@ -96,7 +96,21 @@ namespace bloch {
     }
 
     void RuntimeEvaluator::execute(Program& program) {
+        if (m_executed) {
+            throw BlochError(ErrorCategory::Runtime, 0, 0,
+                             "RuntimeEvaluator is single-use; construct a new instance per run");
+        }
+        m_executed = true;
+        m_functions.clear();
+        m_env.clear();
+        m_measurements.clear();
+        m_trackedCounts.clear();
         m_echoBuffer.clear();
+        m_qubits.clear();
+        m_lastMeasurement.clear();
+        m_returnValue = {};
+        m_hasReturn = false;
+        m_sim = QasmSimulator{};
         for (auto& fn : program.functions) {
             m_functions[fn->name] = fn.get();
         }
