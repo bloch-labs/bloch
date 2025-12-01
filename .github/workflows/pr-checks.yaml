@@ -1,66 +1,103 @@
-name: PR Checks
+name: PR Quality Checks
 
 on:
   pull_request:
     branches:
       - develop
       - master
+    types: [opened, edited, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
   pull-requests: read
-  statuses: write
-
-concurrency:
-  group: pr-${{ github.event.pull_request.head.ref || github.ref }}
-  cancel-in-progress: true
 
 jobs:
-  semantic:
-    name: Semantic PR Title
+  branch-policy:
+    name: Enforce branch & PR title policy
     runs-on: ubuntu-latest
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate naming conventions
+        uses: actions/github-script@v7
         with:
-          types: |
-            feat
-            fix
-            perf
-            refactor
-            revert
-            docs
-            test
-            build
-            ci
-            chore
-          requireScope: false
-          wip: true
+          script: |
+            const pr = context.payload.pull_request;
+            const headRef = pr.head.ref;
+            const title = pr.title || '';
 
-  build:
-    name: Build & Test
+            const allowedTypes = ['build','chore','ci','docs','feat','fix','perf','refactor','revert','style','test'];
+            const branchPattern = new RegExp(`^(?:${allowedTypes.join('|')})\/\\d+$`, 'i');
+
+            if (!branchPattern.test(headRef)) {
+              core.setFailed(`Branch "${headRef}" must follow type/issue-number (e.g. feat/123). Allowed types: ${allowedTypes.join(', ')}.`);
+              return;
+            }
+
+            const titlePattern = new RegExp(`^(?:${allowedTypes.join('|')})(?:\\([^)]+\\))?!?:\\s.+$`, 'i');
+            if (!titlePattern.test(title)) {
+              core.setFailed('PR title must follow Conventional Commit style, e.g. "feat: summary".');
+              return;
+            }
+
+            core.notice('Branch and title follow the conventions.');
+
+  lint-commits:
+    name: Lint commits
+    needs: branch-policy
     runs-on: ubuntu-latest
-    needs: semantic
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install Dependencies
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: lint commits
+        uses: wagoid/commitlint-github-action@v5
+        with:
+          configFile: commitlint.config.js
+
+  build-test:
+    name: Format, build & test
+    needs: branch-policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++ clang-format-14
-      - name: Check Formatting
+
+      - name: Check formatting
         env:
           CLANG_FORMAT: clang-format-14
         run: |
           set -euo pipefail
-          mapfile -t files < <(find src tests -type f \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \))
-          if [ "${#files[@]}" -gt 0 ]; then
-            printf '%s\0' "${files[@]}" | xargs -0 "$CLANG_FORMAT" -style=file --dry-run --Werror
+          if ! command -v "$CLANG_FORMAT" >/dev/null 2>&1; then
+            echo "clang-format not found" >&2
+            exit 1
           fi
+          mapfile -t files < <(find src tests -type f \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \))
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No C/C++ files to format."
+            exit 0
+          fi
+          echo "Checking formatting for ${#files[@]} files"
+          printf '%s\0' "${files[@]}" | xargs -0 "$CLANG_FORMAT" -style=file --dry-run --Werror
+
       - name: Configure CMake (Release)
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
       - name: Build
         run: cmake --build build --parallel
+
       - name: Run unit tests
         run: ctest --test-dir build --output-on-failure
