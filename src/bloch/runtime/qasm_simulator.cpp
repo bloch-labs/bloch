@@ -124,7 +124,12 @@ namespace bloch {
     }
 
     void QasmSimulator::reset(int q) {
-        ensureQubitActive(q);
+        if (q < 0 || q >= m_qubits) {
+            throw BlochError(ErrorCategory::Runtime, 0, 0,
+                             "qubit index " + std::to_string(q) + " is out of range");
+        }
+        if (q >= 0 && q < static_cast<int>(m_measured.size()))
+            m_measured[q] = false;
         // Put qubit q into |0>.
         // If the state already has amplitude in the |...0> subspace, zero the |...1> subspace
         // and renormalize. If all amplitude is in |...1>, deterministically move it into
