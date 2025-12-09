@@ -194,8 +194,8 @@ namespace bloch {
                 m_state[i] /= norm;
         }
         if (m_logOps)
-            m_ops.emplace_back("measure q[" + std::to_string(q) + "] -> c[" +
-                               std::to_string(q) + "];\n");
+            m_ops.emplace_back("measure q[" + std::to_string(q) + "] -> c[" + std::to_string(q) +
+                               "];\n");
         if (q >= 0 && q < static_cast<int>(m_measured.size()))
             m_measured[q] = true;
         return res;
@@ -206,15 +206,13 @@ namespace bloch {
         const std::string qreg = "qreg q[" + std::to_string(m_qubits) + "];\n";
         const std::string creg = "creg c[" + std::to_string(m_qubits) + "];\n";
         size_t total = header.size() + qreg.size() + creg.size();
-        for (const auto& op : m_ops)
-            total += op.size();
+        for (const auto& op : m_ops) total += op.size();
         std::string out;
         out.reserve(total);
         out.append(header);
         out.append(qreg);
         out.append(creg);
-        for (const auto& op : m_ops)
-            out.append(op);
+        for (const auto& op : m_ops) out.append(op);
         return out;
     }
 
