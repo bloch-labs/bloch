@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
             std::unordered_map<std::string, std::unordered_map<std::string, int>> aggregate;
             auto start = std::chrono::steady_clock::now();
             for (int s = 0; s < shots; ++s) {
-                bloch::RuntimeEvaluator evaluator;
+                bloch::RuntimeEvaluator evaluator(s == shots - 1);
                 evaluator.setEcho(echoAll);
                 // Suppress per-shot warnings; only show for last shot
                 if (s < shots - 1)

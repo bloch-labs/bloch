@@ -110,7 +110,7 @@ namespace bloch {
         m_lastMeasurement.clear();
         m_returnValue = {};
         m_hasReturn = false;
-        m_sim = QasmSimulator{};
+        m_sim = QasmSimulator{m_collectQasmLog};
         for (auto& fn : program.functions) {
             m_functions[fn->name] = fn.get();
         }
