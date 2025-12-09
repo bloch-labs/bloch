@@ -15,6 +15,7 @@
 #include <sstream>
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
+#include "bloch/runtime/qasm_simulator.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
 #include "bloch/semantics/semantic_analyser.hpp"
 #include "test_framework.hpp"
@@ -26,6 +27,17 @@ static std::unique_ptr<Program> parseProgram(const char* src) {
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
     return parser.parse();
+}
+
+TEST(QasmSimulatorTest, AllocatesPowersOfTwoStateSize) {
+    QasmSimulator sim;
+    EXPECT_EQ(sim.stateSize(), 1u);
+    int q0 = sim.allocateQubit();
+    EXPECT_EQ(q0, 0);
+    EXPECT_EQ(sim.stateSize(), 2u);
+    int q1 = sim.allocateQubit();
+    EXPECT_EQ(q1, 1);
+    EXPECT_EQ(sim.stateSize(), 4u);
 }
 
 TEST(RuntimeTest, GeneratesQasm) {
