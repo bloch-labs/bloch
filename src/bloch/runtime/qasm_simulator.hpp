@@ -38,10 +38,11 @@ namespace bloch {
         void reset(int q);
         int measure(int q);
         std::string getQasm() const;
+        size_t stateSize() const { return m_state.size(); }
 
        private:
         int m_qubits = 0;
-        std::vector<std::complex<double>> m_state{1, 0};
+        std::vector<std::complex<double>> m_state{1};
         std::string m_ops;
         std::vector<bool> m_measured;
 
