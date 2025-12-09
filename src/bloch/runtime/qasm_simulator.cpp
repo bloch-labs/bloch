@@ -118,13 +118,26 @@ namespace bloch {
     void QasmSimulator::cx(int control, int target) {
         ensureQubitActive(control);
         ensureQubitActive(target);
-        // Swap amplitudes where control is 1 and target is 0 to flip target.
-        size_t cbit = size_t{1} << control;
-        size_t tbit = size_t{1} << target;
-        for (size_t i = 0; i < m_state.size(); ++i) {
-            if ((i & cbit) && !(i & tbit)) {
-                size_t j = i | tbit;
-                std::swap(m_state[i], m_state[j]);
+        // Swap amplitudes where control is 1 and target is 0 to flip target,
+        // iterating only the affected subspace to avoid per-index branching.
+        int low = std::min(control, target);
+        int high = std::max(control, target);
+        size_t lowBit = size_t{1} << low;
+        size_t highBit = size_t{1} << high;
+        size_t blockSize = size_t{1} << (high + 1);  // chunk where bits above 'high' are fixed
+        size_t lowSpan = lowBit;                     // combinations for bits below 'low'
+        size_t betweenSpan = (high > low + 1) ? (size_t{1} << (high - low - 1)) : size_t{1};
+        bool controlIsLow = control == low;
+
+        for (size_t block = 0; block < m_state.size(); block += blockSize) {
+            for (size_t between = 0; between < betweenSpan; ++between) {
+                size_t mid = between << (low + 1);  // bits between low and high
+                for (size_t lowOffset = 0; lowOffset < lowSpan; ++lowOffset) {
+                    size_t base = block | mid | lowOffset;  // control/target bits currently 0
+                    size_t idx0 = controlIsLow ? (base | lowBit) : (base | highBit);
+                    size_t idx1 = controlIsLow ? (idx0 | highBit) : (idx0 | lowBit);
+                    std::swap(m_state[idx0], m_state[idx1]);
+                }
             }
         }
         if (m_logOps)

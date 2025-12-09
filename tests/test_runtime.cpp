@@ -55,6 +55,35 @@ TEST(QasmSimulatorTest, LoggingCanBeSuppressedPerInstance) {
     EXPECT_NE(qasm.find("x q[0]"), std::string::npos);
 }
 
+TEST(QasmSimulatorTest, CxOnlyActsWhenControlIsOne) {
+    {
+        QasmSimulator sim;
+        int c = sim.allocateQubit();
+        int t = sim.allocateQubit();
+        sim.cx(c, t);  // control remains |0>
+        EXPECT_EQ(sim.measure(t), 0);
+    }
+    {
+        QasmSimulator sim;
+        int c = sim.allocateQubit();
+        int t = sim.allocateQubit();
+        sim.x(c);      // prepare |10>
+        sim.cx(c, t);  // should flip target to 1
+        EXPECT_EQ(sim.measure(t), 1);
+        EXPECT_EQ(sim.measure(c), 1);
+    }
+    {
+        QasmSimulator sim;
+        int q0 = sim.allocateQubit();
+        int q1 = sim.allocateQubit();
+        sim.x(q0);
+        sim.x(q1);       // prepare |11>
+        sim.cx(q1, q0);  // should flip q0 to 0
+        EXPECT_EQ(sim.measure(q0), 0);
+        EXPECT_EQ(sim.measure(q1), 1);
+    }
+}
+
 TEST(RuntimeTest, GeneratesQasm) {
     const char* src =
         "@quantum function flip() -> bit { qubit q; h(q); bit r = measure q; return r; } function "
