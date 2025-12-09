@@ -26,6 +26,7 @@ namespace bloch {
     // TODO: performance optimisation post 1.0.0
     class QasmSimulator {
        public:
+        explicit QasmSimulator(bool logOps = true) : m_logOps(logOps) {}
         int allocateQubit();
         void h(int q);
         void x(int q);
@@ -43,7 +44,8 @@ namespace bloch {
        private:
         int m_qubits = 0;
         std::vector<std::complex<double>> m_state{1};
-        std::string m_ops;
+        std::vector<std::string> m_ops;
+        bool m_logOps = true;
         std::vector<bool> m_measured;
 
         // Apply a 2x2 unitary to qubit q.

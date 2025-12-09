@@ -40,6 +40,21 @@ TEST(QasmSimulatorTest, AllocatesPowersOfTwoStateSize) {
     EXPECT_EQ(sim.stateSize(), 4u);
 }
 
+TEST(QasmSimulatorTest, LoggingCanBeSuppressedPerInstance) {
+    QasmSimulator sim(false);
+    sim.allocateQubit();
+    sim.h(0);
+    std::string qasm = sim.getQasm();
+    EXPECT_NE(qasm.find("qreg q[1]"), std::string::npos);
+    EXPECT_EQ(qasm.find("h q[0]"), std::string::npos);
+
+    QasmSimulator sim2(true);
+    sim2.allocateQubit();
+    sim2.x(0);
+    qasm = sim2.getQasm();
+    EXPECT_NE(qasm.find("x q[0]"), std::string::npos);
+}
+
 TEST(RuntimeTest, GeneratesQasm) {
     const char* src =
         "@quantum function flip() -> bit { qubit q; h(q); bit r = measure q; return r; } function "

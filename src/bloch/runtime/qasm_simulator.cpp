@@ -61,26 +61,30 @@ namespace bloch {
         const std::array<std::complex<double>, 4> m{1 / std::sqrt(2.0), 1 / std::sqrt(2.0),
                                                     1 / std::sqrt(2.0), -1 / std::sqrt(2.0)};
         applySingleQubitGate(q, m);
-        m_ops += "h q[" + std::to_string(q) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("h q[" + std::to_string(q) + "];\n");
     }
 
     void QasmSimulator::x(int q) {
         const std::array<std::complex<double>, 4> m{0, 1, 1, 0};
         applySingleQubitGate(q, m);
-        m_ops += "x q[" + std::to_string(q) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("x q[" + std::to_string(q) + "];\n");
     }
 
     void QasmSimulator::y(int q) {
         const std::array<std::complex<double>, 4> m{0.0, std::complex<double>(0, -1),
                                                     std::complex<double>(0, 1), 0.0};
         applySingleQubitGate(q, m);
-        m_ops += "y q[" + std::to_string(q) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("y q[" + std::to_string(q) + "];\n");
     }
 
     void QasmSimulator::z(int q) {
         const std::array<std::complex<double>, 4> m{1.0, 0.0, 0.0, -1.0};
         applySingleQubitGate(q, m);
-        m_ops += "z q[" + std::to_string(q) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("z q[" + std::to_string(q) + "];\n");
     }
 
     void QasmSimulator::rx(int q, double t) {
@@ -89,7 +93,8 @@ namespace bloch {
         const std::array<std::complex<double>, 4> m{ct, std::complex<double>(0, -st),
                                                     std::complex<double>(0, -st), ct};
         applySingleQubitGate(q, m);
-        m_ops += "rx(" + std::to_string(t) + ") q[" + std::to_string(q) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("rx(" + std::to_string(t) + ") q[" + std::to_string(q) + "];\n");
     }
 
     void QasmSimulator::ry(int q, double t) {
@@ -97,7 +102,8 @@ namespace bloch {
         double st = std::sin(t / 2);
         const std::array<std::complex<double>, 4> m{ct, -st, st, ct};
         applySingleQubitGate(q, m);
-        m_ops += "ry(" + std::to_string(t) + ") q[" + std::to_string(q) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("ry(" + std::to_string(t) + ") q[" + std::to_string(q) + "];\n");
     }
 
     void QasmSimulator::rz(int q, double t) {
@@ -105,7 +111,8 @@ namespace bloch {
         std::complex<double> eneg = std::exp(std::complex<double>(0, t / 2));
         const std::array<std::complex<double>, 4> m{epos, 0.0, 0.0, eneg};
         applySingleQubitGate(q, m);
-        m_ops += "rz(" + std::to_string(t) + ") q[" + std::to_string(q) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("rz(" + std::to_string(t) + ") q[" + std::to_string(q) + "];\n");
     }
 
     void QasmSimulator::cx(int control, int target) {
@@ -120,7 +127,9 @@ namespace bloch {
                 std::swap(m_state[i], m_state[j]);
             }
         }
-        m_ops += "cx q[" + std::to_string(control) + "],q[" + std::to_string(target) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("cx q[" + std::to_string(control) + "],q[" + std::to_string(target) +
+                               "];\n");
     }
 
     void QasmSimulator::reset(int q) {
@@ -162,7 +171,8 @@ namespace bloch {
             }
         }
 
-        m_ops += "reset q[" + std::to_string(q) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("reset q[" + std::to_string(q) + "];\n");
     }
 
     int QasmSimulator::measure(int q) {
@@ -183,19 +193,27 @@ namespace bloch {
             else
                 m_state[i] /= norm;
         }
-        m_ops += "measure q[" + std::to_string(q) + "] -> c[" + std::to_string(q) + "];\n";
+        if (m_logOps)
+            m_ops.emplace_back("measure q[" + std::to_string(q) + "] -> c[" + std::to_string(q) +
+                               "];\n");
         if (q >= 0 && q < static_cast<int>(m_measured.size()))
             m_measured[q] = true;
         return res;
     }
 
     std::string QasmSimulator::getQasm() const {
-        std::ostringstream out;
-        out << "OPENQASM 2.0;\ninclude \"qelib1.inc\";\n";
-        out << "qreg q[" << m_qubits << "];\n";
-        out << "creg c[" << m_qubits << "];\n";
-        out << m_ops;
-        return out.str();
+        const std::string header = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\n";
+        const std::string qreg = "qreg q[" + std::to_string(m_qubits) + "];\n";
+        const std::string creg = "creg c[" + std::to_string(m_qubits) + "];\n";
+        size_t total = header.size() + qreg.size() + creg.size();
+        for (const auto& op : m_ops) total += op.size();
+        std::string out;
+        out.reserve(total);
+        out.append(header);
+        out.append(qreg);
+        out.append(creg);
+        for (const auto& op : m_ops) out.append(op);
+        return out;
     }
 
     void QasmSimulator::ensureQubitActive(int q) const {

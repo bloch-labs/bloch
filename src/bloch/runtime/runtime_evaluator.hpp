@@ -63,6 +63,7 @@ namespace bloch {
     // until warnings have been printed.
     class RuntimeEvaluator {
        public:
+        explicit RuntimeEvaluator(bool collectQasmLog = true) : m_collectQasmLog(collectQasmLog) {}
         void execute(Program& program);
         const std::unordered_map<const Expression*, std::vector<int>>& measurements() const {
             return m_measurements;
@@ -71,6 +72,7 @@ namespace bloch {
 
        private:
         QasmSimulator m_sim;
+        bool m_collectQasmLog = true;
         std::unordered_map<std::string, FunctionDeclaration*> m_functions;
         struct VarEntry {
             Value value;
