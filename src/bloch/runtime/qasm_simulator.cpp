@@ -124,8 +124,8 @@ namespace bloch {
         int high = std::max(control, target);
         size_t lowBit = size_t{1} << low;
         size_t highBit = size_t{1} << high;
-        size_t blockSize = size_t{1} << (high + 1);             // chunk where bits above 'high' are fixed
-        size_t lowSpan = lowBit;                                // combinations for bits below 'low'
+        size_t blockSize = size_t{1} << (high + 1);  // chunk where bits above 'high' are fixed
+        size_t lowSpan = lowBit;                     // combinations for bits below 'low'
         size_t betweenSpan = (high > low + 1) ? (size_t{1} << (high - low - 1)) : size_t{1};
         bool controlIsLow = control == low;
 

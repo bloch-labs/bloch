@@ -77,8 +77,8 @@ TEST(QasmSimulatorTest, CxOnlyActsWhenControlIsOne) {
         int q0 = sim.allocateQubit();
         int q1 = sim.allocateQubit();
         sim.x(q0);
-        sim.x(q1);        // prepare |11>
-        sim.cx(q1, q0);   // should flip q0 to 0 
+        sim.x(q1);       // prepare |11>
+        sim.cx(q1, q0);  // should flip q0 to 0
         EXPECT_EQ(sim.measure(q0), 0);
         EXPECT_EQ(sim.measure(q1), 1);
     }
