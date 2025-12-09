@@ -84,6 +84,20 @@ TEST(QasmSimulatorTest, CxOnlyActsWhenControlIsOne) {
     }
 }
 
+TEST(RuntimeTest, ParenthesisedExpressionsEvaluate) {
+    const char* src =
+        "function main() -> void { for (int i = 0; i < 6; i = i + 1) { echo((i + 1) % 6); } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("1\n2\n3\n4\n5\n0\n", output.str());
+}
+
 TEST(RuntimeTest, GeneratesQasm) {
     const char* src =
         "@quantum function flip() -> bit { qubit q; h(q); bit r = measure q; return r; } function "

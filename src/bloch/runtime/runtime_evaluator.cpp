@@ -429,6 +429,8 @@ namespace bloch {
                 v.intValue = std::stoi(lit->value);
             }
             return v;
+        } else if (auto paren = dynamic_cast<ParenthesizedExpression*>(e)) {
+            return eval(paren->expression.get());
         } else if (auto var = dynamic_cast<VariableExpression*>(e)) {
             return lookup(var->name);
         } else if (auto arr = dynamic_cast<ArrayLiteralExpression*>(e)) {
