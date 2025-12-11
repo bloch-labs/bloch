@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/bloch-labs/bloch/compare/v1.0.1...v1.0.2) (2025-12-11)
+
+
+### Bug Fixes
+
+* hotfix windows build ([#189](https://github.com/bloch-labs/bloch/issues/189)) ([148bb3d](https://github.com/bloch-labs/bloch/commit/148bb3d30ea48dd48a7a80047cc9c69e580ffe25))
+
 ## [1.0.1](https://github.com/bloch-labs/bloch/compare/v1.0.0...v1.0.1) (2025-12-11)
 
 
