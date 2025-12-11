@@ -21,10 +21,28 @@ file(GLOB_RECURSE BLOCH_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/bloch/*.cpp
 )
 
+# Prefer static OpenSSL to avoid a runtime dependency; fall back to shared if
+# static libraries are unavailable. Release artifacts can force static by
+# ensuring libssl.a/libcrypto.a are present.
+set(OpenSSL_USE_STATIC_LIBS ON)
+find_package(OpenSSL QUIET)
+if(NOT OpenSSL_FOUND)
+    set(OpenSSL_USE_STATIC_LIBS OFF)
+    find_package(OpenSSL REQUIRED)
+endif()
+
 add_library(bloch_lib ${BLOCH_SOURCES})
 
 target_include_directories(bloch_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_compile_definitions(bloch_lib PUBLIC
+    CPPHTTPLIB_OPENSSL_SUPPORT
+)
+
+target_link_libraries(bloch_lib
+    PUBLIC OpenSSL::SSL OpenSSL::Crypto
 )
 
 foreach(_bloch_definition ${_BLOCH_ENABLED_FEATURE_DEFINITIONS})

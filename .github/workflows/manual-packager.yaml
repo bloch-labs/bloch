@@ -13,6 +13,7 @@ on:
 
 env:
   BLOCH_VERSION: ${{ inputs.tag }}
+  VCPKG_ROOT: ${{ runner.temp }}/vcpkg
 
 jobs:
   package:
@@ -51,15 +52,43 @@ jobs:
         if: matrix.runner == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++
+          sudo apt-get install -y cmake g++ libssl-dev pkg-config
+
+      - name: Install build deps (macOS)
+        if: startsWith(matrix.runner, 'macos-')
+        run: |
+          brew update
+          brew install openssl@3
+
+      - name: Install vcpkg (Windows)
+        if: matrix.runner == 'windows-latest'
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Install OpenSSL (Windows)
+        if: matrix.runner == 'windows-latest'
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_ROOT\vcpkg.exe" install openssl:x64-windows-static
 
       - name: Configure
         shell: bash
         run: |
           if [[ "${{ matrix.runner }}" == "windows-latest" ]]; then
-            cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+            cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
+              -DVCPKG_TARGET_TRIPLET=x64-windows-static \
+              -DOPENSSL_USE_STATIC_LIBS=ON
+          elif [[ "${{ matrix.runner }}" == macos-* ]]; then
+            OPENSSL_ROOT=$(brew --prefix openssl@3)
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+              -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT}" \
+              -DOPENSSL_USE_STATIC_LIBS=ON
           else
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+              -DOPENSSL_USE_STATIC_LIBS=ON
           fi
 
       - name: Build

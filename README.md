@@ -41,6 +41,7 @@ curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/insta
 ```
 
 Swap `latest` for a specific tag (eg `v1.0.0`). The script downloads the matching archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `bash` to override the destination.
+You can also self-update later with `bloch --update`; major version jumps will prompt for confirmation and link the changelog.
 
 #### Windows
 ```powershell
@@ -48,6 +49,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubus
 ```
 
 Swap `-Version latest` for any tag you want. The script downloads the Windows ZIP, verifies its checksum, installs `bloch.exe` into `%LOCALAPPDATA%\Programs\Bloch` by default, and adds that directory to your user `PATH` (opens in new shells).
+You can self-update later with `bloch --update`; major version jumps prompt for confirmation and show the changelog link.
 
 ### Build from source
 
@@ -97,6 +99,10 @@ Contributions are welcome! [CONTRIBUTING.md](CONTRIBUTING.md) covers the develop
 - Website & blog: [bloch-labs.com](https://bloch-labs.com)
 - X/Twitter: [@blochlabs](https://x.com/blochlabs) · [@bloch_akshay](https://x.com/bloch_akshay)
 - Contact: [hello@bloch-labs.com](mailto:hello@bloch-labs.com)
+
+## Acknowledgements
+- [cpp-httplib](https://github.com/yhirose/cpp-httplib) (MIT) for HTTPS calls used in update checks and downloads.
+- [OpenSSL](https://www.openssl.org/) for TLS support during release downloads (prefer statically linked in shipped binaries to avoid runtime deps).
 
 ## License
 Bloch is licensed under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
