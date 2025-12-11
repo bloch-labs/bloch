@@ -584,7 +584,7 @@ namespace bloch {
         std::cout << "Bloch updated to " << *latest << " via the PowerShell installer script."
                   << std::endl;
         return true;
-#endif
+#else
 
         const auto os = osLabel();
         const auto arch = archLabel();
@@ -669,6 +669,7 @@ namespace bloch {
 
         std::cout << "Bloch updated to " << *latest << " at " << installPath << std::endl;
         return true;
+#endif
     }
 
 }  // namespace bloch
