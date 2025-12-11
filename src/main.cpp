@@ -28,6 +28,7 @@
 #include "bloch/parser/parser.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
 #include "bloch/semantics/semantic_analyser.hpp"
+#include "bloch/update/update_manager.hpp"
 
 #ifndef BLOCH_VERSION
 #define BLOCH_VERSION "dev"
@@ -50,10 +51,11 @@ static void printHelp() {
               << "Usage: bloch [options] <file.bloch>\n\n"
               << "Options:\n"
               << "  --help          Show this help and exit\n"
-              << "  --version       Print version and exit\n"
+              << "  --version       Print version and exit (checks for newer releases)\n"
               << "  --emit-qasm     Print emitted QASM to stdout\n"
               << "  --shots=N       Run the program N times and aggregate @tracked counts\n"
-              << "  --echo=all|none Control echo statements (default: auto)\n\n"
+              << "  --echo=all|none Control echo statements (default: auto)\n"
+              << "  --update        Download and install the latest release\n\n"
               << "Behavior:\n"
               << "  - Writes <file>.qasm alongside the input file.\n"
               << "  - When --shots is used, prints an aggregate table of tracked values.\n"
@@ -87,7 +89,10 @@ int main(int argc, char** argv) {
             return 0;
         } else if (arg == "--version") {
             printVersion();
+            bloch::checkForUpdatesIfDue(BLOCH_VERSION);
             return 0;
+        } else if (arg == "--update") {
+            return bloch::performSelfUpdate(BLOCH_VERSION, argv[0]) ? 0 : 1;
         } else if (arg == "--emit-qasm") {
             emitQasm = true;
         } else if (arg.rfind("--shots=", 0) == 0) {
@@ -118,6 +123,10 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to open " << file << "\n";
         return 1;
     }
+
+    // Run a non-blocking update check at most once every 72 hours.
+    bloch::checkForUpdatesIfDue(BLOCH_VERSION);
+
     std::string src((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     try {
         bloch::Lexer lexer(src);
