@@ -81,6 +81,33 @@ jobs:
           git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
+      - name: Pre-fetch OpenSSL source (Windows)
+        if: matrix.runner == 'windows-latest'
+        shell: pwsh
+        run: |
+          $destDir = "$env:VCPKG_DOWNLOADS"
+          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+          $target = Join-Path $destDir "openssl-openssl-openssl-3.6.0.tar.gz"
+          if (!(Test-Path $target)) {
+            $urls = @(
+              "https://www.openssl.org/source/openssl-3.6.0.tar.gz",
+              "https://www.openssl.org/source/old/3.6/openssl-3.6.0.tar.gz"
+            )
+            foreach ($u in $urls) {
+              Write-Host "Attempting download from $u"
+              try {
+                Invoke-WebRequest -Uri $u -OutFile $target -UseBasicParsing -MaximumRedirection 5
+                break
+              } catch {
+                Write-Warning "Download failed from $u : $_"
+              }
+            }
+            if (!(Test-Path $target)) {
+              Write-Error "Failed to prefetch OpenSSL source"
+              exit 1
+            }
+          }
+
       - name: Install OpenSSL (Windows)
         if: matrix.runner == 'windows-latest'
         shell: pwsh
