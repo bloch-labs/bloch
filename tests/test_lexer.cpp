@@ -22,7 +22,7 @@ TEST(LexerTest, Identifiers) {
     Lexer lexer("hello world");
     auto tokens = lexer.tokenize();
 
-    ASSERT_GE(tokens.size(), 3);
+    ASSERT_GE(tokens.size(), 3u);
     EXPECT_EQ(tokens[0].type, TokenType::Identifier);
     EXPECT_EQ(tokens[0].value, "hello");
 
@@ -36,7 +36,7 @@ TEST(LexerTest, IntegerLiteral) {
     Lexer lexer("12345");
     auto tokens = lexer.tokenize();
 
-    ASSERT_EQ(tokens.size(), 2);
+    ASSERT_EQ(tokens.size(), 2u);
     EXPECT_EQ(tokens[0].type, TokenType::IntegerLiteral);
     EXPECT_EQ(tokens[0].value, "12345");
 }
@@ -45,7 +45,7 @@ TEST(LexerTest, FloatLiteral) {
     Lexer lexer("3.14f");
     auto tokens = lexer.tokenize();
 
-    ASSERT_EQ(tokens.size(), 2);
+    ASSERT_EQ(tokens.size(), 2u);
     EXPECT_EQ(tokens[0].type, TokenType::FloatLiteral);
     EXPECT_EQ(tokens[0].value, "3.14f");
 }
@@ -54,7 +54,7 @@ TEST(LexerTest, FloatLiteralIntegerF) {
     Lexer lexer("3f");
     auto tokens = lexer.tokenize();
 
-    ASSERT_EQ(tokens.size(), 2);
+    ASSERT_EQ(tokens.size(), 2u);
     EXPECT_EQ(tokens[0].type, TokenType::FloatLiteral);
     EXPECT_EQ(tokens[0].value, "3f");
 }
@@ -63,7 +63,7 @@ TEST(LexerTest, BitLiteral) {
     Lexer lexer("1b");
     auto tokens = lexer.tokenize();
 
-    ASSERT_EQ(tokens.size(), 2);
+    ASSERT_EQ(tokens.size(), 2u);
     EXPECT_EQ(tokens[0].type, TokenType::BitLiteral);
     EXPECT_EQ(tokens[0].value, "1b");
 }
@@ -129,7 +129,7 @@ TEST(LexerTest, LineAndColumnTracking) {
     Lexer lexer("a\nb");
     auto tokens = lexer.tokenize();
 
-    ASSERT_GE(tokens.size(), 3);
+    ASSERT_GE(tokens.size(), 3u);
     EXPECT_EQ(tokens[0].line, 1);
     EXPECT_EQ(tokens[0].column, 1);
     EXPECT_EQ(tokens[1].line, 2);
@@ -140,7 +140,7 @@ TEST(LexerTest, SkipsComments) {
     Lexer lexer("int x // comment\ny");
     auto tokens = lexer.tokenize();
 
-    ASSERT_GE(tokens.size(), 4);
+    ASSERT_GE(tokens.size(), 4u);
     EXPECT_EQ(tokens[0].type, TokenType::Int);
     EXPECT_EQ(tokens[1].type, TokenType::Identifier);
     EXPECT_EQ(tokens[1].value, "x");
@@ -152,7 +152,7 @@ TEST(LexerTest, IncrementDecrement) {
     Lexer lexer("i++ j--");
     auto tokens = lexer.tokenize();
 
-    ASSERT_GE(tokens.size(), 5);
+    ASSERT_GE(tokens.size(), 5u);
     EXPECT_EQ(tokens[0].type, TokenType::Identifier);
     EXPECT_EQ(tokens[1].type, TokenType::PlusPlus);
     EXPECT_EQ(tokens[2].type, TokenType::Identifier);

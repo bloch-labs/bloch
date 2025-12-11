@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -95,6 +96,7 @@ namespace bloch {
 
         // Type inference
         ValueType inferType(Expression* expr) const;
+        std::optional<int> evaluateConstInt(Expression* expr) const;
     };
 
 }

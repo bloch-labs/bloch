@@ -483,7 +483,7 @@ namespace bloch {
                 assign->line = line;
                 assign->column = column;
                 return assign;
-            } else if (auto idxExpr = dynamic_cast<IndexExpression*>(expr.get())) {
+            } else if (dynamic_cast<IndexExpression*>(expr.get())) {
                 // Take ownership of the IndexExpression to move its parts
                 std::unique_ptr<IndexExpression> idx(static_cast<IndexExpression*>(expr.release()));
                 int line = idx->line;
@@ -814,18 +814,21 @@ namespace bloch {
             // Array types are only allowed for primitive types
             if (match(TokenType::LBracket)) {
                 int arrSize = -1;
+                std::unique_ptr<Expression> sizeExpr = nullptr;
                 if (!check(TokenType::RBracket)) {
-                    if (!check(TokenType::IntegerLiteral))
-                        reportError("Expected optional integer size in array type");
-                    const Token& sizeTok = advance();
-                    try {
-                        arrSize = std::stoi(sizeTok.value);
-                    } catch (...) {
-                        reportError("Invalid integer size in array type");
+                    if (check(TokenType::IntegerLiteral)) {
+                        const Token& sizeTok = advance();
+                        try {
+                            arrSize = std::stoi(sizeTok.value);
+                        } catch (...) {
+                            reportError("Invalid integer size in array type");
+                        }
+                    } else {
+                        sizeExpr = parseExpression();
                     }
                 }
                 (void)expect(TokenType::RBracket, "Expected ']' after '[' in array type");
-                return parseArrayType(std::move(baseType), arrSize);
+                return parseArrayType(std::move(baseType), arrSize, std::move(sizeExpr));
             }
 
             return baseType;
@@ -851,8 +854,9 @@ namespace bloch {
         return nullptr;
     }
 
-    std::unique_ptr<Type> Parser::parseArrayType(std::unique_ptr<Type> elementType, int size) {
-        return std::make_unique<ArrayType>(std::move(elementType), size);
+    std::unique_ptr<Type> Parser::parseArrayType(std::unique_ptr<Type> elementType, int size,
+                                                 std::unique_ptr<Expression> sizeExpr) {
+        return std::make_unique<ArrayType>(std::move(elementType), size, std::move(sizeExpr));
     }
 
     // Parameters and Argments
@@ -894,11 +898,121 @@ namespace bloch {
         return args;
     }
 
+    std::unique_ptr<Expression> Parser::cloneExpression(const Expression& expr) {
+        if (auto lit = dynamic_cast<const LiteralExpression*>(&expr)) {
+            auto clone = std::make_unique<LiteralExpression>(lit->value, lit->literalType);
+            clone->line = lit->line;
+            clone->column = lit->column;
+            return clone;
+        }
+        if (auto var = dynamic_cast<const VariableExpression*>(&expr)) {
+            auto clone = std::make_unique<VariableExpression>(var->name);
+            clone->line = var->line;
+            clone->column = var->column;
+            return clone;
+        }
+        if (auto bin = dynamic_cast<const BinaryExpression*>(&expr)) {
+            auto left = cloneExpression(*bin->left);
+            auto right = cloneExpression(*bin->right);
+            auto clone =
+                std::make_unique<BinaryExpression>(bin->op, std::move(left), std::move(right));
+            clone->line = bin->line;
+            clone->column = bin->column;
+            return clone;
+        }
+        if (auto un = dynamic_cast<const UnaryExpression*>(&expr)) {
+            auto right = cloneExpression(*un->right);
+            auto clone = std::make_unique<UnaryExpression>(un->op, std::move(right));
+            clone->line = un->line;
+            clone->column = un->column;
+            return clone;
+        }
+        if (auto post = dynamic_cast<const PostfixExpression*>(&expr)) {
+            auto left = cloneExpression(*post->left);
+            auto clone = std::make_unique<PostfixExpression>(post->op, std::move(left));
+            clone->line = post->line;
+            clone->column = post->column;
+            return clone;
+        }
+        if (auto call = dynamic_cast<const CallExpression*>(&expr)) {
+            auto callee = cloneExpression(*call->callee);
+            std::vector<std::unique_ptr<Expression>> args;
+            for (const auto& arg : call->arguments) {
+                args.push_back(cloneExpression(*arg));
+            }
+            auto clone = std::make_unique<CallExpression>(std::move(callee), std::move(args));
+            clone->line = call->line;
+            clone->column = call->column;
+            return clone;
+        }
+        if (auto idx = dynamic_cast<const IndexExpression*>(&expr)) {
+            auto collection = cloneExpression(*idx->collection);
+            auto index = cloneExpression(*idx->index);
+            auto clone = std::make_unique<IndexExpression>();
+            clone->collection = std::move(collection);
+            clone->index = std::move(index);
+            clone->line = idx->line;
+            clone->column = idx->column;
+            return clone;
+        }
+        if (auto arr = dynamic_cast<const ArrayLiteralExpression*>(&expr)) {
+            std::vector<std::unique_ptr<Expression>> elems;
+            for (const auto& el : arr->elements) {
+                elems.push_back(cloneExpression(*el));
+            }
+            auto clone = std::make_unique<ArrayLiteralExpression>(std::move(elems));
+            clone->line = arr->line;
+            clone->column = arr->column;
+            return clone;
+        }
+        if (auto par = dynamic_cast<const ParenthesizedExpression*>(&expr)) {
+            auto inner = cloneExpression(*par->expression);
+            auto clone = std::make_unique<ParenthesizedExpression>(std::move(inner));
+            clone->line = par->line;
+            clone->column = par->column;
+            return clone;
+        }
+        if (auto meas = dynamic_cast<const MeasureExpression*>(&expr)) {
+            auto target = cloneExpression(*meas->qubit);
+            auto clone = std::make_unique<MeasureExpression>(std::move(target));
+            clone->line = meas->line;
+            clone->column = meas->column;
+            return clone;
+        }
+        if (auto assign = dynamic_cast<const AssignmentExpression*>(&expr)) {
+            auto value = cloneExpression(*assign->value);
+            auto clone = std::make_unique<AssignmentExpression>(
+                AssignmentExpression{assign->name, std::move(value)});
+            clone->line = assign->line;
+            clone->column = assign->column;
+            return clone;
+        }
+        if (auto arrAssign = dynamic_cast<const ArrayAssignmentExpression*>(&expr)) {
+            auto collection = cloneExpression(*arrAssign->collection);
+            auto index = cloneExpression(*arrAssign->index);
+            auto value = cloneExpression(*arrAssign->value);
+            auto clone = std::make_unique<ArrayAssignmentExpression>(
+                std::move(collection), std::move(index), std::move(value));
+            clone->line = arrAssign->line;
+            clone->column = arrAssign->column;
+            return clone;
+        }
+        return nullptr;
+    }
+
     std::unique_ptr<Type> Parser::cloneType(const Type& type) {
         if (auto prim = dynamic_cast<const PrimitiveType*>(&type))
             return std::make_unique<PrimitiveType>(prim->name);
-        if (auto array = dynamic_cast<const ArrayType*>(&type))
-            return std::make_unique<ArrayType>(cloneType(*array->elementType), array->size);
+        if (auto array = dynamic_cast<const ArrayType*>(&type)) {
+            std::unique_ptr<Expression> sizeExprClone;
+            if (array->sizeExpression)
+                sizeExprClone = cloneExpression(*array->sizeExpression);
+            auto clone = std::make_unique<ArrayType>(cloneType(*array->elementType), array->size,
+                                                     std::move(sizeExprClone));
+            clone->line = array->line;
+            clone->column = array->column;
+            return clone;
+        }
         if (dynamic_cast<const VoidType*>(&type))
             return std::make_unique<VoidType>();
         return nullptr;

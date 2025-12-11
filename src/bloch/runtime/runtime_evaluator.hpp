@@ -17,6 +17,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "../ast/ast.hpp"
@@ -56,6 +57,17 @@ namespace bloch {
         std::vector<std::string> stringArray;
         std::vector<char> charArray;
         std::vector<int> qubitArray;
+
+        Value() = default;
+        explicit Value(Type t) : type(t) {}
+        Value(Type t, int intVal, double floatVal = 0.0, int bitVal = 0, std::string strVal = "",
+              char charVal = '\0')
+            : type(t),
+              intValue(intVal),
+              floatValue(floatVal),
+              bitValue(bitVal),
+              stringValue(std::move(strVal)),
+              charValue(charVal) {}
     };
 
     // Interpreter that walks the AST and simulates quantum bits via

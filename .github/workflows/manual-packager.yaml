@@ -13,10 +13,11 @@ on:
 
 env:
   BLOCH_VERSION: ${{ inputs.tag }}
-  VCPKG_ROOT: ${{ runner.temp }}/vcpkg
 
 jobs:
   package:
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}/.vcpkg
     strategy:
       matrix:
         include:

@@ -100,14 +100,16 @@ namespace bloch {
         // Types
         [[nodiscard]] std::unique_ptr<Type> parseType();
         [[nodiscard]] std::unique_ptr<Type> parsePrimitiveType();
-        [[nodiscard]] std::unique_ptr<Type> parseArrayType(std::unique_ptr<Type> elementType,
-                                                           int size = -1);
+        [[nodiscard]] std::unique_ptr<Type> parseArrayType(
+            std::unique_ptr<Type> elementType, int size = -1,
+            std::unique_ptr<Expression> sizeExpr = nullptr);
 
         // Parameters and Arguments
         [[nodiscard]] std::vector<std::unique_ptr<Parameter>> parseParameterList();
         [[nodiscard]] std::vector<std::unique_ptr<Expression>> parseArgumentList();
 
         // Helpers
+        [[nodiscard]] std::unique_ptr<Expression> cloneExpression(const Expression& expr);
         [[nodiscard]] std::unique_ptr<Type> cloneType(const Type& type);
         [[nodiscard]] std::vector<std::unique_ptr<AnnotationNode>> cloneAnnotations(
             const std::vector<std::unique_ptr<AnnotationNode>>& annotations);

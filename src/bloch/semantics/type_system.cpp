@@ -64,7 +64,7 @@ namespace bloch {
     void SymbolTable::declare(const std::string& name, bool isFinal, ValueType type) {
         if (m_scopes.empty())
             return;
-        m_scopes.back()[name] = SymbolInfo{isFinal, type};
+        m_scopes.back()[name] = SymbolInfo{isFinal, type, std::nullopt};
     }
 
     bool SymbolTable::isDeclared(const std::string& name) const {
@@ -91,6 +91,25 @@ namespace bloch {
                 return found->second.type;
         }
         return ValueType::Unknown;
+    }
+
+    std::optional<int> SymbolTable::getConstInt(const std::string& name) const {
+        for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
+            auto found = it->find(name);
+            if (found != it->end())
+                return found->second.constInt;
+        }
+        return std::nullopt;
+    }
+
+    void SymbolTable::setConstInt(const std::string& name, int value) {
+        for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
+            auto found = it->find(name);
+            if (found != it->end()) {
+                found->second.constInt = value;
+                return;
+            }
+        }
     }
 
 }
