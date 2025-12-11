@@ -293,9 +293,16 @@ namespace bloch {
         std::unique_ptr<Type> elementType;
         // Optional fixed size for the array. If negative, size is unspecified.
         int size = -1;
+        // Optional raw size expression for cases where the size is derived from a
+        // compile-time constant (e.g. final int n = 4; int[n] a;). Semantic
+        // analysis resolves this to 'size'.
+        std::unique_ptr<Expression> sizeExpression;
 
-        ArrayType(std::unique_ptr<Type> elementType, int size = -1)
-            : elementType(std::move(elementType)), size(size) {}
+        ArrayType(std::unique_ptr<Type> elementType, int size = -1,
+                  std::unique_ptr<Expression> sizeExpr = nullptr)
+            : elementType(std::move(elementType)),
+              size(size),
+              sizeExpression(std::move(sizeExpr)) {}
         void accept(ASTVisitor& visitor) override;
     };
 

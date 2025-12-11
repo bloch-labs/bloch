@@ -28,7 +28,7 @@ TEST(ASTTest, FunctionDeclarationBasics) {
     param->type = std::make_unique<PrimitiveType>("int");
     func.params.push_back(std::move(param));
 
-    ASSERT_EQ(func.params.size(), 1);
+    ASSERT_EQ(func.params.size(), 1u);
     EXPECT_EQ(func.params[0]->name, "x");
     auto* prim = dynamic_cast<PrimitiveType*>(func.params[0]->type.get());
     ASSERT_NE(prim, nullptr);

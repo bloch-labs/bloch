@@ -100,6 +100,79 @@ namespace bloch {
         return ValueType::Unknown;
     }
 
+    std::optional<int> SemanticAnalyser::evaluateConstInt(Expression* expr) const {
+        if (!expr)
+            return std::nullopt;
+
+        if (auto lit = dynamic_cast<LiteralExpression*>(expr)) {
+            if (lit->literalType != "int")
+                return std::nullopt;
+            try {
+                return std::stoi(lit->value);
+            } catch (...) {
+                return std::nullopt;
+            }
+        }
+
+        if (auto var = dynamic_cast<VariableExpression*>(expr)) {
+            if (!isDeclared(var->name)) {
+                throw BlochError(ErrorCategory::Semantic, var->line, var->column,
+                                 "Variable '" + var->name + "' not declared");
+            }
+            if (!isFinal(var->name))
+                return std::nullopt;
+            if (getVariableType(var->name) != ValueType::Int)
+                return std::nullopt;
+            return m_symbols.getConstInt(var->name);
+        }
+
+        if (auto par = dynamic_cast<ParenthesizedExpression*>(expr))
+            return evaluateConstInt(par->expression.get());
+
+        if (auto unary = dynamic_cast<UnaryExpression*>(expr)) {
+            if (unary->op == "-") {
+                auto val = evaluateConstInt(unary->right.get());
+                if (val)
+                    return -*val;
+            }
+            return std::nullopt;
+        }
+
+        if (auto bin = dynamic_cast<BinaryExpression*>(expr)) {
+            auto left = evaluateConstInt(bin->left.get());
+            auto right = evaluateConstInt(bin->right.get());
+            if (!left || !right)
+                return std::nullopt;
+            if (bin->op == "+")
+                return *left + *right;
+            if (bin->op == "-")
+                return *left - *right;
+            if (bin->op == "*")
+                return *left * *right;
+            if (bin->op == "/") {
+                if (*right == 0) {
+                    int line = bin->line > 0 ? bin->line : expr->line;
+                    int col = bin->column > 0 ? bin->column : expr->column;
+                    throw BlochError(ErrorCategory::Semantic, line, col,
+                                     "division by zero in constant integer expression");
+                }
+                return *left / *right;
+            }
+            if (bin->op == "%") {
+                if (*right == 0) {
+                    int line = bin->line > 0 ? bin->line : expr->line;
+                    int col = bin->column > 0 ? bin->column : expr->column;
+                    throw BlochError(ErrorCategory::Semantic, line, col,
+                                     "modulo by zero in constant integer expression");
+                }
+                return *left % *right;
+            }
+            return std::nullopt;
+        }
+
+        return std::nullopt;
+    }
+
     void SemanticAnalyser::visit(VariableDeclaration& node) {
         if (isDeclared(node.name)) {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -133,6 +206,33 @@ namespace bloch {
             if (!valid) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "'@tracked' may annotate 'qubit' or 'qubit[]' only");
+            }
+        }
+        if (auto arr = dynamic_cast<ArrayType*>(node.varType.get())) {
+            bool hasExplicitSize = arr->size >= 0 || arr->sizeExpression != nullptr;
+            if (arr->sizeExpression) {
+                auto size = evaluateConstInt(arr->sizeExpression.get());
+                if (!size) {
+                    int line =
+                        arr->sizeExpression->line > 0 ? arr->sizeExpression->line : node.line;
+                    int col =
+                        arr->sizeExpression->column > 0 ? arr->sizeExpression->column : node.column;
+                    throw BlochError(ErrorCategory::Semantic, line, col,
+                                     "array size must be a compile-time constant 'int' (e.g. a "
+                                     "final int)");
+                }
+                arr->size = *size;
+                hasExplicitSize = true;
+            }
+            if (hasExplicitSize && arr->size < 0) {
+                int line = node.line;
+                int col = node.column;
+                if (arr->sizeExpression && arr->sizeExpression->line > 0) {
+                    line = arr->sizeExpression->line;
+                    col = arr->sizeExpression->column;
+                }
+                throw BlochError(ErrorCategory::Semantic, line, col,
+                                 "array size must be non-negative");
             }
         }
         if (node.initializer) {
@@ -188,6 +288,15 @@ namespace bloch {
                 }
             }
             node.initializer->accept(*this);
+        }
+        if (node.isFinal) {
+            if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {
+                if (prim->name == "int" && node.initializer) {
+                    auto val = evaluateConstInt(node.initializer.get());
+                    if (val)
+                        m_symbols.setConstInt(node.name, *val);
+                }
+            }
         }
     }
 

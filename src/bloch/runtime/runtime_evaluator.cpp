@@ -201,6 +201,18 @@ namespace bloch {
                     else if (elem->name == "qubit")
                         v.type = Value::Type::QubitArray;
                 }
+                if (arr->size < 0 && arr->sizeExpression) {
+                    Value sizeVal = eval(arr->sizeExpression.get());
+                    if (sizeVal.type != Value::Type::Int) {
+                        throw BlochError(ErrorCategory::Runtime, var->line, var->column,
+                                         "array size must evaluate to an int");
+                    }
+                    arr->size = sizeVal.intValue;
+                    if (arr->size < 0) {
+                        throw BlochError(ErrorCategory::Runtime, var->line, var->column,
+                                         "array size must be non-negative");
+                    }
+                }
                 // Handle fixed-size allocation (without initializer)
                 if (arr->size >= 0 && !var->initializer) {
                     int n = arr->size;
