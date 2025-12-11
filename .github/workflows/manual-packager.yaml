@@ -20,6 +20,7 @@ jobs:
       VCPKG_ROOT: ${{ github.workspace }}/.vcpkg
       VCPKG_FORCE_SYSTEM_BINARIES: 1
       VCPKG_DOWNLOADS: ${{ github.workspace }}/.vcpkg_downloads
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg_cache
     strategy:
       matrix:
         include:
@@ -51,6 +52,17 @@ jobs:
         with:
           ref: ${{ inputs.branch }}
 
+      - name: Restore vcpkg caches (Windows)
+        if: matrix.runner == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: |
+            .vcpkg_cache
+            .vcpkg_downloads
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
       - name: Ensure CMake 3.31.10 (Windows)
         if: matrix.runner == 'windows-latest'
         shell: pwsh
@@ -59,8 +71,8 @@ jobs:
           $zip = "$env:RUNNER_TEMP\cmake-$ver.zip"
           Invoke-WebRequest -Uri "https://cmake.org/files/v3.31/cmake-$ver-windows-x86_64.zip" -OutFile $zip
           Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP\cmake"
-          $cmakeDir = Get-ChildItem "$env:RUNNER_TEMP\cmake" -Directory | Select-Object -First 1
-          "$($cmakeDir.FullName)\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            $cmakeDir = Get-ChildItem "$env:RUNNER_TEMP\cmake" -Directory | Select-Object -First 1
+            "$($cmakeDir.FullName)\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install build deps (Linux)
         if: matrix.runner == 'ubuntu-latest'
@@ -80,6 +92,31 @@ jobs:
         run: |
           git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Pre-fetch Ninja (Windows)
+        if: matrix.runner == 'windows-latest'
+        shell: pwsh
+        run: |
+          $destDir = "$env:VCPKG_DOWNLOADS"
+          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+          $target = Join-Path $destDir "ninja-win-1.13.1.zip"
+          if (!(Test-Path $target)) {
+            $url = "https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-win.zip"
+            for ($i = 0; $i -lt 3; $i++) {
+              Write-Host "Attempting ninja download ($($i+1))/3"
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $target -UseBasicParsing -MaximumRedirection 5
+                break
+              } catch {
+                Write-Warning "Download attempt $($i+1) failed: $_"
+                Start-Sleep -Seconds 5
+              }
+            }
+            if (!(Test-Path $target)) {
+              Write-Error "Failed to prefetch ninja"
+              exit 1
+            }
+          }
 
       - name: Pre-fetch OpenSSL source (Windows)
         if: matrix.runner == 'windows-latest'
