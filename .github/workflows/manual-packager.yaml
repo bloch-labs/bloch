@@ -63,6 +63,13 @@ jobs:
           restore-keys: |
             vcpkg-${{ runner.os }}-
 
+      - name: Ensure vcpkg cache dirs (Windows)
+        if: matrix.runner == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:VCPKG_DOWNLOADS" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$env:VCPKG_DEFAULT_BINARY_CACHE" | Out-Null
+
       - name: Ensure CMake 3.31.10 (Windows)
         if: matrix.runner == 'windows-latest'
         shell: pwsh
