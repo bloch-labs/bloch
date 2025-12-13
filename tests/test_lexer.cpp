@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "bloch/core/lexer/lexer.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
@@ -171,4 +175,58 @@ TEST(LexerTest, LogicalAndBitwiseOperators) {
     EXPECT_EQ(tokens[4].type, TokenType::Caret);
     EXPECT_EQ(tokens[5].type, TokenType::Tilde);
     EXPECT_EQ(tokens[6].type, TokenType::Bang);
+}
+
+TEST(LexerTest, ClassSystemKeywords) {
+    std::vector<std::pair<std::string, TokenType>> keywords = {
+        {"class", TokenType::Class},         {"public", TokenType::Public},
+        {"private", TokenType::Private},     {"protected", TokenType::Protected},
+        {"static", TokenType::Static},       {"extends", TokenType::Extends},
+        {"abstract", TokenType::Abstract},   {"virtual", TokenType::Virtual},
+        {"override", TokenType::Override},   {"super", TokenType::Super},
+        {"this", TokenType::This},           {"import", TokenType::Import},
+        {"new", TokenType::New},             {"constructor", TokenType::Constructor},
+        {"destructor", TokenType::Destructor},{"destroy", TokenType::Destroy}};
+
+    std::string src;
+    for (const auto& kv : keywords) {
+        if (!src.empty())
+            src += " ";
+        src += kv.first;
+    }
+
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+
+    ASSERT_EQ(tokens.size(), keywords.size() + 1);
+    for (size_t i = 0; i < keywords.size(); ++i) {
+        EXPECT_EQ(tokens[i].type, keywords[i].second);
+        EXPECT_EQ(tokens[i].value, keywords[i].first);
+    }
+    EXPECT_EQ(tokens.back().type, TokenType::Eof);
+}
+
+TEST(LexerTest, ClassSystemKeywordLookalikesStayIdentifiers) {
+    std::vector<std::string> identifiers = {"classy",        "publicize",     "privateer",
+                                            "protectedness", "statico",       "extendsion",
+                                            "abstracted",    "virtualized",   "overridee",
+                                            "superposition", "thisness",      "importer",
+                                            "newton",        "constructorx",  "destructora",
+                                            "destroyer"};
+    std::string src;
+    for (const auto& id : identifiers) {
+        if (!src.empty())
+            src += " ";
+        src += id;
+    }
+
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+
+    ASSERT_EQ(tokens.size(), identifiers.size() + 1);
+    for (size_t i = 0; i < identifiers.size(); ++i) {
+        EXPECT_EQ(tokens[i].type, TokenType::Identifier);
+        EXPECT_EQ(tokens[i].value, identifiers[i]);
+    }
+    EXPECT_EQ(tokens.back().type, TokenType::Eof);
 }

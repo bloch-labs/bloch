@@ -30,11 +30,6 @@
 #include "bloch/support/error/bloch_error.hpp"
 #include "bloch/update/update_manager.hpp"
 
-namespace core = bloch::core;
-namespace runtime = bloch::runtime;
-namespace support = bloch::support;
-namespace update = bloch::update;
-
 #ifndef BLOCH_VERSION
 #define BLOCH_VERSION "dev"
 #endif
@@ -94,10 +89,10 @@ int main(int argc, char** argv) {
             return 0;
         } else if (arg == "--version") {
             printVersion();
-            update::checkForUpdatesIfDue(BLOCH_VERSION);
+            bloch::update::checkForUpdatesIfDue(BLOCH_VERSION);
             return 0;
         } else if (arg == "--update") {
-            return update::performSelfUpdate(BLOCH_VERSION, argv[0]) ? 0 : 1;
+            return bloch::update::performSelfUpdate(BLOCH_VERSION, argv[0]) ? 0 : 1;
         } else if (arg == "--emit-qasm") {
             emitQasm = true;
         } else if (arg.rfind("--shots=", 0) == 0) {
@@ -121,7 +116,7 @@ int main(int argc, char** argv) {
     // explicitly asks for it via --echo=all.
     bool echoAll = echoOpt.empty() ? (!shotsProvided || shots == 1) : (echoOpt == "all");
     if (shotsProvided && shots > 1 && echoOpt.empty())
-        support::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
+        bloch::support::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
 
     std::ifstream in(file);
     if (!in) {
@@ -130,15 +125,15 @@ int main(int argc, char** argv) {
     }
 
     // Run a non-blocking update check at most once every 72 hours.
-    update::checkForUpdatesIfDue(BLOCH_VERSION);
+    bloch::update::checkForUpdatesIfDue(BLOCH_VERSION);
 
     std::string src((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     try {
-        core::Lexer lexer(src);
+        bloch::core::Lexer lexer(src);
         auto tokens = lexer.tokenize();
-        core::Parser parser(std::move(tokens));
+        bloch::core::Parser parser(std::move(tokens));
         auto program = parser.parse();
-        core::SemanticAnalyser analyser;
+        bloch::core::SemanticAnalyser analyser;
         analyser.analyse(*program);
         std::string qasm;
         if (shotsProvided) {
@@ -146,7 +141,7 @@ int main(int argc, char** argv) {
             std::unordered_map<std::string, std::unordered_map<std::string, int>> aggregate;
             auto start = std::chrono::steady_clock::now();
             for (int s = 0; s < shots; ++s) {
-                runtime::RuntimeEvaluator evaluator(s == shots - 1);
+                bloch::runtime::RuntimeEvaluator evaluator(s == shots - 1);
                 evaluator.setEcho(echoAll);
                 // Suppress per-shot warnings; only show for last shot
                 if (s < shots - 1)
@@ -167,7 +162,7 @@ int main(int argc, char** argv) {
 
             // Warn if nothing was tracked, but still print run header and timing
             if (aggregate.empty())
-                support::blochWarning(0, 0,
+                bloch::support::blochWarning(0, 0,
                                       "No tracked variables. Use @tracked to collect statistics.");
 
             std::cout << "Shots: " << shots << "\n";
@@ -219,7 +214,7 @@ int main(int argc, char** argv) {
                 return 0;
             }
         } else {
-            runtime::RuntimeEvaluator evaluator;
+            bloch::runtime::RuntimeEvaluator evaluator;
             evaluator.setEcho(echoAll);
             evaluator.execute(*program);
             qasm = evaluator.getQasm();
@@ -234,7 +229,7 @@ int main(int argc, char** argv) {
         }
     } catch (const std::exception& ex) {
         // Print a clear stop message, then the actual error
-        std::cerr << support::format(support::MessageLevel::Error, 0, 0,
+        std::cerr << bloch::support::format(bloch::support::MessageLevel::Error, 0, 0,
                                      "Stopping program execution...");
         std::cerr << ex.what() << std::endl;
         return 1;

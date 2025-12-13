@@ -257,6 +257,25 @@ namespace bloch::core {
             {"quantum", TokenType::Quantum},
             {"tracked", TokenType::Tracked},
 
+            // Class System
+            {"class", TokenType::Class},
+            {"public", TokenType::Public},
+            {"private", TokenType::Private},
+            {"protected", TokenType::Protected},
+            {"static", TokenType::Static},
+            {"extends", TokenType::Extends},
+            {"abstract", TokenType::Abstract},
+            {"virtual", TokenType::Virtual},
+            {"override", TokenType::Override},
+            {"super", TokenType::Super},
+            {"this", TokenType::This},
+            {"import", TokenType::Import},
+            {"new", TokenType::New},
+            {"constructor", TokenType::Constructor},
+            {"destructor", TokenType::Destructor},
+            {"destroy", TokenType::Destroy},
+
+
             // Built ins
             {"echo", TokenType::Echo}};
 
