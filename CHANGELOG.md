@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.1.0](https://github.com/bloch-labs/bloch/compare/v1.0.2...v1.1.0) (2025-12-13)
+
+
+### Features
+
+* add class system keywords ([0ef9016](https://github.com/bloch-labs/bloch/commit/0ef9016ffa2d45751fbd6f0193e0b6ab2c04c34a))
+* add parser logic for class system ([#198](https://github.com/bloch-labs/bloch/issues/198)) ([654a851](https://github.com/bloch-labs/bloch/commit/654a851c0ef6c75716721a06e978fa4937199234))
+* add semantic analysis for class system ([#200](https://github.com/bloch-labs/bloch/issues/200)) ([1b85c1d](https://github.com/bloch-labs/bloch/commit/1b85c1d6bf312a52f4ce16c112a13d1deb4c93c2))
+
+
+### Build System
+
+* reorg app arch ([#195](https://github.com/bloch-labs/bloch/issues/195)) ([4237004](https://github.com/bloch-labs/bloch/commit/42370042eeef5397c4fadd74898546d8d0b2875f))
+
+
+### CI/CD
+
+* hotfix packager ([#191](https://github.com/bloch-labs/bloch/issues/191)) ([7ff2058](https://github.com/bloch-labs/bloch/commit/7ff205839de3b1d2e6b8e9aa1e603ca88e7a1975))
+* hotfix packager ([#192](https://github.com/bloch-labs/bloch/issues/192)) ([352378c](https://github.com/bloch-labs/bloch/commit/352378cac83b39336908fa112a6c407037d802b7))
+
 ## [1.0.2](https://github.com/bloch-labs/bloch/compare/v1.0.1...v1.0.2) (2025-12-11)
 
 
