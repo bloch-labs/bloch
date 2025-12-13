@@ -428,6 +428,11 @@ namespace bloch::core {
         }
     }
 
+    void SemanticAnalyser::visit(DestroyStatement& node) {
+        if (node.target)
+            node.target->accept(*this);
+    }
+
     void SemanticAnalyser::visit(AssignmentStatement& node) {
         if (!isDeclared(node.name)) {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -550,6 +555,24 @@ namespace bloch::core {
         for (auto& arg : node.arguments) arg->accept(*this);
     }
 
+    void SemanticAnalyser::visit(MemberAccessExpression& node) {
+        if (node.object)
+            node.object->accept(*this);
+    }
+
+    void SemanticAnalyser::visit(NewExpression& node) {
+        if (node.classType)
+            node.classType->accept(*this);
+        for (auto& arg : node.arguments) {
+            if (arg)
+                arg->accept(*this);
+        }
+    }
+
+    void SemanticAnalyser::visit(ThisExpression&) {}
+
+    void SemanticAnalyser::visit(SuperExpression&) {}
+
     void SemanticAnalyser::visit(ArrayLiteralExpression& node) {
         for (auto& elem : node.elements) {
             if (elem)
@@ -630,6 +653,13 @@ namespace bloch::core {
         }
     }
 
+    void SemanticAnalyser::visit(MemberAssignmentExpression& node) {
+        if (node.object)
+            node.object->accept(*this);
+        if (node.value)
+            node.value->accept(*this);
+    }
+
     void SemanticAnalyser::visit(ArrayAssignmentExpression& node) {
         // Validate collection is a declared, non-final variable
         if (auto var = dynamic_cast<VariableExpression*>(node.collection.get())) {
@@ -654,6 +684,7 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(PrimitiveType&) {}
+    void SemanticAnalyser::visit(NamedType&) {}
     void SemanticAnalyser::visit(ArrayType&) {}
     void SemanticAnalyser::visit(VoidType&) {}
 
@@ -663,6 +694,18 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(AnnotationNode&) {}
+
+    void SemanticAnalyser::visit(ImportDeclaration&) {}
+
+    void SemanticAnalyser::visit(FieldDeclaration&) {}
+
+    void SemanticAnalyser::visit(MethodDeclaration&) {}
+
+    void SemanticAnalyser::visit(ConstructorDeclaration&) {}
+
+    void SemanticAnalyser::visit(DestructorDeclaration&) {}
+
+    void SemanticAnalyser::visit(ClassDeclaration&) {}
 
     void SemanticAnalyser::visit(FunctionDeclaration& node) {
         if (node.hasQuantumAnnotation) {
@@ -728,6 +771,13 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(Program& node) {
+        if (!node.imports.empty()) {
+            auto* first = node.imports.front().get();
+            int line = first ? first->line : 0;
+            int col = first ? first->column : 0;
+            throw BlochError(ErrorCategory::Semantic, line, col,
+                             "imports are parsed but not yet supported by the semantic analyser");
+        }
         for (auto& fn : node.functions) {
             if (isFunctionDeclared(fn->name)) {
                 throw BlochError(ErrorCategory::Semantic, fn->line, fn->column,
@@ -736,6 +786,9 @@ namespace bloch::core {
             declareFunction(fn->name);
         }
         for (auto& fn : node.functions) fn->accept(*this);
+        for (auto& cls : node.classes)
+            if (cls)
+                cls->accept(*this);
         for (auto& stmt : node.statements) stmt->accept(*this);
     }
 

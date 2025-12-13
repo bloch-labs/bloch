@@ -45,6 +45,7 @@ namespace bloch::core {
         void visit(EchoStatement& node) override;
         void visit(ResetStatement& node) override;
         void visit(MeasureStatement& node) override;
+        void visit(DestroyStatement& node) override;
         void visit(AssignmentStatement& node) override;
 
         void visit(BinaryExpression& node) override;
@@ -53,19 +54,31 @@ namespace bloch::core {
         void visit(LiteralExpression& node) override;
         void visit(VariableExpression& node) override;
         void visit(CallExpression& node) override;
+        void visit(MemberAccessExpression& node) override;
+        void visit(NewExpression& node) override;
+        void visit(ThisExpression& node) override;
+        void visit(SuperExpression& node) override;
         void visit(IndexExpression& node) override;
         void visit(ArrayLiteralExpression& node) override;
         void visit(ParenthesizedExpression& node) override;
         void visit(MeasureExpression& node) override;
         void visit(AssignmentExpression& node) override;
+        void visit(MemberAssignmentExpression& node) override;
         void visit(ArrayAssignmentExpression& node) override;
 
         void visit(PrimitiveType& node) override;
+        void visit(NamedType& node) override;
         void visit(ArrayType& node) override;
         void visit(VoidType& node) override;
 
         void visit(Parameter& node) override;
         void visit(AnnotationNode& node) override;
+        void visit(ImportDeclaration& node) override;
+        void visit(FieldDeclaration& node) override;
+        void visit(MethodDeclaration& node) override;
+        void visit(ConstructorDeclaration& node) override;
+        void visit(DestructorDeclaration& node) override;
+        void visit(ClassDeclaration& node) override;
         void visit(FunctionDeclaration& node) override;
         void visit(Program& node) override;
 

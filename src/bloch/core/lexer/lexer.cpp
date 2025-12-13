@@ -153,6 +153,8 @@ namespace bloch::core {
                 return makeToken(TokenType::Question, "?");
             case ':':
                 return makeToken(TokenType::Colon, ":");
+            case '.':
+                return makeToken(TokenType::Dot, ".");
             case ';':
                 return makeToken(TokenType::Semicolon, ";");
             case ',':
@@ -274,7 +276,6 @@ namespace bloch::core {
             {"constructor", TokenType::Constructor},
             {"destructor", TokenType::Destructor},
             {"destroy", TokenType::Destroy},
-
 
             // Built ins
             {"echo", TokenType::Echo}};
