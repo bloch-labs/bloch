@@ -162,8 +162,8 @@ int main(int argc, char** argv) {
 
             // Warn if nothing was tracked, but still print run header and timing
             if (aggregate.empty())
-                bloch::support::blochWarning(0, 0,
-                                      "No tracked variables. Use @tracked to collect statistics.");
+                bloch::support::blochWarning(
+                    0, 0, "No tracked variables. Use @tracked to collect statistics.");
 
             std::cout << "Shots: " << shots << "\n";
             std::cout << "Backend: Bloch Ideal Simulator\n";
@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
     } catch (const std::exception& ex) {
         // Print a clear stop message, then the actual error
         std::cerr << bloch::support::format(bloch::support::MessageLevel::Error, 0, 0,
-                                     "Stopping program execution...");
+                                            "Stopping program execution...");
         std::cerr << ex.what() << std::endl;
         return 1;
     }

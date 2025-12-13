@@ -93,6 +93,7 @@ namespace bloch::core {
         Tilde,
         Question,
         Colon,
+        Dot,
         Semicolon,
         Comma,
         Arrow,

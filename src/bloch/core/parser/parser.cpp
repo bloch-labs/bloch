@@ -71,6 +71,43 @@ namespace bloch::core {
         return true;
     }
 
+    bool Parser::isTypeAhead() const {
+        if (check(TokenType::Void) || check(TokenType::Int) || check(TokenType::Float) ||
+            check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
+            check(TokenType::Qubit)) {
+            return true;
+        }
+        if (!check(TokenType::Identifier))
+            return false;
+        size_t idx = m_current;  // start at identifier
+        // Consume dotted qualifiers
+        while (idx + 2 < m_tokens.size() && m_tokens[idx + 1].type == TokenType::Dot &&
+               m_tokens[idx + 2].type == TokenType::Identifier) {
+            idx += 2;
+        }
+        if (idx + 1 >= m_tokens.size())
+            return false;
+        TokenType afterName = m_tokens[idx + 1].type;
+        if (afterName == TokenType::Identifier) {
+            return true;  // Type Name varName
+        }
+        if (afterName == TokenType::LBracket) {
+            size_t j = idx + 2;
+            while (j < m_tokens.size() && m_tokens[j].type != TokenType::RBracket) {
+                // Bail out on statement terminators to avoid misclassifying expressions
+                if (m_tokens[j].type == TokenType::Semicolon || m_tokens[j].type == TokenType::Eof)
+                    return false;
+                ++j;
+            }
+            if (j >= m_tokens.size() || m_tokens[j].type != TokenType::RBracket)
+                return false;
+            if (j + 1 < m_tokens.size() && m_tokens[j + 1].type == TokenType::Identifier) {
+                return true;  // Type[] varName
+            }
+        }
+        return false;
+    }
+
     bool Parser::isAtEnd() const { return peek().type == TokenType::Eof; }
 
     // Error
@@ -85,7 +122,12 @@ namespace bloch::core {
         // We alternate between function declarations and top-level statements.
         // Extra statements generated from multi-declarations are flushed as we go.
         while (!isAtEnd()) {
-            if (check(TokenType::Function) || checkFunctionAnnotation()) {
+            if (match(TokenType::Import)) {
+                program->imports.push_back(parseImport());
+            } else if (check(TokenType::Static) || check(TokenType::Abstract) ||
+                       check(TokenType::Class)) {
+                program->classes.push_back(parseClassDeclaration());
+            } else if (check(TokenType::Function) || checkFunctionAnnotation()) {
                 program->functions.push_back(parseFunction());
             } else {
                 program->statements.push_back(parseStatement());
@@ -97,6 +139,64 @@ namespace bloch::core {
     }
 
     // Top level
+
+    std::unique_ptr<ImportDeclaration> Parser::parseImport() {
+        auto import = std::make_unique<ImportDeclaration>();
+        const Token& importTok = previous();
+        import->line = importTok.line;
+        import->column = importTok.column;
+        import->path = parseQualifiedName();
+        (void)expect(TokenType::Semicolon, "Expected ';' after import statement");
+        return import;
+    }
+
+    std::unique_ptr<ClassDeclaration> Parser::parseClassDeclaration() {
+        bool isStatic = false;
+        bool isAbstract = false;
+        while (true) {
+            if (match(TokenType::Static)) {
+                if (isStatic)
+                    reportError("duplicate 'static' modifier on class");
+                isStatic = true;
+                continue;
+            }
+            if (match(TokenType::Abstract)) {
+                if (isAbstract)
+                    reportError("duplicate 'abstract' modifier on class");
+                isAbstract = true;
+                continue;
+            }
+            break;
+        }
+
+        (void)expect(TokenType::Class, "Expected 'class' keyword");
+
+        const Token& nameTok = expect(TokenType::Identifier, "Expected class name after 'class'");
+
+        auto cls = std::make_unique<ClassDeclaration>();
+        cls->name = nameTok.value;
+        cls->line = nameTok.line;
+        cls->column = nameTok.column;
+        cls->isStatic = isStatic;
+        cls->isAbstract = isAbstract;
+
+        if (match(TokenType::Extends)) {
+            cls->baseName = parseQualifiedName();
+            if (check(TokenType::Extends)) {
+                reportError("Only single inheritance is supported");
+            }
+        }
+
+        (void)expect(TokenType::LBrace, "Expected '{' to start class body");
+        while (!check(TokenType::RBrace) && !isAtEnd()) {
+            auto member = parseClassMember(cls->name, cls->isStatic);
+            if (member)
+                cls->members.push_back(std::move(member));
+        }
+        (void)expect(TokenType::RBrace, "Expected '}' to end class body");
+
+        return cls;
+    }
 
     // Function Declaration
     std::unique_ptr<FunctionDeclaration> Parser::parseFunction() {
@@ -157,6 +257,208 @@ namespace bloch::core {
         func->body = parseBlock();
 
         return func;
+    }
+
+    Visibility Parser::parseVisibility() {
+        if (match(TokenType::Public))
+            return Visibility::Public;
+        if (match(TokenType::Private))
+            return Visibility::Private;
+        if (match(TokenType::Protected))
+            return Visibility::Protected;
+        return Visibility::Public;
+    }
+
+    std::vector<std::string> Parser::parseQualifiedName() {
+        std::vector<std::string> parts;
+        const Token& first = expect(TokenType::Identifier, "Expected identifier");
+        parts.push_back(first.value);
+        while (match(TokenType::Dot)) {
+            const Token& part = expect(TokenType::Identifier, "Expected identifier after '.'");
+            parts.push_back(part.value);
+        }
+        return parts;
+    }
+
+    std::unique_ptr<ClassMember> Parser::parseClassMember(const std::string& className,
+                                                          bool isStaticClass) {
+        Visibility visibility = parseVisibility();
+        if (visibility != Visibility::Public &&
+            (check(TokenType::Public) || check(TokenType::Private) ||
+             check(TokenType::Protected))) {
+            reportError("Multiple visibility modifiers are not allowed on class members");
+        }
+
+        bool isStatic = false;
+        bool isVirtual = false;
+        bool isOverride = false;
+        bool scanningModifiers = true;
+        while (scanningModifiers) {
+            if (match(TokenType::Static)) {
+                if (isStatic)
+                    reportError("Duplicate 'static' modifier");
+                isStatic = true;
+                continue;
+            }
+            if (match(TokenType::Virtual)) {
+                if (isVirtual)
+                    reportError("Duplicate 'virtual' modifier");
+                isVirtual = true;
+                continue;
+            }
+            if (match(TokenType::Override)) {
+                if (isOverride)
+                    reportError("Duplicate 'override' modifier");
+                isOverride = true;
+                continue;
+            }
+            scanningModifiers = false;
+        }
+
+        if (match(TokenType::Constructor)) {
+            if (isStaticClass)
+                reportError("Static classes cannot declare constructors");
+            if (isStatic || isVirtual || isOverride)
+                reportError("Constructors cannot be static, virtual, or override");
+            return parseConstructorDeclaration(visibility, className);
+        }
+
+        if (match(TokenType::Destructor)) {
+            if (isStaticClass)
+                reportError("Static classes cannot declare destructors");
+            if (isStatic || isVirtual || isOverride)
+                reportError("Destructors cannot be static, virtual, or override");
+            return parseDestructorDeclaration(visibility);
+        }
+
+        if (match(TokenType::Function)) {
+            if (isStaticClass && !isStatic) {
+                reportError("Static classes may only contain static methods");
+            }
+            if (isStaticClass && (isVirtual || isOverride)) {
+                reportError("Static classes cannot contain virtual or override methods");
+            }
+            return parseMethodDeclaration(visibility, isStatic, isVirtual, isOverride);
+        }
+
+        if (isVirtual || isOverride) {
+            reportError("'virtual' or 'override' may only modify methods");
+        }
+        if (isStaticClass && !isStatic) {
+            reportError("Static classes may only contain static members");
+        }
+
+        bool isFinalField = match(TokenType::Final);
+        return parseFieldDeclaration(visibility, isFinalField, isStatic);
+    }
+
+    std::unique_ptr<FieldDeclaration> Parser::parseFieldDeclaration(Visibility vis, bool isFinal,
+                                                                    bool isStatic) {
+        auto field = std::make_unique<FieldDeclaration>();
+        field->visibility = vis;
+        field->isFinal = isFinal;
+        field->isStatic = isStatic;
+
+        field->fieldType = parseType();
+
+        const Token& nameTok = expect(TokenType::Identifier, "Expected field name");
+        field->name = nameTok.value;
+        field->line = nameTok.line;
+        field->column = nameTok.column;
+
+        if (match(TokenType::Equals)) {
+            field->initializer = parseExpression();
+        }
+
+        (void)expect(TokenType::Semicolon, "Expected ';' after field declaration");
+        return field;
+    }
+
+    std::unique_ptr<MethodDeclaration> Parser::parseMethodDeclaration(Visibility vis, bool isStatic,
+                                                                      bool isVirtual,
+                                                                      bool isOverride) {
+        auto method = std::make_unique<MethodDeclaration>();
+        method->visibility = vis;
+        method->isStatic = isStatic;
+        method->isVirtual = isVirtual;
+        method->isOverride = isOverride;
+
+        const Token& nameTok = expect(TokenType::Identifier, "Expected method name");
+        method->name = nameTok.value;
+        method->line = nameTok.line;
+        method->column = nameTok.column;
+
+        (void)expect(TokenType::LParen, "Expected '(' after method name");
+        method->params = parseParameterList();
+        (void)expect(TokenType::RParen, "Expected ')' after parameters");
+
+        (void)expect(TokenType::Arrow, "Expected '->' before return type");
+        method->returnType = parseType();
+
+        if (check(TokenType::LBrace)) {
+            method->body = parseBlock();
+        } else {
+            if (!method->isVirtual) {
+                reportError("Method must have a body unless it is marked 'virtual'");
+            }
+            (void)expect(TokenType::Semicolon,
+                         "Expected ';' after virtual method declaration without a body");
+            method->body = nullptr;
+        }
+
+        return method;
+    }
+
+    std::unique_ptr<ConstructorDeclaration> Parser::parseConstructorDeclaration(
+        Visibility vis, const std::string& className) {
+        auto ctor = std::make_unique<ConstructorDeclaration>();
+        ctor->visibility = vis;
+        const Token& ctorTok = previous();
+        ctor->line = ctorTok.line;
+        ctor->column = ctorTok.column;
+
+        (void)expect(TokenType::LParen, "Expected '(' after 'constructor'");
+        ctor->params = parseParameterList();
+        (void)expect(TokenType::RParen, "Expected ')' after constructor parameters");
+        (void)expect(TokenType::Arrow, "Expected '->' before constructor return type");
+        auto retType = parseType();
+
+        bool matches = false;
+        if (auto named = dynamic_cast<NamedType*>(retType.get())) {
+            if (!named->nameParts.empty() && named->nameParts.back() == className) {
+                matches = true;
+            }
+        }
+        if (!matches) {
+            reportError("Constructor must return '" + className + "'");
+        }
+
+        ctor->body = parseBlock();
+        return ctor;
+    }
+
+    std::unique_ptr<DestructorDeclaration> Parser::parseDestructorDeclaration(Visibility vis) {
+        auto dtor = std::make_unique<DestructorDeclaration>();
+        dtor->visibility = vis;
+        const Token& dtorTok = previous();
+        dtor->line = dtorTok.line;
+        dtor->column = dtorTok.column;
+
+        if (match(TokenType::LParen)) {
+            if (!check(TokenType::RParen)) {
+                reportError("Destructor cannot have parameters");
+            }
+            (void)expect(TokenType::RParen, "Expected ')' after 'destructor'");
+        }
+
+        (void)expect(TokenType::Arrow, "Expected '->' before destructor return type");
+        auto retType = parseType();
+        if (!dynamic_cast<VoidType*>(retType.get())) {
+            reportError("Destructor must return 'void'");
+        }
+
+        dtor->body = parseBlock();
+        return dtor;
     }
 
     // Declarations
@@ -259,11 +561,13 @@ namespace bloch::core {
             return parseBlock();
 
         bool isFinal = match(TokenType::Final);
+        bool typeAhead = isTypeAhead();
 
         // Match primitive declarations or annotated declarations
-        if (check(TokenType::At) || check(TokenType::Int) || check(TokenType::Float) ||
-            check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
-            check(TokenType::Qubit)) {
+        if (check(TokenType::At) || typeAhead) {
+            if (isFinal && !typeAhead && !check(TokenType::At)) {
+                reportError("Expected variable type after 'final'");
+            }
             return parseVariableDeclaration(isFinal);
         }
 
@@ -282,6 +586,8 @@ namespace bloch::core {
             return parseReset();
         if (match(TokenType::Measure))
             return parseMeasure();
+        if (match(TokenType::Destroy))
+            return parseDestroy();
 
         if (check(TokenType::Identifier) && checkNext(TokenType::Equals))
             return parseAssignment();
@@ -443,6 +749,17 @@ namespace bloch::core {
         return stmt;
     }
 
+    // destroy expr;
+    std::unique_ptr<DestroyStatement> Parser::parseDestroy() {
+        const Token& destroyTok = previous();
+        auto stmt = std::make_unique<DestroyStatement>();
+        stmt->target = parseExpression();
+        (void)expect(TokenType::Semicolon, "Expected ';' after destroy target");
+        stmt->line = destroyTok.line;
+        stmt->column = destroyTok.column;
+        return stmt;
+    }
+
     // x = expr;
     std::unique_ptr<AssignmentStatement> Parser::parseAssignment() {
         if (!check(TokenType::Identifier)) {
@@ -499,6 +816,17 @@ namespace bloch::core {
                 arrayAssign->line = line;
                 arrayAssign->column = column;
                 return arrayAssign;
+            } else if (dynamic_cast<MemberAccessExpression*>(expr.get())) {
+                std::unique_ptr<MemberAccessExpression> mem(
+                    static_cast<MemberAccessExpression*>(expr.release()));
+                int line = mem->line;
+                int column = mem->column;
+                auto value = parseAssignmentExpression();
+                auto memberAssign = std::make_unique<MemberAssignmentExpression>(
+                    std::move(mem->object), mem->member, std::move(value));
+                memberAssign->line = line;
+                memberAssign->column = column;
+                return memberAssign;
             } else {
                 reportError("Invalid assignment target");
             }
@@ -696,6 +1024,16 @@ namespace bloch::core {
                 idxExpr->line = lbr.line;
                 idxExpr->column = lbr.column;
                 expr = std::move(idxExpr);
+            } else if (match(TokenType::Dot)) {
+                const Token& dotTok = previous();
+                const Token& memberTok =
+                    expect(TokenType::Identifier, "Expected member name after '.'");
+                auto member = std::make_unique<MemberAccessExpression>();
+                member->object = std::move(expr);
+                member->member = memberTok.value;
+                member->line = dotTok.line;
+                member->column = dotTok.column;
+                expr = std::move(member);
             } else if (match(TokenType::PlusPlus) || match(TokenType::MinusMinus)) {
                 std::string op = previous().value;
                 auto post = std::make_unique<PostfixExpression>(op, std::move(expr));
@@ -744,6 +1082,36 @@ namespace bloch::core {
             auto expr = std::make_unique<MeasureExpression>(MeasureExpression{std::move(target)});
             expr->line = measureTok.line;
             expr->column = measureTok.column;
+            return expr;
+        }
+
+        if (match(TokenType::This)) {
+            const Token& tok = previous();
+            auto expr = std::make_unique<ThisExpression>();
+            expr->line = tok.line;
+            expr->column = tok.column;
+            return expr;
+        }
+
+        if (match(TokenType::Super)) {
+            const Token& tok = previous();
+            auto expr = std::make_unique<SuperExpression>();
+            expr->line = tok.line;
+            expr->column = tok.column;
+            return expr;
+        }
+
+        if (match(TokenType::New)) {
+            const Token& newTok = previous();
+            auto type = parseType();
+            (void)expect(TokenType::LParen, "Expected '(' after type in 'new' expression");
+            auto args = parseArgumentList();
+            (void)expect(TokenType::RParen, "Expected ')' after arguments");
+            auto expr = std::make_unique<NewExpression>();
+            expr->classType = std::move(type);
+            expr->arguments = std::move(args);
+            expr->line = newTok.line;
+            expr->column = newTok.column;
             return expr;
         }
 
@@ -810,45 +1178,46 @@ namespace bloch::core {
     // Types
 
     std::unique_ptr<Type> Parser::parseType() {
-        // First: handle primitives
-        if (check(TokenType::Void) || check(TokenType::Int) || check(TokenType::Float) ||
-            check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
-            check(TokenType::Qubit)) {
-            auto baseType = parsePrimitiveType();
-
-            // Array types are only allowed for primitive types
-            if (match(TokenType::LBracket)) {
-                int arrSize = -1;
-                std::unique_ptr<Expression> sizeExpr = nullptr;
-                if (!check(TokenType::RBracket)) {
-                    if (check(TokenType::IntegerLiteral)) {
-                        const Token& sizeTok = advance();
-                        try {
-                            arrSize = std::stoi(sizeTok.value);
-                        } catch (...) {
-                            reportError("Invalid integer size in array type");
-                        }
-                    } else {
-                        sizeExpr = parseExpression();
-                    }
-                }
-                (void)expect(TokenType::RBracket, "Expected ']' after '[' in array type");
-                return parseArrayType(std::move(baseType), arrSize, std::move(sizeExpr));
-            }
-
-            return baseType;
+        std::unique_ptr<Type> baseType;
+        if (check(TokenType::Void)) {
+            (void)advance();
+            baseType = std::make_unique<VoidType>();
+        } else if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||
+                   check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit)) {
+            baseType = parsePrimitiveType();
+        } else if (check(TokenType::Identifier)) {
+            baseType = std::make_unique<NamedType>(parseQualifiedName());
+        } else {
+            reportError("Expected type");
+            return nullptr;
         }
 
-        reportError("Expected type");
-        return nullptr;
+        while (match(TokenType::LBracket)) {
+            int arrSize = -1;
+            std::unique_ptr<Expression> sizeExpr = nullptr;
+            if (!check(TokenType::RBracket)) {
+                if (check(TokenType::IntegerLiteral)) {
+                    const Token& sizeTok = advance();
+                    try {
+                        arrSize = std::stoi(sizeTok.value);
+                    } catch (...) {
+                        reportError("Invalid integer size in array type");
+                    }
+                } else {
+                    sizeExpr = parseExpression();
+                }
+            }
+            (void)expect(TokenType::RBracket, "Expected ']' after '[' in array type");
+            if (dynamic_cast<VoidType*>(baseType.get())) {
+                reportError("array element type cannot be 'void'");
+            }
+            baseType = parseArrayType(std::move(baseType), arrSize, std::move(sizeExpr));
+        }
+
+        return baseType;
     }
 
     std::unique_ptr<Type> Parser::parsePrimitiveType() {
-        if (check(TokenType::Void)) {
-            (void)advance();
-            return std::make_unique<VoidType>();
-        }
-
         if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||
             check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit)) {
             std::string typeName = advance().value;
@@ -878,7 +1247,10 @@ namespace bloch::core {
             if (!check(TokenType::Identifier)) {
                 reportError("Expected parameter name.");
             }
-            param->name = advance().value;
+            const Token& paramTok = advance();
+            param->name = paramTok.value;
+            param->line = paramTok.line;
+            param->column = paramTok.column;
 
             parameters.push_back(std::move(param));
 
@@ -950,6 +1322,42 @@ namespace bloch::core {
             clone->column = call->column;
             return clone;
         }
+        if (auto member = dynamic_cast<const MemberAccessExpression*>(&expr)) {
+            auto object = cloneExpression(*member->object);
+            auto clone = std::make_unique<MemberAccessExpression>();
+            clone->object = std::move(object);
+            clone->member = member->member;
+            clone->line = member->line;
+            clone->column = member->column;
+            return clone;
+        }
+        if (auto newExpr = dynamic_cast<const NewExpression*>(&expr)) {
+            std::unique_ptr<Type> classType;
+            if (newExpr->classType)
+                classType = cloneType(*newExpr->classType);
+            std::vector<std::unique_ptr<Expression>> args;
+            for (const auto& arg : newExpr->arguments) {
+                args.push_back(cloneExpression(*arg));
+            }
+            auto clone = std::make_unique<NewExpression>();
+            clone->classType = std::move(classType);
+            clone->arguments = std::move(args);
+            clone->line = newExpr->line;
+            clone->column = newExpr->column;
+            return clone;
+        }
+        if (auto thisExpr = dynamic_cast<const ThisExpression*>(&expr)) {
+            auto clone = std::make_unique<ThisExpression>();
+            clone->line = thisExpr->line;
+            clone->column = thisExpr->column;
+            return clone;
+        }
+        if (auto superExpr = dynamic_cast<const SuperExpression*>(&expr)) {
+            auto clone = std::make_unique<SuperExpression>();
+            clone->line = superExpr->line;
+            clone->column = superExpr->column;
+            return clone;
+        }
         if (auto idx = dynamic_cast<const IndexExpression*>(&expr)) {
             auto collection = cloneExpression(*idx->collection);
             auto index = cloneExpression(*idx->index);
@@ -992,6 +1400,15 @@ namespace bloch::core {
             clone->column = assign->column;
             return clone;
         }
+        if (auto memberAssign = dynamic_cast<const MemberAssignmentExpression*>(&expr)) {
+            auto object = cloneExpression(*memberAssign->object);
+            auto value = cloneExpression(*memberAssign->value);
+            auto clone = std::make_unique<MemberAssignmentExpression>(
+                std::move(object), memberAssign->member, std::move(value));
+            clone->line = memberAssign->line;
+            clone->column = memberAssign->column;
+            return clone;
+        }
         if (auto arrAssign = dynamic_cast<const ArrayAssignmentExpression*>(&expr)) {
             auto collection = cloneExpression(*arrAssign->collection);
             auto index = cloneExpression(*arrAssign->index);
@@ -1008,6 +1425,12 @@ namespace bloch::core {
     std::unique_ptr<Type> Parser::cloneType(const Type& type) {
         if (auto prim = dynamic_cast<const PrimitiveType*>(&type))
             return std::make_unique<PrimitiveType>(prim->name);
+        if (auto named = dynamic_cast<const NamedType*>(&type)) {
+            auto clone = std::make_unique<NamedType>(named->nameParts);
+            clone->line = named->line;
+            clone->column = named->column;
+            return clone;
+        }
         if (auto array = dynamic_cast<const ArrayType*>(&type)) {
             std::unique_ptr<Expression> sizeExprClone;
             if (array->sizeExpression)
