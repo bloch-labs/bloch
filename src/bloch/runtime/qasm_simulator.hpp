@@ -18,9 +18,9 @@
 #include <complex>
 #include <string>
 #include <vector>
-#include "../error/bloch_error.hpp"
+#include "bloch/support/error/bloch_error.hpp"
 
-namespace bloch {
+namespace bloch::runtime {
 
     // An ideal statevector simulator with a QASM log.
     // TODO: performance optimisation post 1.0.0
@@ -53,4 +53,4 @@ namespace bloch {
         void ensureQubitActive(int q) const;
     };
 
-}
+}  // namespace bloch::runtime

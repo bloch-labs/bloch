@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/ast/ast.hpp"
+#include "bloch/core/ast/ast.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch;
+using namespace bloch::core;
 
 TEST(ASTTest, FunctionDeclarationBasics) {
     FunctionDeclaration func;

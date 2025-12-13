@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/error/bloch_error.hpp"
-#include "bloch/lexer/lexer.hpp"
-#include "bloch/parser/parser.hpp"
+#include "bloch/core/lexer/lexer.hpp"
+#include "bloch/core/parser/parser.hpp"
+#include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch;
+using namespace bloch::core;
+using bloch::support::BlochError;
 
 TEST(ParserTest, ParseVariableDeclaration) {
     Lexer lexer("int x;");

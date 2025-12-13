@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "lexer.hpp"
+#include "bloch/core/lexer/lexer.hpp"
 
 #include <cctype>
 #include <cstdlib>
@@ -21,7 +21,10 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace bloch {
+namespace bloch::core {
+
+    using support::BlochError;
+    using support::ErrorCategory;
     Lexer::Lexer(const std::string_view source) noexcept
         : m_source(source), m_position(0), m_line(1), m_column(1) {}
 
@@ -300,4 +303,4 @@ namespace bloch {
         return makeToken(TokenType::Unknown,
                          std::string(m_source.substr(start - 1, m_position - start + 1)));
     }
-}
+}  // namespace bloch::core

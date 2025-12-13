@@ -16,11 +16,11 @@
 
 #include <string>
 
-namespace bloch {
+namespace bloch::update {
     // Run a lightweight update check (no more than once every 72 hours) and
     // print a single notice if a newer version exists.
     void checkForUpdatesIfDue(const std::string& currentVersion);
 
     // Download and install the latest Bloch release. Returns true on success.
     bool performSelfUpdate(const std::string& currentVersion, const std::string& argv0);
-}  // namespace bloch
+}  // namespace bloch::update

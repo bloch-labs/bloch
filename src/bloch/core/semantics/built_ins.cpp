@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "built_ins.hpp"
+#include "bloch/core/semantics/built_ins.hpp"
 
-namespace bloch {
+namespace bloch::core {
 
     const std::unordered_map<std::string, BuiltInGate> builtInGates = {
         {"h", BuiltInGate{"h", {ValueType::Qubit}, ValueType::Void}},
@@ -27,4 +27,4 @@ namespace bloch {
         {"cx", BuiltInGate{"cx", {ValueType::Qubit, ValueType::Qubit}, ValueType::Void}},
     };
 
-}
+}  // namespace bloch::core

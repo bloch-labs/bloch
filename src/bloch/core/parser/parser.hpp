@@ -18,10 +18,10 @@
 #include <stdexcept>
 #include <vector>
 
-#include "../ast/ast.hpp"
-#include "../lexer/token.hpp"
+#include "bloch/core/ast/ast.hpp"
+#include "bloch/core/lexer/token.hpp"
 
-namespace bloch {
+namespace bloch::core {
     // The Parser consumes a flat token stream and produces an AST.
     // It's a hand-written, recursive-descent parser tuned for clarity,
     // with small conveniences like a lookahead helper and an overflow
@@ -115,4 +115,4 @@ namespace bloch {
             const std::vector<std::unique_ptr<AnnotationNode>>& annotations);
         void flushExtraStatements(std::vector<std::unique_ptr<Statement>>& dest);
     };
-}
+}  // namespace bloch::core

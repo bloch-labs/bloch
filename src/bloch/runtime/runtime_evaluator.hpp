@@ -20,10 +20,45 @@
 #include <utility>
 #include <vector>
 
-#include "../ast/ast.hpp"
-#include "qasm_simulator.hpp"
+#include "bloch/core/ast/ast.hpp"
+#include "bloch/runtime/qasm_simulator.hpp"
 
-namespace bloch {
+namespace bloch::runtime {
+
+    using core::AnnotationNode;
+    using core::ArrayAssignmentExpression;
+    using core::ArrayLiteralExpression;
+    using core::ArrayType;
+    using core::AssignmentExpression;
+    using core::AssignmentStatement;
+    using core::BinaryExpression;
+    using core::BlockStatement;
+    using core::CallExpression;
+    using core::EchoStatement;
+    using core::Expression;
+    using core::ExpressionStatement;
+    using core::ForStatement;
+    using core::FunctionDeclaration;
+    using core::IfStatement;
+    using core::IndexExpression;
+    using core::LiteralExpression;
+    using core::MeasureExpression;
+    using core::MeasureStatement;
+    using core::Parameter;
+    using core::ParenthesizedExpression;
+    using core::PostfixExpression;
+    using core::PrimitiveType;
+    using core::Program;
+    using core::ResetStatement;
+    using core::ReturnStatement;
+    using core::Statement;
+    using core::TernaryStatement;
+    using core::Type;
+    using core::UnaryExpression;
+    using core::VariableDeclaration;
+    using core::VariableExpression;
+    using core::VoidType;
+    using core::WhileStatement;
 
     // Runtime values carry both a discriminant and storage. Arrays are
     // represented as std::vector<> of the appropriate primitive.
@@ -136,4 +171,4 @@ namespace bloch {
         const auto& trackedCounts() const { return m_trackedCounts; }
     };
 
-}
+}  // namespace bloch::runtime

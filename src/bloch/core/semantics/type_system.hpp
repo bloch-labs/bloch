@@ -19,7 +19,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace bloch {
+namespace bloch::core {
 
     // A compact type universe for semantic checks and runtime hints.
     enum class ValueType { Int, Float, String, Char, Qubit, Bit, Void, Unknown };
@@ -49,4 +49,4 @@ namespace bloch {
        private:
         std::vector<std::unordered_map<std::string, SymbolInfo>> m_scopes;
     };
-}
+}  // namespace bloch::core

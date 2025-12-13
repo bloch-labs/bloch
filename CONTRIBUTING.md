@@ -96,6 +96,7 @@ Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR t
 ## Code Style & Tooling
 - `.clang-format` defines the canonical style—run `clang-format -i <files>` or let your editor handle it.
 - Prefer `snake_case` filenames, `PascalCase` types, and `camelCase` functions/methods.
+- C++ namespaces mirror `src/bloch/*` (`bloch::core`, `bloch::runtime`, `bloch::support`, `bloch::update`); add new code in the matching folder and include it via `bloch/<area>/...`.
 - Tests live in `tests/`; add or update coverage when changing behaviour.
 
 ---
@@ -105,4 +106,3 @@ Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR t
 - Reach out at [hello@bloch-labs.com](mailto:hello@bloch-labs.com) if you need maintainer feedback or want to coordinate on larger work.
 
 ---
-

@@ -32,7 +32,7 @@
 #define BLOCH_FEATURE_BLOCH_CLASS_SYSTEM 0
 #endif
 
-namespace bloch::feature_flags {
+namespace bloch::support::feature_flags {
 
     struct FeatureFlag {
         std::string_view name;
@@ -109,7 +109,7 @@ namespace bloch::feature_flags {
         return result;
     }
 
-}  // namespace bloch::feature_flags
+}  // namespace bloch::support::feature_flags
 
 #ifdef BLOCH_FEATURE_ENABLED
 #undef BLOCH_FEATURE_ENABLED
@@ -119,4 +119,5 @@ namespace bloch::feature_flags {
 #ifdef BLOCH_FEATURE_IS_ENABLED
 #undef BLOCH_FEATURE_IS_ENABLED
 #endif
-#define BLOCH_FEATURE_IS_ENABLED(flag_literal) (::bloch::feature_flags::is_enabled(flag_literal))
+#define BLOCH_FEATURE_IS_ENABLED(flag_literal) \
+    (::bloch::support::feature_flags::is_enabled(flag_literal))

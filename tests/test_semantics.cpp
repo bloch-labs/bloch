@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/error/bloch_error.hpp"
-#include "bloch/lexer/lexer.hpp"
-#include "bloch/parser/parser.hpp"
-#include "bloch/semantics/semantic_analyser.hpp"
+#include "bloch/core/lexer/lexer.hpp"
+#include "bloch/core/parser/parser.hpp"
+#include "bloch/core/semantics/semantic_analyser.hpp"
+#include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch;
+using namespace bloch::core;
+using bloch::support::BlochError;
 
 static std::unique_ptr<Program> parseProgram(const char* src) {
     Lexer lexer(src);
