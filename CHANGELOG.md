@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/bloch-labs/bloch/compare/v1.0.2...v1.1.0) (2025-12-13)
+
+
+### Features
+
+* add class system keywords ([0ef9016](https://github.com/bloch-labs/bloch/commit/0ef9016ffa2d45751fbd6f0193e0b6ab2c04c34a))
+
 ## [1.0.2](https://github.com/bloch-labs/bloch/compare/v1.0.1...v1.0.2) (2025-12-11)
 
 
