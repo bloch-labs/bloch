@@ -31,8 +31,8 @@ namespace bloch::runtime {
     using core::ArrayType;
     using core::AssignmentExpression;
     using core::AssignmentStatement;
-    using core::BlockStatement;
     using core::BinaryExpression;
+    using core::BlockStatement;
     using core::CallExpression;
     using core::EchoStatement;
     using core::Expression;

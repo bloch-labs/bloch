@@ -167,8 +167,8 @@ int main(int argc, char** argv) {
 
             // Warn if nothing was tracked, but still print run header and timing
             if (aggregate.empty())
-                support::blochWarning(
-                    0, 0, "No tracked variables. Use @tracked to collect statistics.");
+                support::blochWarning(0, 0,
+                                      "No tracked variables. Use @tracked to collect statistics.");
 
             std::cout << "Shots: " << shots << "\n";
             std::cout << "Backend: Bloch Ideal Simulator\n";

@@ -25,8 +25,8 @@ namespace bloch::runtime {
 
     using core::builtInGates;
     using support::BlochError;
-    using support::ErrorCategory;
     using support::blochWarning;
+    using support::ErrorCategory;
 
     static std::string valueToString(const Value& v) {
         // Pretty-print a runtime value for echo and tracked summaries.

@@ -17,8 +17,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "bloch/support/error/bloch_error.hpp"
 #include "bloch/core/lexer/token.hpp"
+#include "bloch/support/error/bloch_error.hpp"
 
 namespace bloch::core {
     // The Lexer turns raw source into a flat stream of tokens.
