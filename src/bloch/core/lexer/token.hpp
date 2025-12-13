@@ -51,6 +51,24 @@ namespace bloch::core {
         Quantum,
         Tracked,
 
+        // Class System
+        Class,
+        Public,
+        Private,
+        Protected,
+        Static,
+        Extends,
+        Abstract,
+        Virtual,
+        Override,
+        Super,
+        This,
+        Import,
+        New,
+        Constructor,
+        Destructor,
+        Destroy,
+
         // Operators and Punctuation
         Equals,
         Plus,
