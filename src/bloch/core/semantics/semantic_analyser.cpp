@@ -87,8 +87,7 @@ namespace bloch::core {
         return nullptr;
     }
 
-    bool SemanticAnalyser::isSubclassOf(const std::string& derived,
-                                        const std::string& base) const {
+    bool SemanticAnalyser::isSubclassOf(const std::string& derived, const std::string& base) const {
         if (derived.empty() || base.empty())
             return false;
         const ClassInfo* cur = findClass(derived);
@@ -119,9 +118,9 @@ namespace bloch::core {
             auto& name = kv.first;
             auto& m = kv.second;
             if (m.isStatic && (m.isVirtual || m.isOverride)) {
-                throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                 "static method '" + name +
-                                     "' cannot be declared virtual or override");
+                throw BlochError(
+                    ErrorCategory::Semantic, m.line, m.column,
+                    "static method '" + name + "' cannot be declared virtual or override");
             }
             const MethodInfo* baseMethod = findMethodInHierarchy(info.base, name);
             if (m.isOverride) {
@@ -180,10 +179,9 @@ namespace bloch::core {
                     const MethodInfo* baseMethod = findMethodInHierarchy(info.base, name);
                     if (baseMethod) {
                         if (m.isStatic) {
-                            throw BlochError(
-                                ErrorCategory::Semantic, m.line, m.column,
-                                "static method '" + name +
-                                    "' cannot implement abstract base method");
+                            throw BlochError(ErrorCategory::Semantic, m.line, m.column,
+                                             "static method '" + name +
+                                                 "' cannot implement abstract base method");
                         }
                         if (baseMethod->paramTypes.size() != m.paramTypes.size() ||
                             baseMethod->returnType.className != m.returnType.className ||
@@ -218,8 +216,7 @@ namespace bloch::core {
             case Visibility::Private:
                 return owner == accessor;
             case Visibility::Protected:
-                return !accessor.empty() &&
-                       (accessor == owner || isSubclassOf(accessor, owner));
+                return !accessor.empty() && (accessor == owner || isSubclassOf(accessor, owner));
             default:
                 return false;
         }
@@ -272,14 +269,14 @@ namespace bloch::core {
                     continue;
                 if (auto field = dynamic_cast<FieldDeclaration*>(member.get())) {
                     if (info.fields.count(field->name)) {
-                        throw BlochError(ErrorCategory::Semantic, field->line, field->column,
-                                         "duplicate field '" + field->name + "' in class '" +
-                                             info.name + "'");
+                        throw BlochError(
+                            ErrorCategory::Semantic, field->line, field->column,
+                            "duplicate field '" + field->name + "' in class '" + info.name + "'");
                     }
                     if (info.isStatic && !field->isStatic) {
-                        throw BlochError(ErrorCategory::Semantic, field->line, field->column,
-                                         "static class '" + info.name +
-                                             "' cannot declare instance fields");
+                        throw BlochError(
+                            ErrorCategory::Semantic, field->line, field->column,
+                            "static class '" + info.name + "' cannot declare instance fields");
                     }
                     FieldInfo f;
                     f.visibility = field->visibility;
@@ -293,14 +290,14 @@ namespace bloch::core {
                     info.fields[field->name] = f;
                 } else if (auto method = dynamic_cast<MethodDeclaration*>(member.get())) {
                     if (info.methods.count(method->name)) {
-                        throw BlochError(ErrorCategory::Semantic, method->line, method->column,
-                                         "duplicate method '" + method->name + "' in class '" +
-                                             info.name + "'");
+                        throw BlochError(
+                            ErrorCategory::Semantic, method->line, method->column,
+                            "duplicate method '" + method->name + "' in class '" + info.name + "'");
                     }
                     if (info.isStatic && !method->isStatic) {
-                        throw BlochError(ErrorCategory::Semantic, method->line, method->column,
-                                         "static class '" + info.name +
-                                             "' cannot declare instance methods");
+                        throw BlochError(
+                            ErrorCategory::Semantic, method->line, method->column,
+                            "static class '" + info.name + "' cannot declare instance methods");
                     }
                     MethodInfo m;
                     m.visibility = method->visibility;
@@ -312,20 +309,21 @@ namespace bloch::core {
                     m.owner = info.name;
                     m.line = method->line;
                     m.column = method->column;
-                    for (auto& p : method->params) m.paramTypes.push_back(typeFromAst(p->type.get()));
+                    for (auto& p : method->params)
+                        m.paramTypes.push_back(typeFromAst(p->type.get()));
                     if (m.isStatic && (m.isVirtual || m.isOverride)) {
-                        throw BlochError(ErrorCategory::Semantic, method->line, method->column,
-                                         "static method '" + method->name +
-                                             "' cannot be virtual or override");
+                        throw BlochError(
+                            ErrorCategory::Semantic, method->line, method->column,
+                            "static method '" + method->name + "' cannot be virtual or override");
                     }
                     info.methods[method->name] = m;
                     if (method->isVirtual && !m.hasBody)
                         info.abstractMethods.push_back(method->name);
                 } else if (auto ctor = dynamic_cast<ConstructorDeclaration*>(member.get())) {
                     if (info.isStatic) {
-                        throw BlochError(ErrorCategory::Semantic, ctor->line, ctor->column,
-                                         "static class '" + info.name +
-                                             "' cannot declare constructors");
+                        throw BlochError(
+                            ErrorCategory::Semantic, ctor->line, ctor->column,
+                            "static class '" + info.name + "' cannot declare constructors");
                     }
                     MethodInfo ctorInfo;
                     ctorInfo.visibility = ctor->visibility;
@@ -339,14 +337,14 @@ namespace bloch::core {
                     info.constructors.push_back(ctorInfo);
                 } else if (auto dtor = dynamic_cast<DestructorDeclaration*>(member.get())) {
                     if (info.isStatic) {
-                        throw BlochError(ErrorCategory::Semantic, dtor->line, dtor->column,
-                                         "static class '" + info.name +
-                                             "' cannot declare destructors");
+                        throw BlochError(
+                            ErrorCategory::Semantic, dtor->line, dtor->column,
+                            "static class '" + info.name + "' cannot declare destructors");
                     }
                     if (info.hasDestructor) {
-                        throw BlochError(ErrorCategory::Semantic, dtor->line, dtor->column,
-                                         "class '" + info.name +
-                                             "' cannot declare multiple destructors");
+                        throw BlochError(
+                            ErrorCategory::Semantic, dtor->line, dtor->column,
+                            "class '" + info.name + "' cannot declare multiple destructors");
                     }
                     info.hasDestructor = true;
                 }
@@ -441,8 +439,7 @@ namespace bloch::core {
         auto builtin = builtInGates.find(name);
         if (builtin != builtInGates.end()) {
             std::vector<TypeInfo> params;
-            for (auto v : builtin->second.paramTypes)
-                params.push_back(combine(v, ""));
+            for (auto v : builtin->second.paramTypes) params.push_back(combine(v, ""));
             return params;
         }
         return {};
@@ -645,10 +642,8 @@ namespace bloch::core {
         for (auto& cls : program.classes)
             if (cls)
                 cls->accept(*this);
-        for (auto& fn : program.functions)
-            fn->accept(*this);
-        for (auto& stmt : program.statements)
-            stmt->accept(*this);
+        for (auto& fn : program.functions) fn->accept(*this);
+        for (auto& stmt : program.statements) stmt->accept(*this);
         endScope();
     }
 
@@ -740,9 +735,9 @@ namespace bloch::core {
             } else if (!tinfo.className.empty()) {
                 auto initT = inferTypeInfo(node.initializer.get());
                 if (!initT.className.empty() && initT.className != tinfo.className) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "initializer for '" + node.name + "' expected '" +
-                                         tinfo.className + "'");
+                    throw BlochError(
+                        ErrorCategory::Semantic, node.line, node.column,
+                        "initializer for '" + node.name + "' expected '" + tinfo.className + "'");
                 }
             }
             node.initializer->accept(*this);
@@ -760,8 +755,7 @@ namespace bloch::core {
 
     void SemanticAnalyser::visit(BlockStatement& node) {
         beginScope();
-        for (auto& stmt : node.statements)
-            stmt->accept(*this);
+        for (auto& stmt : node.statements) stmt->accept(*this);
         endScope();
     }
 
@@ -772,7 +766,8 @@ namespace bloch::core {
 
     void SemanticAnalyser::visit(ReturnStatement& node) {
         m_foundReturn = true;
-        bool isVoid = (m_currentReturn.value == ValueType::Void && m_currentReturn.className.empty());
+        bool isVoid =
+            (m_currentReturn.value == ValueType::Void && m_currentReturn.className.empty());
         if (node.value && isVoid) {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                              "void function cannot return a value");
@@ -929,12 +924,12 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(CallExpression& node) {
-        auto checkArgs = [&](const std::vector<TypeInfo>& params, const std::string& name,
-                             int line, int column) {
+        auto checkArgs = [&](const std::vector<TypeInfo>& params, const std::string& name, int line,
+                             int column) {
             if (params.size() != node.arguments.size()) {
-                throw BlochError(ErrorCategory::Semantic, line, column,
-                                 "'" + name + "' expects " + std::to_string(params.size()) +
-                                     " argument(s)");
+                throw BlochError(
+                    ErrorCategory::Semantic, line, column,
+                    "'" + name + "' expects " + std::to_string(params.size()) + " argument(s)");
             }
             for (size_t i = 0; i < node.arguments.size(); ++i) {
                 auto expected = params[i];
@@ -946,8 +941,8 @@ namespace bloch::core {
                                          "argument #" + std::to_string(i + 1) + " to '" + name +
                                              "' expected '" + expected.className + "'");
                     }
-                } else if (expected.value != ValueType::Unknown && actual.value != ValueType::Unknown &&
-                           expected.value != actual.value) {
+                } else if (expected.value != ValueType::Unknown &&
+                           actual.value != ValueType::Unknown && expected.value != actual.value) {
                     throw BlochError(ErrorCategory::Semantic, arg->line, arg->column,
                                      "argument #" + std::to_string(i + 1) + " to '" + name +
                                          "' expected '" + typeToString(expected.value) + "'");
@@ -997,9 +992,9 @@ namespace bloch::core {
             }
             bool objectIsType = isTypeReference(member->object.get());
             if (!method->isStatic && objectIsType) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "instance method '" + member->member +
-                                     "' requires an object instance");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "instance method '" + member->member + "' requires an object instance");
             }
             if (auto superObj = dynamic_cast<SuperExpression*>(member->object.get())) {
                 (void)superObj;
@@ -1031,7 +1026,8 @@ namespace bloch::core {
                                  "'super' used without a base class");
             }
             const ClassInfo* base = findClass(cur->base);
-            bool matched = base && base->constructors.empty() && node.arguments.empty();  // default ctor allowed
+            bool matched = base && base->constructors.empty() &&
+                           node.arguments.empty();  // default ctor allowed
             if (base) {
                 for (const auto& ctor : base->constructors) {
                     if (!isAccessible(ctor.visibility, base->name, m_currentClass))
@@ -1067,8 +1063,7 @@ namespace bloch::core {
         } else if (node.callee) {
             node.callee->accept(*this);
         }
-        for (auto& arg : node.arguments)
-            arg->accept(*this);
+        for (auto& arg : node.arguments) arg->accept(*this);
     }
 
     void SemanticAnalyser::visit(MemberAccessExpression& node) {
@@ -1088,9 +1083,9 @@ namespace bloch::core {
         auto* field = findFieldInHierarchy(objType.className, node.member);
         auto* method = findMethodInHierarchy(objType.className, node.member);
         if (!field && !method) {
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "member '" + node.member + "' not found on class '" +
-                                 objType.className + "'");
+            throw BlochError(
+                ErrorCategory::Semantic, node.line, node.column,
+                "member '" + node.member + "' not found on class '" + objType.className + "'");
         }
         if (field) {
             if (!isAccessible(field->visibility, field->owner, m_currentClass)) {
@@ -1098,9 +1093,9 @@ namespace bloch::core {
                                  "member '" + node.member + "' is not accessible here");
             }
             if (!field->isStatic && objectIsType) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "instance field '" + node.member +
-                                     "' cannot be accessed on a type");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "instance field '" + node.member + "' cannot be accessed on a type");
             }
         } else if (method) {
             if (!isAccessible(method->visibility, method->owner, m_currentClass)) {
@@ -1108,15 +1103,15 @@ namespace bloch::core {
                                  "member '" + node.member + "' is not accessible here");
             }
             if (!method->isStatic && objectIsType) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "instance method '" + node.member +
-                                     "' requires an object instance");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "instance method '" + node.member + "' requires an object instance");
             }
             if (m_inStaticContext && method->owner == m_currentClass && !method->isStatic &&
                 isThisReference(node.object.get())) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "cannot call instance method '" + node.member +
-                                     "' from static context");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "cannot call instance method '" + node.member + "' from static context");
             }
         }
     }
@@ -1129,11 +1124,12 @@ namespace bloch::core {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "class '" + cls.className + "' not found");
             if (info->isStatic || info->isAbstract) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "cannot instantiate static or abstract class '" + cls.className +
-                                     "'");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "cannot instantiate static or abstract class '" + cls.className + "'");
             }
-            bool matched = info->constructors.empty() && node.arguments.empty();  // allow implicit default
+            bool matched =
+                info->constructors.empty() && node.arguments.empty();  // allow implicit default
             for (const auto& ctor : info->constructors) {
                 if (!isAccessible(ctor.visibility, info->name, m_currentClass))
                     continue;
@@ -1161,9 +1157,9 @@ namespace bloch::core {
                 }
             }
             if (!matched) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "no accessible constructor found for class '" + cls.className +
-                                     "'");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "no accessible constructor found for class '" + cls.className + "'");
             }
         }
         for (auto& arg : node.arguments)
@@ -1256,9 +1252,9 @@ namespace bloch::core {
         }
         FieldInfo* field = findFieldInHierarchy(objType.className, node.member);
         if (!field) {
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "field '" + node.member + "' not found in class '" +
-                                 objType.className + "'");
+            throw BlochError(
+                ErrorCategory::Semantic, node.line, node.column,
+                "field '" + node.member + "' not found in class '" + objType.className + "'");
         }
         if (!isAccessible(field->visibility, field->owner, m_currentClass)) {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -1284,8 +1280,8 @@ namespace bloch::core {
                                      "assignment to field '" + node.member + "' expects '" +
                                          field->type.className + "'");
                 }
-            } else if (field->type.value != ValueType::Unknown && valType.value != ValueType::Unknown &&
-                       field->type.value != valType.value) {
+            } else if (field->type.value != ValueType::Unknown &&
+                       valType.value != ValueType::Unknown && field->type.value != valType.value) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "assignment to field '" + node.member + "' expects '" +
                                      typeToString(field->type.value) + "'");

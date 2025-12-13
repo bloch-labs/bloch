@@ -397,8 +397,7 @@ TEST(SemanticTest, VoidParameterDisallowed) {
 }
 
 TEST(SemanticTest, DuplicateClassMethodFails) {
-    const char* src =
-        "class A { public function f() -> void { } public function f() -> void { } }";
+    const char* src = "class A { public function f() -> void { } public function f() -> void { } }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
@@ -496,7 +495,8 @@ TEST(SemanticTest, FinalFieldAssignmentOutsideConstructorFails) {
 
 TEST(SemanticTest, MemberCallArgumentTypeMismatchFails) {
     const char* src =
-        "class A { public function foo(int x) -> void { } public constructor() -> A { return this; } } "
+        "class A { public function foo(int x) -> void { } public constructor() -> A { return this; "
+        "} } "
         "function main() -> void { A a = new A(); a.foo(1.2f); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;

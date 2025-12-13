@@ -32,7 +32,7 @@ namespace bloch::core {
         bool isFinal = false;
         ValueType type = ValueType::Unknown;
         std::optional<int> constInt;
-        std::string className;  // Non-empty for user-defined classes
+        std::string className;    // Non-empty for user-defined classes
         bool isTypeName = false;  // True when the symbol represents a type (e.g. class name)
     };
 
