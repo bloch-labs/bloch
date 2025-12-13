@@ -64,10 +64,11 @@ namespace bloch::core {
             m_scopes.pop_back();
     }
 
-    void SymbolTable::declare(const std::string& name, bool isFinal, ValueType type) {
+    void SymbolTable::declare(const std::string& name, bool isFinal, ValueType type,
+                              const std::string& className, bool isTypeName) {
         if (m_scopes.empty())
             return;
-        m_scopes.back()[name] = SymbolInfo{isFinal, type, std::nullopt};
+        m_scopes.back()[name] = SymbolInfo{isFinal, type, std::nullopt, className, isTypeName};
     }
 
     bool SymbolTable::isDeclared(const std::string& name) const {
@@ -94,6 +95,24 @@ namespace bloch::core {
                 return found->second.type;
         }
         return ValueType::Unknown;
+    }
+
+    std::string SymbolTable::getClassName(const std::string& name) const {
+        for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
+            auto found = it->find(name);
+            if (found != it->end())
+                return found->second.className;
+        }
+        return "";
+    }
+
+    bool SymbolTable::isTypeName(const std::string& name) const {
+        for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
+            auto found = it->find(name);
+            if (found != it->end())
+                return found->second.isTypeName;
+        }
+        return false;
     }
 
     std::optional<int> SymbolTable::getConstInt(const std::string& name) const {
