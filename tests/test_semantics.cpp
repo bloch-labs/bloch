@@ -395,3 +395,178 @@ TEST(SemanticTest, VoidParameterDisallowed) {
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
+
+TEST(SemanticTest, DuplicateClassMethodFails) {
+    const char* src =
+        "class A { public function f() -> void { } public function f() -> void { } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, PrivateFieldNotAccessibleOutsideClass) {
+    const char* src =
+        "class A { private int x = 1; public constructor() -> A { return this; } } "
+        "function main() -> void { A a = new A(); int y = a.x; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, ProtectedFieldAccessibleInSubclass) {
+    const char* src =
+        "class Base { protected int x = 1; public constructor() -> Base { return this; } } "
+        "class Derived extends Base { public function get() -> int { return this.x; } } "
+        "function main() -> void { Derived d = new Derived(); int y = d.get(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, ProtectedFieldNotAccessibleOutsideHierarchy) {
+    const char* src =
+        "class Base { protected int x = 1; public constructor() -> Base { return this; } } "
+        "class Other { public function get() -> int { Base b = new Base(); return b.x; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, PrivateFieldNotAccessibleInSubclass) {
+    const char* src =
+        "class Base { private int x = 1; public constructor() -> Base { return this; } } "
+        "class Child extends Base { public function get() -> int { return this.x; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, AbstractMethodMustBeImplemented) {
+    const char* src =
+        "class A { public virtual function foo() -> void; } "
+        "class B extends A { } "
+        "function main() -> void { B b = new B(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, AbstractMethodImplementedAllowsInstantiation) {
+    const char* src =
+        "class A { public virtual function foo() -> void; } "
+        "class B extends A { public override function foo() -> void { return; } } "
+        "function main() -> void { B b = new B(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, OverrideWithoutBaseFails) {
+    const char* src = "class A { public override function foo() -> void { return; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, SuperCallMustBeFirstInConstructor) {
+    const char* src =
+        "class A { public constructor() -> A { return this; } } "
+        "class B extends A { public constructor() -> B { int x = 1; super(); return this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, SuperCallFirstStatementAllowed) {
+    const char* src =
+        "class A { public constructor() -> A { return this; } } "
+        "class B extends A { public constructor() -> B { super(); return this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, FinalFieldAssignmentOutsideConstructorFails) {
+    const char* src =
+        "class A { public final int x = 1; public function set() -> void { this.x = 2; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, MemberCallArgumentTypeMismatchFails) {
+    const char* src =
+        "class A { public function foo(int x) -> void { } public constructor() -> A { return this; } } "
+        "function main() -> void { A a = new A(); a.foo(1.2f); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, InstanceMethodCallOnTypeFails) {
+    const char* src =
+        "class A { public function foo() -> void { } public constructor() -> A { return this; } } "
+        "function main() -> void { A.foo(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, StaticClassCannotBeInstantiated) {
+    const char* src =
+        "static class Utils { public static function foo() -> void { return; } } "
+        "function main() -> void { Utils u = new Utils(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, OverrideStaticMethodFails) {
+    const char* src =
+        "class Base { public static function foo() -> void { return; } } "
+        "class Child extends Base { public override function foo() -> void { return; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, SuperWithoutBaseCtorFails) {
+    const char* src = "class A { public constructor() -> A { super(); return this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, ThisDisallowedInStaticMethod) {
+    const char* src =
+        "class A { public static function foo() -> void { int x = this.bar; } "
+        "private int bar = 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FinalFieldAssignableInConstructor) {
+    const char* src =
+        "class A { public final int x; public constructor() -> A { this.x = 1; return this; } } "
+        "function main() -> void { A a = new A(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, DestroyNonClassFails) {
+    const char* src = "int i = 1; destroy i;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, CallingFieldAsFunctionFails) {
+    const char* src =
+        "class A { public int x = 1; public constructor() -> A { return this; } } "
+        "function main() -> void { A a = new A(); a.x(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}

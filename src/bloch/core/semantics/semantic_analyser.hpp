@@ -33,6 +33,12 @@ namespace bloch::core {
        public:
         void analyse(Program& program);
 
+        struct TypeInfo {
+            ValueType value = ValueType::Unknown;
+            std::string className;  // non-empty when referring to a user-defined class
+            bool isClass() const { return !className.empty(); }
+        };
+
         // Visitors
         void visit(VariableDeclaration& node) override;
         void visit(BlockStatement& node) override;
@@ -84,31 +90,96 @@ namespace bloch::core {
 
        private:
         SymbolTable m_symbols;
-        ValueType m_currentReturnType = ValueType::Unknown;
+        TypeInfo m_currentReturn;
         bool m_foundReturn = false;
         std::unordered_set<std::string> m_functions;
 
         struct FunctionInfo {
-            ValueType returnType = ValueType::Unknown;
-            std::vector<ValueType> paramTypes;
+            TypeInfo returnType;
+            std::vector<TypeInfo> paramTypes;
         };
         std::unordered_map<std::string, FunctionInfo> m_functionInfo;
+
+        struct FieldInfo {
+            Visibility visibility = Visibility::Public;
+            bool isStatic = false;
+            bool isFinal = false;
+            bool hasInitializer = false;
+            TypeInfo type;
+            std::string owner;
+            int line = 0;
+            int column = 0;
+        };
+
+        struct MethodInfo {
+            Visibility visibility = Visibility::Public;
+            bool isStatic = false;
+            bool isVirtual = false;
+            bool isOverride = false;
+            bool hasBody = false;
+            TypeInfo returnType;
+            std::vector<TypeInfo> paramTypes;
+            std::string owner;
+            int line = 0;
+            int column = 0;
+        };
+
+        struct ClassInfo {
+            std::string name;
+            std::string base;
+            bool isStatic = false;
+            bool isAbstract = false;
+            bool hasDestructor = false;
+            std::vector<std::string> abstractMethods;
+            std::unordered_map<std::string, FieldInfo> fields;
+            std::unordered_map<std::string, MethodInfo> methods;
+            std::vector<MethodInfo> constructors;
+            int line = 0;
+            int column = 0;
+        };
+
+        std::unordered_map<std::string, ClassInfo> m_classes;
+        std::string m_currentClass;
+        bool m_inStaticContext = false;
+        bool m_inConstructor = false;
+        bool m_inDestructor = false;
+        bool m_allowSuperConstructorCall = false;
+        std::string m_currentMethod;
+        bool m_currentMethodIsOverride = false;
 
         // Helpers
         void beginScope();
         void endScope();
-        void declare(const std::string& name, bool isFinal, ValueType type);
+        void declare(const std::string& name, bool isFinal, const TypeInfo& type,
+                     bool isTypeName = false);
         bool isDeclared(const std::string& name) const;
         void declareFunction(const std::string& name);
         bool isFunctionDeclared(const std::string& name) const;
         bool isFinal(const std::string& name) const;
         size_t getFunctionParamCount(const std::string& name) const;
-        std::vector<ValueType> getFunctionParamTypes(const std::string& name) const;
-        ValueType getVariableType(const std::string& name) const;
+        std::vector<TypeInfo> getFunctionParamTypes(const std::string& name) const;
+        TypeInfo getVariableType(const std::string& name) const;
+        std::string getVariableClassName(const std::string& name) const;
         bool returnsVoid(const std::string& name) const;
+        TypeInfo typeFromAst(Type* typeNode) const;
+        static TypeInfo combine(ValueType prim, const std::string& cls);
+        TypeInfo inferTypeInfo(Expression* expr) const;
+        void buildClassRegistry(Program& program);
+        const ClassInfo* findClass(const std::string& name) const;
+        MethodInfo* findMethodInHierarchy(const std::string& className,
+                                          const std::string& method) const;
+        FieldInfo* findFieldInHierarchy(const std::string& className,
+                                        const std::string& field) const;
+        bool isSubclassOf(const std::string& derived, const std::string& base) const;
+        void validateOverrides(ClassInfo& info);
+        void validateAbstractness(ClassInfo& info);
+        bool isAccessible(Visibility visibility, const std::string& owner,
+                          const std::string& accessor) const;
+        bool isTypeReference(Expression* expr) const;
+        bool isThisReference(Expression* expr) const;
+        bool isSuperConstructorCall(Statement* stmt) const;
 
         // Type inference
-        ValueType inferType(Expression* expr) const;
         std::optional<int> evaluateConstInt(Expression* expr) const;
     };
 

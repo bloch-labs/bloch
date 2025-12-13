@@ -32,6 +32,8 @@ namespace bloch::core {
         bool isFinal = false;
         ValueType type = ValueType::Unknown;
         std::optional<int> constInt;
+        std::string className;  // Non-empty for user-defined classes
+        bool isTypeName = false;  // True when the symbol represents a type (e.g. class name)
     };
 
     // Nested-scope symbol table (stack of hash maps).
@@ -39,10 +41,13 @@ namespace bloch::core {
        public:
         void beginScope();
         void endScope();
-        void declare(const std::string& name, bool isFinal, ValueType type);
+        void declare(const std::string& name, bool isFinal, ValueType type,
+                     const std::string& className = "", bool isTypeName = false);
         bool isDeclared(const std::string& name) const;
         bool isFinal(const std::string& name) const;
         ValueType getType(const std::string& name) const;
+        std::string getClassName(const std::string& name) const;
+        bool isTypeName(const std::string& name) const;
         std::optional<int> getConstInt(const std::string& name) const;
         void setConstInt(const std::string& name, int value);
 
