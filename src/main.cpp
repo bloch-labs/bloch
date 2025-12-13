@@ -23,12 +23,17 @@
 #include <unordered_map>
 #include <vector>
 
-#include "bloch/error/bloch_error.hpp"
-#include "bloch/lexer/lexer.hpp"
-#include "bloch/parser/parser.hpp"
+#include "bloch/core/lexer/lexer.hpp"
+#include "bloch/core/parser/parser.hpp"
+#include "bloch/core/semantics/semantic_analyser.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
-#include "bloch/semantics/semantic_analyser.hpp"
+#include "bloch/support/error/bloch_error.hpp"
 #include "bloch/update/update_manager.hpp"
+
+namespace core = bloch::core;
+namespace runtime = bloch::runtime;
+namespace support = bloch::support;
+namespace update = bloch::update;
 
 #ifndef BLOCH_VERSION
 #define BLOCH_VERSION "dev"
@@ -89,10 +94,10 @@ int main(int argc, char** argv) {
             return 0;
         } else if (arg == "--version") {
             printVersion();
-            bloch::checkForUpdatesIfDue(BLOCH_VERSION);
+            update::checkForUpdatesIfDue(BLOCH_VERSION);
             return 0;
         } else if (arg == "--update") {
-            return bloch::performSelfUpdate(BLOCH_VERSION, argv[0]) ? 0 : 1;
+            return update::performSelfUpdate(BLOCH_VERSION, argv[0]) ? 0 : 1;
         } else if (arg == "--emit-qasm") {
             emitQasm = true;
         } else if (arg.rfind("--shots=", 0) == 0) {
@@ -116,7 +121,7 @@ int main(int argc, char** argv) {
     // explicitly asks for it via --echo=all.
     bool echoAll = echoOpt.empty() ? (!shotsProvided || shots == 1) : (echoOpt == "all");
     if (shotsProvided && shots > 1 && echoOpt.empty())
-        bloch::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
+        support::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
 
     std::ifstream in(file);
     if (!in) {
@@ -125,15 +130,15 @@ int main(int argc, char** argv) {
     }
 
     // Run a non-blocking update check at most once every 72 hours.
-    bloch::checkForUpdatesIfDue(BLOCH_VERSION);
+    update::checkForUpdatesIfDue(BLOCH_VERSION);
 
     std::string src((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     try {
-        bloch::Lexer lexer(src);
+        core::Lexer lexer(src);
         auto tokens = lexer.tokenize();
-        bloch::Parser parser(std::move(tokens));
+        core::Parser parser(std::move(tokens));
         auto program = parser.parse();
-        bloch::SemanticAnalyser analyser;
+        core::SemanticAnalyser analyser;
         analyser.analyse(*program);
         std::string qasm;
         if (shotsProvided) {
@@ -141,7 +146,7 @@ int main(int argc, char** argv) {
             std::unordered_map<std::string, std::unordered_map<std::string, int>> aggregate;
             auto start = std::chrono::steady_clock::now();
             for (int s = 0; s < shots; ++s) {
-                bloch::RuntimeEvaluator evaluator(s == shots - 1);
+                runtime::RuntimeEvaluator evaluator(s == shots - 1);
                 evaluator.setEcho(echoAll);
                 // Suppress per-shot warnings; only show for last shot
                 if (s < shots - 1)
@@ -162,8 +167,8 @@ int main(int argc, char** argv) {
 
             // Warn if nothing was tracked, but still print run header and timing
             if (aggregate.empty())
-                bloch::blochWarning(0, 0,
-                                    "No tracked variables. Use @tracked to collect statistics.");
+                support::blochWarning(0, 0,
+                                      "No tracked variables. Use @tracked to collect statistics.");
 
             std::cout << "Shots: " << shots << "\n";
             std::cout << "Backend: Bloch Ideal Simulator\n";
@@ -214,7 +219,7 @@ int main(int argc, char** argv) {
                 return 0;
             }
         } else {
-            bloch::RuntimeEvaluator evaluator;
+            runtime::RuntimeEvaluator evaluator;
             evaluator.setEcho(echoAll);
             evaluator.execute(*program);
             qasm = evaluator.getQasm();
@@ -229,8 +234,8 @@ int main(int argc, char** argv) {
         }
     } catch (const std::exception& ex) {
         // Print a clear stop message, then the actual error
-        std::cerr << bloch::format(bloch::MessageLevel::Error, 0, 0,
-                                   "Stopping program execution...");
+        std::cerr << support::format(support::MessageLevel::Error, 0, 0,
+                                     "Stopping program execution...");
         std::cerr << ex.what() << std::endl;
         return 1;
     }

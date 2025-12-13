@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "type_system.hpp"
+#include "bloch/core/semantics/type_system.hpp"
 
-namespace bloch {
+namespace bloch::core {
 
     ValueType typeFromString(const std::string& name) {
         // Map source-level type names to our compact enum.
@@ -112,4 +112,4 @@ namespace bloch {
         }
     }
 
-}
+}  // namespace bloch::core

@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "semantic_analyser.hpp"
-#include <iostream>
-#include "built_ins.hpp"
+#include "bloch/core/semantics/semantic_analyser.hpp"
 
-namespace bloch {
+#include <iostream>
+
+#include "bloch/core/semantics/built_ins.hpp"
+
+namespace bloch::core {
+
+    using support::BlochError;
+    using support::ErrorCategory;
 
     void SemanticAnalyser::analyse(Program& program) {
         // Global scope for top-level declarations and functions.
@@ -790,4 +795,4 @@ namespace bloch {
         return false;
     }
 
-}
+}  // namespace bloch::core

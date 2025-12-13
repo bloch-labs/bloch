@@ -16,7 +16,7 @@
 
 #include <string>
 
-namespace bloch {
+namespace bloch::core {
     // Tokens represent the smallest meaningful pieces the parser understands.
     // We group them loosely by purpose to keep scanning and parsing readable.
     enum class TokenType {
@@ -101,4 +101,4 @@ namespace bloch {
         int line;
         int column;
     };
-}
+}  // namespace bloch::core

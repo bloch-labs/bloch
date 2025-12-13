@@ -20,11 +20,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include "../ast/ast.hpp"
-#include "../error/bloch_error.hpp"
-#include "type_system.hpp"
+#include "bloch/core/ast/ast.hpp"
+#include "bloch/core/semantics/type_system.hpp"
+#include "bloch/support/error/bloch_error.hpp"
 
-namespace bloch {
+namespace bloch::core {
 
     // The semantic pass checks name usage, types at a coarse level,
     // function contracts, and a few language rules (like @tracked constraints).
@@ -99,4 +99,4 @@ namespace bloch {
         std::optional<int> evaluateConstInt(Expression* expr) const;
     };
 
-}
+}  // namespace bloch::core

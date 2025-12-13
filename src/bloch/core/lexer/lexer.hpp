@@ -17,10 +17,10 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "../error/bloch_error.hpp"
-#include "token.hpp"
+#include "bloch/core/lexer/token.hpp"
+#include "bloch/support/error/bloch_error.hpp"
 
-namespace bloch {
+namespace bloch::core {
     // The Lexer turns raw source into a flat stream of tokens.
     // It is intentionally simple: single-pass, no backtracking, and
     // only enough lookahead for two-character operators and // comments.
@@ -54,4 +54,4 @@ namespace bloch {
         [[nodiscard]] Token scanString();
         [[nodiscard]] Token scanChar();
     };
-}
+}  // namespace bloch::core

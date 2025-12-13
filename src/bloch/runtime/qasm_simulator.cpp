@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "qasm_simulator.hpp"
+#include "bloch/runtime/qasm_simulator.hpp"
+
 #include <array>
 #include <cmath>
 #include <random>
 #include <sstream>
 #include <stdexcept>
 
-namespace bloch {
+namespace bloch::runtime {
+
+    using support::BlochError;
+    using support::ErrorCategory;
 
     static std::mt19937 rng{std::random_device{}()};
 
@@ -239,4 +243,4 @@ namespace bloch {
                              "cannot operate on measured qubit q[" + std::to_string(q) + "]");
         }
     }
-}
+}  // namespace bloch::runtime

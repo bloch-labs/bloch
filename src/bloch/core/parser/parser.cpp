@@ -12,13 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "parser.hpp"
+#include "bloch/core/parser/parser.hpp"
+
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-#include "../error/bloch_error.hpp"
 
-namespace bloch {
+#include "bloch/support/error/bloch_error.hpp"
+
+namespace bloch::core {
+
+    using support::BlochError;
+    using support::ErrorCategory;
     Parser::Parser(std::vector<Token> tokens) : m_tokens(std::move(tokens)), m_current(0) {}
 
     // Token manipulation
@@ -1030,4 +1035,4 @@ namespace bloch {
         for (auto& stmt : m_extraStatements) dest.push_back(std::move(stmt));
         m_extraStatements.clear();
     }
-}
+}  // namespace bloch::core
