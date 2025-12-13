@@ -34,7 +34,7 @@
 #include <openssl/evp.h>
 #include "third_party/cpp-httplib/httplib.h"
 
-namespace bloch {
+namespace bloch::update {
     namespace {
 
         using Clock = std::chrono::system_clock;
@@ -672,4 +672,4 @@ namespace bloch {
 #endif
     }
 
-}  // namespace bloch
+}  // namespace bloch::update

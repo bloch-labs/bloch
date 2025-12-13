@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/error/bloch_error.hpp"
-#include "bloch/lexer/lexer.hpp"
+#include "bloch/core/lexer/lexer.hpp"
+#include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch;
+using namespace bloch::core;
+using bloch::support::BlochError;
 
 TEST(LexerTest, Identifiers) {
     Lexer lexer("hello world");

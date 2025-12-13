@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace bloch {
+namespace bloch::core {
 
     // The AST is a compact tree built by the parser. Each node carries
     // its source position and supports a classic visitor for later stages
@@ -427,4 +427,4 @@ namespace bloch {
     inline void AnnotationNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void FunctionDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void Program::accept(ASTVisitor& visitor) { visitor.visit(*this); }
-}
+}  // namespace bloch::core

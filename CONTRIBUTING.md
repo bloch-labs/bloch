@@ -82,6 +82,7 @@ The automated release pipeline is paused while we rebuild it based on new archit
 ## Code Style & Tooling
 - `.clang-format` defines the canonical style—run `clang-format -i <files>` or let your editor handle it.
 - Prefer `snake_case` filenames, `PascalCase` types, and `camelCase` functions/methods.
+- C++ namespaces mirror `src/bloch/*` (`bloch::core`, `bloch::runtime`, `bloch::support`, `bloch::update`); add new code in the matching folder and include it via `bloch/<area>/...`.
 - Tests live in `tests/`; add or update coverage when changing behaviour.
 
 ---
@@ -91,4 +92,3 @@ The automated release pipeline is paused while we rebuild it based on new archit
 - Reach out at [hello@bloch-labs.com](mailto:hello@bloch-labs.com) if you need maintainer feedback or want to coordinate on larger work.
 
 ---
-

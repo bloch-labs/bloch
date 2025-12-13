@@ -19,7 +19,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace bloch {
+namespace bloch::support {
     // We use simple, coloured messages to make CLI output easy to scan.
     enum class MessageLevel { Info, Warning, Error };
     enum class ErrorCategory { Lexical, Parse, Semantic, Runtime, Generic };
@@ -115,4 +115,4 @@ namespace bloch {
     inline void blochWarning(int line, int column, const std::string& msg) {
         std::cerr << format(MessageLevel::Warning, line, column, msg);
     }
-}
+}  // namespace bloch::support

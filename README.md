@@ -77,6 +77,13 @@ This produces a `build/Bloch.sln` you can open directly in Visual Studio for edi
 
 Additional generator options (Ninja, CLion toolchains, etc.) are covered in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Code Layout
+- `bloch::core` (`src/bloch/core/*`): lexer, Pratt parser, AST, and semantic analysis.
+- `bloch::runtime` (`src/bloch/runtime/*`): runtime evaluator plus the OpenQASM/statevector simulator.
+- `bloch::support` (`src/bloch/support/*`): errors, feature flags, and lightweight helpers shared across layers.
+- `bloch::update` (`src/bloch/update/*`): self-update plumbing used by the CLI.
+Includes now follow this structure (e.g., `#include "bloch/core/parser/parser.hpp"`), and new components should live in the matching namespace.
+
 ## User Documentation
 [docs.bloch-labs.com/bloch/overview](https://docs.bloch-labs.com/bloch/overview)
 

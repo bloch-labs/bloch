@@ -17,9 +17,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "type_system.hpp"
+#include "bloch/core/semantics/type_system.hpp"
 
-namespace bloch {
+namespace bloch::core {
     // Built-in gate signatures used by the semantic pass and runtime dispatch.
     struct BuiltInGate {
         std::string name;
@@ -28,4 +28,4 @@ namespace bloch {
     };
 
     extern const std::unordered_map<std::string, BuiltInGate> builtInGates;
-}
+}  // namespace bloch::core

@@ -12,14 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "runtime_evaluator.hpp"
+#include "bloch/runtime/runtime_evaluator.hpp"
+
 #include <cmath>
 #include <iomanip>
 #include <sstream>
-#include "../error/bloch_error.hpp"
-#include "../semantics/built_ins.hpp"
 
-namespace bloch {
+#include "bloch/core/semantics/built_ins.hpp"
+#include "bloch/support/error/bloch_error.hpp"
+
+namespace bloch::runtime {
+
+    using core::builtInGates;
+    using support::BlochError;
+    using support::ErrorCategory;
+    using support::blochWarning;
 
     static std::string valueToString(const Value& v) {
         // Pretty-print a runtime value for echo and tracked summaries.
@@ -1078,4 +1085,4 @@ namespace bloch {
         }
         m_echoBuffer.clear();
     }
-}
+}  // namespace bloch::runtime
