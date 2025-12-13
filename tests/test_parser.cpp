@@ -449,3 +449,174 @@ TEST(ParserTest, ParseArrayElementAssignment) {
     ASSERT_NE(collVar, nullptr);
     EXPECT_EQ(collVar->name, "a");
 }
+
+TEST(ParserTest, ParsesImportsAndClasses) {
+    const char* src = R"(
+import foo.bar;
+class Base {
+    public virtual function ping() -> void;
+}
+class Derived extends foo.bar.Base {
+    public override function ping() -> void { super.ping(); this.helper(); }
+    private function helper() -> void { }
+}
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->imports.size(), 1u);
+    EXPECT_EQ(program->imports[0]->path.size(), 2u);
+    EXPECT_EQ(program->imports[0]->path[0], "foo");
+    EXPECT_EQ(program->imports[0]->path[1], "bar");
+
+    ASSERT_EQ(program->classes.size(), 2u);
+    auto* base = program->classes[0].get();
+    auto* derived = program->classes[1].get();
+    EXPECT_EQ(base->name, "Base");
+    ASSERT_EQ(base->members.size(), 1u);
+    auto* basePing = dynamic_cast<MethodDeclaration*>(base->members[0].get());
+    ASSERT_NE(basePing, nullptr);
+    EXPECT_TRUE(basePing->isVirtual);
+    EXPECT_EQ(derived->name, "Derived");
+    ASSERT_EQ(derived->baseName.size(), 3u);
+    EXPECT_EQ(derived->baseName.back(), "Base");
+    ASSERT_EQ(derived->members.size(), 2u);
+    auto* ping = dynamic_cast<MethodDeclaration*>(derived->members[0].get());
+    ASSERT_NE(ping, nullptr);
+    EXPECT_TRUE(ping->isOverride);
+    ASSERT_NE(ping->body, nullptr);
+    ASSERT_EQ(ping->body->statements.size(), 2u);
+    auto* superCallStmt =
+        dynamic_cast<ExpressionStatement*>(ping->body->statements[0].get());
+    ASSERT_NE(superCallStmt, nullptr);
+    auto* superCall = dynamic_cast<CallExpression*>(superCallStmt->expression.get());
+    ASSERT_NE(superCall, nullptr);
+    auto* superAccess = dynamic_cast<MemberAccessExpression*>(superCall->callee.get());
+    ASSERT_NE(superAccess, nullptr);
+    ASSERT_NE(dynamic_cast<SuperExpression*>(superAccess->object.get()), nullptr);
+    auto* thisCallStmt =
+        dynamic_cast<ExpressionStatement*>(ping->body->statements[1].get());
+    ASSERT_NE(thisCallStmt, nullptr);
+    auto* thisCall = dynamic_cast<CallExpression*>(thisCallStmt->expression.get());
+    ASSERT_NE(thisCall, nullptr);
+    auto* thisAccess = dynamic_cast<MemberAccessExpression*>(thisCall->callee.get());
+    ASSERT_NE(thisAccess, nullptr);
+    ASSERT_NE(dynamic_cast<ThisExpression*>(thisAccess->object.get()), nullptr);
+}
+
+TEST(ParserTest, RejectsMultipleExtends) {
+    const char* src = "class A extends B extends C { }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochError);
+}
+
+TEST(ParserTest, StaticClassRequiresStaticMethods) {
+    const char* src = R"(
+static class Util {
+    public function f() -> void { }
+}
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochError);
+}
+
+TEST(ParserTest, StaticClassAllowsStaticFields) {
+    const char* src = R"(
+static class Math {
+    public static final float PI = 3.14f;
+}
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->classes.size(), 1u);
+    auto* math = program->classes[0].get();
+    ASSERT_EQ(math->members.size(), 1u);
+    auto* field = dynamic_cast<FieldDeclaration*>(math->members[0].get());
+    ASSERT_NE(field, nullptr);
+    EXPECT_TRUE(field->isStatic);
+    EXPECT_TRUE(field->isFinal);
+}
+
+TEST(ParserTest, StaticClassRejectsNonStaticFields) {
+    const char* src = R"(
+static class Math {
+    public float PI = 3.14f;
+}
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochError);
+}
+
+TEST(ParserTest, ConstructorReturnTypeMustMatchClass) {
+    const char* src = R"(
+class Foo {
+    public constructor() -> Bar { }
+}
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochError);
+}
+
+TEST(ParserTest, DestructorValidation) {
+    const char* badReturn = R"(
+class Foo {
+    public destructor -> int { }
+}
+)";
+    Lexer lexer1(badReturn);
+    auto tokens1 = lexer1.tokenize();
+    Parser parser1(std::move(tokens1));
+    EXPECT_THROW((void)parser1.parse(), BlochError);
+
+    const char* badParams = R"(
+class Foo {
+    public destructor(x) -> void { }
+}
+)";
+    Lexer lexer2(badParams);
+    auto tokens2 = lexer2.tokenize();
+    Parser parser2(std::move(tokens2));
+    EXPECT_THROW((void)parser2.parse(), BlochError);
+}
+
+TEST(ParserTest, ParsesNewAndDestroyWithClassVariables) {
+    const char* src = R"(
+class Foo { }
+function main() -> void {
+    Foo f = new Foo();
+    destroy f;
+}
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->functions.size(), 1u);
+    auto* mainFn = program->functions[0].get();
+    ASSERT_NE(mainFn->body, nullptr);
+    ASSERT_EQ(mainFn->body->statements.size(), 2u);
+    auto* decl = dynamic_cast<VariableDeclaration*>(mainFn->body->statements[0].get());
+    ASSERT_NE(decl, nullptr);
+    auto* newExpr = dynamic_cast<NewExpression*>(decl->initializer.get());
+    ASSERT_NE(newExpr, nullptr);
+    auto* destroyStmt =
+        dynamic_cast<DestroyStatement*>(mainFn->body->statements[1].get());
+    ASSERT_NE(destroyStmt, nullptr);
+    auto* destroyVar = dynamic_cast<VariableExpression*>(destroyStmt->target.get());
+    ASSERT_NE(destroyVar, nullptr);
+    EXPECT_EQ(destroyVar->name, "f");
+}

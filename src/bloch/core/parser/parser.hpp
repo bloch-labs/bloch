@@ -49,14 +49,30 @@ namespace bloch::core {
         [[nodiscard]] bool check(TokenType type) const;
         [[nodiscard]] bool checkNext(TokenType type) const;
         [[nodiscard]] bool checkFunctionAnnotation() const;
+        [[nodiscard]] bool isTypeAhead() const;
         [[nodiscard]] bool isAtEnd() const;
 
         void reportError(const std::string& msg);
 
         // Top level
+        [[nodiscard]] std::unique_ptr<ImportDeclaration> parseImport();
+        [[nodiscard]] std::unique_ptr<ClassDeclaration> parseClassDeclaration();
         [[nodiscard]] std::unique_ptr<FunctionDeclaration> parseFunction();
 
         // Declarations
+        [[nodiscard]] std::unique_ptr<ClassMember> parseClassMember(const std::string& className,
+                                                                    bool isStaticClass);
+        [[nodiscard]] std::unique_ptr<FieldDeclaration> parseFieldDeclaration(Visibility vis,
+                                                                              bool isFinal,
+                                                                              bool isStatic);
+        [[nodiscard]] std::unique_ptr<MethodDeclaration> parseMethodDeclaration(
+            Visibility vis, bool isStatic, bool isVirtual, bool isOverride);
+        [[nodiscard]] std::unique_ptr<ConstructorDeclaration> parseConstructorDeclaration(
+            Visibility vis, const std::string& className);
+        [[nodiscard]] std::unique_ptr<DestructorDeclaration> parseDestructorDeclaration(
+            Visibility vis);
+        [[nodiscard]] Visibility parseVisibility();
+        [[nodiscard]] std::vector<std::string> parseQualifiedName();
         [[nodiscard]] std::unique_ptr<VariableDeclaration> parseVariableDeclaration(
             bool isFinal, bool allowMultiple = true);
         [[nodiscard]] std::unique_ptr<VariableDeclaration> parseVariableDeclaration(
@@ -74,6 +90,7 @@ namespace bloch::core {
         [[nodiscard]] std::unique_ptr<EchoStatement> parseEcho();
         [[nodiscard]] std::unique_ptr<ResetStatement> parseReset();
         [[nodiscard]] std::unique_ptr<MeasureStatement> parseMeasure();
+        [[nodiscard]] std::unique_ptr<DestroyStatement> parseDestroy();
         [[nodiscard]] std::unique_ptr<AssignmentStatement> parseAssignment();
         [[nodiscard]] std::unique_ptr<ExpressionStatement> parseExpressionStatement();
 

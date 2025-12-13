@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace bloch::core {
@@ -43,6 +44,8 @@ namespace bloch::core {
     struct BlockStatement;
     struct AnnotationNode;
     struct Parameter;
+
+    enum class Visibility { Public, Private, Protected };
 
     // Variable Declaration
     struct VariableDeclaration : public Statement {
@@ -138,6 +141,14 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // destroy expr;
+    struct DestroyStatement : public Statement {
+        std::unique_ptr<Expression> target;
+
+        DestroyStatement() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Ternary Statement
     // cond ? thenBranch : elseBranch
     struct TernaryStatement : public Statement {
@@ -220,6 +231,36 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Member access expression: object.member
+    struct MemberAccessExpression : public Expression {
+        std::unique_ptr<Expression> object;
+        std::string member;
+
+        MemberAccessExpression() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    // Object creation
+    struct NewExpression : public Expression {
+        std::unique_ptr<Type> classType;
+        std::vector<std::unique_ptr<Expression>> arguments;
+
+        NewExpression() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    // this
+    struct ThisExpression : public Expression {
+        ThisExpression() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    // super
+    struct SuperExpression : public Expression {
+        SuperExpression() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Index Expression a[i]
     // Indexing into arrays (bounds/typing checked later).
     struct IndexExpression : public Expression {
@@ -268,6 +309,18 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // object.member = value
+    struct MemberAssignmentExpression : public Expression {
+        std::unique_ptr<Expression> object;
+        std::string member;
+        std::unique_ptr<Expression> value;
+
+        MemberAssignmentExpression(std::unique_ptr<Expression> object, std::string member,
+                                   std::unique_ptr<Expression> value)
+            : object(std::move(object)), member(std::move(member)), value(std::move(value)) {}
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Array element assignment expression: collection[index] = value
     struct ArrayAssignmentExpression : public Expression {
         std::unique_ptr<Expression> collection;
@@ -286,6 +339,14 @@ namespace bloch::core {
         std::string name;
 
         PrimitiveType(const std::string& name) : name(name) {}
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    // User-defined or qualified type
+    struct NamedType : public Type {
+        std::vector<std::string> nameParts;
+
+        explicit NamedType(std::vector<std::string> parts) : nameParts(std::move(parts)) {}
         void accept(ASTVisitor& visitor) override;
     };
 
@@ -331,6 +392,70 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Import declaration
+    struct ImportDeclaration : public ASTNode {
+        std::vector<std::string> path;
+
+        ImportDeclaration() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    // Class Members
+    struct ClassMember : public ASTNode {
+        Visibility visibility = Visibility::Public;
+    };
+
+    struct FieldDeclaration : public ClassMember {
+        std::string name;
+        std::unique_ptr<Type> fieldType;
+        std::unique_ptr<Expression> initializer;
+        bool isFinal = false;
+        bool isStatic = false;
+
+        FieldDeclaration() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    struct MethodDeclaration : public ClassMember {
+        std::string name;
+        std::vector<std::unique_ptr<Parameter>> params;
+        std::unique_ptr<Type> returnType;
+        std::unique_ptr<BlockStatement> body;
+        bool isStatic = false;
+        bool isVirtual = false;
+        bool isOverride = false;
+
+        MethodDeclaration() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    struct ConstructorDeclaration : public ClassMember {
+        std::vector<std::unique_ptr<Parameter>> params;
+        std::unique_ptr<BlockStatement> body;
+
+        ConstructorDeclaration() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    struct DestructorDeclaration : public ClassMember {
+        std::unique_ptr<BlockStatement> body;
+
+        DestructorDeclaration() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    // Class Declaration
+    struct ClassDeclaration : public ASTNode {
+        std::string name;
+        std::vector<std::string> baseName;
+        bool isStatic = false;
+        bool isAbstract = false;
+        std::vector<std::unique_ptr<ClassMember>> members;
+
+        ClassDeclaration() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Function Declaration
     struct FunctionDeclaration : public ASTNode {
         std::string name;
@@ -346,6 +471,8 @@ namespace bloch::core {
 
     // Program
     struct Program : public ASTNode {
+        std::vector<std::unique_ptr<ImportDeclaration>> imports;
+        std::vector<std::unique_ptr<ClassDeclaration>> classes;
         std::vector<std::unique_ptr<FunctionDeclaration>> functions;
         std::vector<std::unique_ptr<Statement>> statements;
 
@@ -369,6 +496,7 @@ namespace bloch::core {
         virtual void visit(EchoStatement& node) = 0;
         virtual void visit(ResetStatement& node) = 0;
         virtual void visit(MeasureStatement& node) = 0;
+        virtual void visit(DestroyStatement& node) = 0;
         virtual void visit(TernaryStatement& node) = 0;
         virtual void visit(AssignmentStatement& node) = 0;
 
@@ -378,19 +506,31 @@ namespace bloch::core {
         virtual void visit(LiteralExpression& node) = 0;
         virtual void visit(VariableExpression& node) = 0;
         virtual void visit(CallExpression& node) = 0;
+        virtual void visit(MemberAccessExpression& node) = 0;
+        virtual void visit(NewExpression& node) = 0;
+        virtual void visit(ThisExpression& node) = 0;
+        virtual void visit(SuperExpression& node) = 0;
         virtual void visit(IndexExpression& node) = 0;
         virtual void visit(ArrayLiteralExpression& node) = 0;
         virtual void visit(ParenthesizedExpression& node) = 0;
         virtual void visit(MeasureExpression& node) = 0;
         virtual void visit(AssignmentExpression& node) = 0;
+        virtual void visit(MemberAssignmentExpression& node) = 0;
         virtual void visit(ArrayAssignmentExpression& node) = 0;
 
         virtual void visit(PrimitiveType& node) = 0;
+        virtual void visit(NamedType& node) = 0;
         virtual void visit(ArrayType& node) = 0;
         virtual void visit(VoidType& node) = 0;
 
         virtual void visit(Parameter& node) = 0;
         virtual void visit(AnnotationNode& node) = 0;
+        virtual void visit(ImportDeclaration& node) = 0;
+        virtual void visit(FieldDeclaration& node) = 0;
+        virtual void visit(MethodDeclaration& node) = 0;
+        virtual void visit(ConstructorDeclaration& node) = 0;
+        virtual void visit(DestructorDeclaration& node) = 0;
+        virtual void visit(ClassDeclaration& node) = 0;
         virtual void visit(FunctionDeclaration& node) = 0;
         virtual void visit(Program& node) = 0;
     };
@@ -406,6 +546,7 @@ namespace bloch::core {
     inline void EchoStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ResetStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MeasureStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void DestroyStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void TernaryStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AssignmentStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void BinaryExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
@@ -414,17 +555,29 @@ namespace bloch::core {
     inline void LiteralExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VariableExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void CallExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void MemberAccessExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void NewExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void ThisExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void SuperExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void IndexExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ArrayLiteralExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ParenthesizedExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MeasureExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AssignmentExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void MemberAssignmentExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ArrayAssignmentExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void PrimitiveType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void NamedType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ArrayType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VoidType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void Parameter::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AnnotationNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void ImportDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void FieldDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void MethodDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void ConstructorDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void DestructorDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void ClassDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void FunctionDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void Program::accept(ASTVisitor& visitor) { visitor.visit(*this); }
 }  // namespace bloch::core
