@@ -282,7 +282,7 @@ namespace bloch::core {
     };
 
     // Parenthesized Expression
-    // (expr) — keeps source intent; may be useful for diagnostics.
+    // (expr) keeps source intent; may be useful for diagnostics.
     struct ParenthesizedExpression : public Expression {
         std::unique_ptr<Expression> expression;
 
@@ -350,6 +350,7 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Array type
     struct ArrayType : public Type {
         std::unique_ptr<Type> elementType;
         // Optional fixed size for the array. If negative, size is unspecified.
@@ -367,6 +368,7 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // void
     struct VoidType : public Type {
         VoidType() = default;
         void accept(ASTVisitor& visitor) override;
@@ -405,6 +407,7 @@ namespace bloch::core {
         Visibility visibility = Visibility::Public;
     };
 
+    // Fields
     struct FieldDeclaration : public ClassMember {
         std::string name;
         std::unique_ptr<Type> fieldType;
@@ -416,6 +419,7 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Methods
     struct MethodDeclaration : public ClassMember {
         std::string name;
         std::vector<std::unique_ptr<Parameter>> params;
@@ -429,6 +433,7 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Constructor
     struct ConstructorDeclaration : public ClassMember {
         std::vector<std::unique_ptr<Parameter>> params;
         std::unique_ptr<BlockStatement> body;
@@ -437,6 +442,7 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Destructor
     struct DestructorDeclaration : public ClassMember {
         std::unique_ptr<BlockStatement> body;
 
