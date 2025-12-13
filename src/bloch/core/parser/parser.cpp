@@ -352,8 +352,8 @@ namespace bloch::core {
         return parseFieldDeclaration(visibility, isFinalField, isStatic);
     }
 
-    std::unique_ptr<FieldDeclaration> Parser::parseFieldDeclaration(Visibility vis,
-                                                                    bool isFinal, bool isStatic) {
+    std::unique_ptr<FieldDeclaration> Parser::parseFieldDeclaration(Visibility vis, bool isFinal,
+                                                                    bool isStatic) {
         auto field = std::make_unique<FieldDeclaration>();
         field->visibility = vis;
         field->isFinal = isFinal;
@@ -374,8 +374,7 @@ namespace bloch::core {
         return field;
     }
 
-    std::unique_ptr<MethodDeclaration> Parser::parseMethodDeclaration(Visibility vis,
-                                                                      bool isStatic,
+    std::unique_ptr<MethodDeclaration> Parser::parseMethodDeclaration(Visibility vis, bool isStatic,
                                                                       bool isVirtual,
                                                                       bool isOverride) {
         auto method = std::make_unique<MethodDeclaration>();

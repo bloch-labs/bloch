@@ -488,16 +488,14 @@ class Derived extends foo.bar.Base {
     EXPECT_TRUE(ping->isOverride);
     ASSERT_NE(ping->body, nullptr);
     ASSERT_EQ(ping->body->statements.size(), 2u);
-    auto* superCallStmt =
-        dynamic_cast<ExpressionStatement*>(ping->body->statements[0].get());
+    auto* superCallStmt = dynamic_cast<ExpressionStatement*>(ping->body->statements[0].get());
     ASSERT_NE(superCallStmt, nullptr);
     auto* superCall = dynamic_cast<CallExpression*>(superCallStmt->expression.get());
     ASSERT_NE(superCall, nullptr);
     auto* superAccess = dynamic_cast<MemberAccessExpression*>(superCall->callee.get());
     ASSERT_NE(superAccess, nullptr);
     ASSERT_NE(dynamic_cast<SuperExpression*>(superAccess->object.get()), nullptr);
-    auto* thisCallStmt =
-        dynamic_cast<ExpressionStatement*>(ping->body->statements[1].get());
+    auto* thisCallStmt = dynamic_cast<ExpressionStatement*>(ping->body->statements[1].get());
     ASSERT_NE(thisCallStmt, nullptr);
     auto* thisCall = dynamic_cast<CallExpression*>(thisCallStmt->expression.get());
     ASSERT_NE(thisCall, nullptr);
@@ -613,8 +611,7 @@ function main() -> void {
     ASSERT_NE(decl, nullptr);
     auto* newExpr = dynamic_cast<NewExpression*>(decl->initializer.get());
     ASSERT_NE(newExpr, nullptr);
-    auto* destroyStmt =
-        dynamic_cast<DestroyStatement*>(mainFn->body->statements[1].get());
+    auto* destroyStmt = dynamic_cast<DestroyStatement*>(mainFn->body->statements[1].get());
     ASSERT_NE(destroyStmt, nullptr);
     auto* destroyVar = dynamic_cast<VariableExpression*>(destroyStmt->target.get());
     ASSERT_NE(destroyVar, nullptr);

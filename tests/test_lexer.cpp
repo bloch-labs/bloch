@@ -179,14 +179,22 @@ TEST(LexerTest, LogicalAndBitwiseOperators) {
 
 TEST(LexerTest, ClassSystemKeywords) {
     std::vector<std::pair<std::string, TokenType>> keywords = {
-        {"class", TokenType::Class},         {"public", TokenType::Public},
-        {"private", TokenType::Private},     {"protected", TokenType::Protected},
-        {"static", TokenType::Static},       {"extends", TokenType::Extends},
-        {"abstract", TokenType::Abstract},   {"virtual", TokenType::Virtual},
-        {"override", TokenType::Override},   {"super", TokenType::Super},
-        {"this", TokenType::This},           {"import", TokenType::Import},
-        {"new", TokenType::New},             {"constructor", TokenType::Constructor},
-        {"destructor", TokenType::Destructor},{"destroy", TokenType::Destroy}};
+        {"class", TokenType::Class},
+        {"public", TokenType::Public},
+        {"private", TokenType::Private},
+        {"protected", TokenType::Protected},
+        {"static", TokenType::Static},
+        {"extends", TokenType::Extends},
+        {"abstract", TokenType::Abstract},
+        {"virtual", TokenType::Virtual},
+        {"override", TokenType::Override},
+        {"super", TokenType::Super},
+        {"this", TokenType::This},
+        {"import", TokenType::Import},
+        {"new", TokenType::New},
+        {"constructor", TokenType::Constructor},
+        {"destructor", TokenType::Destructor},
+        {"destroy", TokenType::Destroy}};
 
     std::string src;
     for (const auto& kv : keywords) {
@@ -207,12 +215,10 @@ TEST(LexerTest, ClassSystemKeywords) {
 }
 
 TEST(LexerTest, ClassSystemKeywordLookalikesStayIdentifiers) {
-    std::vector<std::string> identifiers = {"classy",        "publicize",     "privateer",
-                                            "protectedness", "statico",       "extendsion",
-                                            "abstracted",    "virtualized",   "overridee",
-                                            "superposition", "thisness",      "importer",
-                                            "newton",        "constructorx",  "destructora",
-                                            "destroyer"};
+    std::vector<std::string> identifiers = {
+        "classy",     "publicize",    "privateer",   "protectedness", "statico",  "extendsion",
+        "abstracted", "virtualized",  "overridee",   "superposition", "thisness", "importer",
+        "newton",     "constructorx", "destructora", "destroyer"};
     std::string src;
     for (const auto& id : identifiers) {
         if (!src.empty())

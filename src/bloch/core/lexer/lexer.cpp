@@ -277,7 +277,6 @@ namespace bloch::core {
             {"destructor", TokenType::Destructor},
             {"destroy", TokenType::Destroy},
 
-
             // Built ins
             {"echo", TokenType::Echo}};
 
