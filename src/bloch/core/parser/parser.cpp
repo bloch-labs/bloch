@@ -481,12 +481,11 @@ namespace bloch::core {
         dtor->line = dtorTok.line;
         dtor->column = dtorTok.column;
 
-        if (match(TokenType::LParen)) {
-            if (!check(TokenType::RParen)) {
-                reportError("Destructor cannot have parameters");
-            }
-            (void)expect(TokenType::RParen, "Expected ')' after 'destructor'");
+        (void)expect(TokenType::LParen, "Expected '(' after 'destructor'");
+        if (!check(TokenType::RParen)) {
+            reportError("Destructor cannot have parameters");
         }
+        (void)expect(TokenType::RParen, "Expected ')' after 'destructor'");
 
         (void)expect(TokenType::Arrow, "Expected '->' before destructor return type");
         auto retType = parseType();

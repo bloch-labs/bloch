@@ -415,7 +415,8 @@ TEST(SemanticTest, PrivateFieldNotAccessibleOutsideClass) {
 TEST(SemanticTest, ProtectedFieldAccessibleInSubclass) {
     const char* src =
         "class Base { protected int x = 1; public constructor() -> Base { return this; } } "
-        "class Derived extends Base { public function get() -> int { return this.x; } } "
+        "class Derived extends Base { public constructor() -> Derived = default; public function "
+        "get() -> int { return this.x; } } "
         "function main() -> void { Derived d = new Derived(); int y = d.get(); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
@@ -452,8 +453,9 @@ TEST(SemanticTest, AbstractMethodMustBeImplemented) {
 
 TEST(SemanticTest, AbstractMethodImplementedAllowsInstantiation) {
     const char* src =
-        "class A { public virtual function foo() -> void; } "
-        "class B extends A { public override function foo() -> void { return; } } "
+        "class A { public constructor() -> A = default; public virtual function foo() -> void; } "
+        "class B extends A { public constructor() -> B = default; public override function foo() "
+        "-> void { return; } } "
         "function main() -> void { B b = new B(); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;

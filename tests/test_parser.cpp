@@ -571,7 +571,7 @@ class Foo {
 TEST(ParserTest, DestructorValidation) {
     const char* badReturn = R"(
 class Foo {
-    public destructor -> int { }
+    public destructor() -> int { }
 }
 )";
     Lexer lexer1(badReturn);
@@ -588,6 +588,16 @@ class Foo {
     auto tokens2 = lexer2.tokenize();
     Parser parser2(std::move(tokens2));
     EXPECT_THROW((void)parser2.parse(), BlochError);
+
+    const char* missingParens = R"(
+class Foo {
+    public destructor -> void { }
+}
+)";
+    Lexer lexer3(missingParens);
+    auto tokens3 = lexer3.tokenize();
+    Parser parser3(std::move(tokens3));
+    EXPECT_THROW((void)parser3.parse(), BlochError);
 }
 
 TEST(ParserTest, ParsesNewAndDestroyWithClassVariables) {
@@ -644,7 +654,7 @@ class Foo {
 TEST(ParserTest, ParsesDefaultDestructor) {
     const char* src = R"(
 class Foo {
-    public destructor -> void = default;
+    public destructor() -> void = default;
 }
 )";
     Lexer lexer(src);
