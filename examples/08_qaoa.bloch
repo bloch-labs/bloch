@@ -1,0 +1,66 @@
+class QAOA {
+    private float gamma;
+    private float beta;
+
+    constructor(float gamma, float beta) -> QAOA {
+        this.gamma = gamma;
+        this.beta = beta;
+    }
+
+    @quantum
+    public function execute(qubit[8] q) -> void {
+        // |+>^n
+        for (int i = 0; i < 8; i++) {
+            initialise(q[i]);
+        }
+
+        // Cost layer for C8
+        applyZZCost(q[0], q[1], gamma);
+        applyZZCost(q[1], q[2], gamma);
+        applyZZCost(q[2], q[3], gamma);
+        applyZZCost(q[3], q[4], gamma);
+        applyZZCost(q[4], q[5], gamma);
+        applyZZCost(q[5], q[6], gamma);
+        applyZZCost(q[6], q[7], gamma);
+        applyZZCost(q[7], q[0], gamma);
+
+        // Mixer layer
+        for (int i = 0; i < 8; i++) {
+            applyMixerX(q[i], beta);
+        }
+    }
+
+    @quantum
+    private function initialise(qubit q) -> void {
+        h(q);
+    }
+
+    @quantum
+    private function applyZZCost(qubit a, qubit b, float gamma) -> void {
+        cx(a, b);
+        rz(b, -gamma);
+        cx(a, b);
+    }
+
+    @quantum
+    private function applyMixerX(qubit q, float beta) -> void {
+        rx(q, 2.0f * beta);
+    }
+}
+
+function main() -> void {
+    @tracked qubit[8] qreg;
+
+    float gamma_0 = 0.70f;
+    float beta_0 = 0.30f;
+
+    final QAOA qaoa = new QAOA(gamma_0, beta_0);
+    qaoa.execute(qreg);
+
+    bit[8] out = {
+        measure qreg[0], measure qreg[1], measure qreg[2], measure qreg[3],
+        measure qreg[4], measure qreg[5], measure qreg[6], measure qreg[7]
+    };
+
+    echo(out);
+}

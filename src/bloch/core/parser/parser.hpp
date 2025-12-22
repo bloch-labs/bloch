@@ -64,11 +64,13 @@ namespace bloch::core {
                                                                     bool isStaticClass);
         [[nodiscard]] std::unique_ptr<FieldDeclaration> parseFieldDeclaration(Visibility vis,
                                                                               bool isFinal,
-                                                                              bool isStatic);
+                                                                              bool isStatic,
+                                                                              std::vector<std::unique_ptr<AnnotationNode>> annotations);
         [[nodiscard]] std::unique_ptr<MethodDeclaration> parseMethodDeclaration(Visibility vis,
                                                                                 bool isStatic,
                                                                                 bool isVirtual,
-                                                                                bool isOverride);
+                                                                                bool isOverride,
+                                                                                std::vector<std::unique_ptr<AnnotationNode>> annotations);
         [[nodiscard]] std::unique_ptr<ConstructorDeclaration> parseConstructorDeclaration(
             Visibility vis, const std::string& className);
         [[nodiscard]] std::unique_ptr<DestructorDeclaration> parseDestructorDeclaration(

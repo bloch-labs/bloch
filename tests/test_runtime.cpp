@@ -477,3 +477,63 @@ TEST(RuntimeTest, RyRzAppearInQasm) {
     EXPECT_NE(qasm.find("ry("), std::string::npos);
     EXPECT_NE(qasm.find("rz("), std::string::npos);
 }
+
+TEST(RuntimeTest, ClassCtorDtorVirtualAndStatic) {
+    const char* src = R"(
+class Base {
+    constructor() -> Base { echo("Base::ctor"); }
+    destructor -> void { echo("Base::dtor"); }
+    virtual function name() -> string { return "Base"; }
+    function baseOnly() -> string { return "BaseOnly"; }
+}
+
+class Derived extends Base {
+    static int count;
+    constructor() -> Derived { Derived.count = Derived.count + 1; echo("Derived::ctor"); }
+    destructor -> void { echo("Derived::dtor"); }
+    override function name() -> string { return "Derived"; }
+}
+
+function main() -> void {
+    Derived b = new Derived();
+    echo(b.name());
+    echo(b.baseOnly());
+    echo(Derived.count);
+    destroy b;
+}
+)";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("Base::ctor\nDerived::ctor\nDerived\nBaseOnly\n1\nDerived::dtor\nBase::dtor\n",
+              output.str());
+}
+
+TEST(RuntimeTest, CycleCollectorReclaimsClassicalCycle) {
+    const char* src =
+        "class Node { Node next; constructor() -> Node { } } function main() -> void { Node a = new "
+        "Node(); Node b = new Node(); a.next = b; b.next = a; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    EXPECT_EQ(eval.heapObjectCount(), 0u);
+}
+
+TEST(RuntimeTest, CycleCollectorSkipsTrackedCycles) {
+    const char* src =
+        "class Q { @tracked qubit q; Q other; constructor() -> Q { } } function main() -> void { Q "
+        "a = new Q(); Q b = new Q(); a.other = b; b.other = a; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    EXPECT_GE(eval.heapObjectCount(), 2u);
+}

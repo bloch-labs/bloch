@@ -14,9 +14,14 @@
 
 #include "bloch/runtime/runtime_evaluator.hpp"
 
+#include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <functional>
 #include <iomanip>
+#include <optional>
 #include <sstream>
+#include <utility>
 
 #include "bloch/core/semantics/built_ins.hpp"
 #include "bloch/support/error/bloch_error.hpp"
@@ -27,6 +32,18 @@ namespace bloch::runtime {
     using support::BlochError;
     using support::blochWarning;
     using support::ErrorCategory;
+
+    static std::pair<RuntimeField*, RuntimeClass*> findStaticFieldWithOwner(RuntimeClass* cls,
+                                                                           const std::string& name) {
+        RuntimeClass* cur = cls;
+        while (cur) {
+            auto fit = cur->staticFieldIndex.find(name);
+            if (fit != cur->staticFieldIndex.end())
+                return {&cur->staticFields[fit->second], cur};
+            cur = cur->base;
+        }
+        return {nullptr, nullptr};
+    }
 
     static std::string valueToString(const Value& v) {
         // Pretty-print a runtime value for echo and tracked summaries.
@@ -97,9 +114,150 @@ namespace bloch::runtime {
                 }
                 oss << "}";
                 return oss.str();
+            case Value::Type::Object:
+                if (v.objectValue && v.objectValue->cls)
+                    return "<" + v.objectValue->cls->name + " object>";
+                return "<object>";
+            case Value::Type::ObjectArray:
+                oss << "{";
+                for (size_t i = 0; i < v.objectArray.size(); ++i) {
+                    if (i)
+                        oss << ", ";
+                    auto& obj = v.objectArray[i];
+                    if (obj && obj->cls)
+                        oss << "<" << obj->cls->name << ">";
+                    else
+                        oss << "<object>";
+                }
+                oss << "}";
+                return oss.str();
+            case Value::Type::ClassRef:
+                return "<class " + v.className + ">";
             default:
                 return "";
         }
+    }
+
+    RuntimeTypeInfo RuntimeEvaluator::typeInfoFromAst(Type* type) const {
+        RuntimeTypeInfo info;
+        if (!type)
+            return info;
+        if (auto prim = dynamic_cast<PrimitiveType*>(type)) {
+            if (prim->name == "int")
+                info.kind = Value::Type::Int;
+            else if (prim->name == "float")
+                info.kind = Value::Type::Float;
+            else if (prim->name == "bit")
+                info.kind = Value::Type::Bit;
+            else if (prim->name == "string")
+                info.kind = Value::Type::String;
+            else if (prim->name == "char")
+                info.kind = Value::Type::Char;
+            else if (prim->name == "qubit")
+                info.kind = Value::Type::Qubit;
+        } else if (auto named = dynamic_cast<NamedType*>(type)) {
+            info.kind = Value::Type::Object;
+            if (!named->nameParts.empty())
+                info.className = named->nameParts.back();
+        } else if (auto arr = dynamic_cast<ArrayType*>(type)) {
+            auto elem = typeInfoFromAst(arr->elementType.get());
+            switch (elem.kind) {
+                case Value::Type::Int:
+                    info.kind = Value::Type::IntArray;
+                    break;
+                case Value::Type::Float:
+                    info.kind = Value::Type::FloatArray;
+                    break;
+                case Value::Type::Bit:
+                    info.kind = Value::Type::BitArray;
+                    break;
+                case Value::Type::String:
+                    info.kind = Value::Type::StringArray;
+                    break;
+                case Value::Type::Char:
+                    info.kind = Value::Type::CharArray;
+                    break;
+                case Value::Type::Qubit:
+                    info.kind = Value::Type::QubitArray;
+                    break;
+                case Value::Type::Object:
+                    info.kind = Value::Type::ObjectArray;
+                    info.className = elem.className;
+                    break;
+                default:
+                    break;
+            }
+        } else if (dynamic_cast<VoidType*>(type)) {
+            info.kind = Value::Type::Void;
+        }
+        return info;
+    }
+
+    Value RuntimeEvaluator::defaultValueForField(const RuntimeField& field,
+                                                 const std::string& ownerLabel) {
+        Value v;
+        v.type = field.type.kind;
+        auto makeQubitName = [&](int index) {
+            std::ostringstream oss;
+            oss << ownerLabel << "." << field.name;
+            if (index >= 0)
+                oss << "[" << index << "]";
+            return oss.str();
+        };
+        switch (field.type.kind) {
+            case Value::Type::Int:
+                v.intValue = 0;
+                break;
+            case Value::Type::Float:
+                v.floatValue = 0.0;
+                break;
+            case Value::Type::Bit:
+                v.bitValue = 0;
+                break;
+            case Value::Type::String:
+                v.stringValue = "";
+                break;
+            case Value::Type::Char:
+                v.charValue = '\0';
+                break;
+            case Value::Type::Qubit:
+                v.qubit = allocateTrackedQubit(makeQubitName(-1));
+                break;
+            case Value::Type::IntArray:
+                v.intArray.assign(std::max(0, field.arraySize), 0);
+                break;
+            case Value::Type::FloatArray:
+                v.floatArray.assign(std::max(0, field.arraySize), 0.0);
+                break;
+            case Value::Type::BitArray:
+                v.bitArray.assign(std::max(0, field.arraySize), 0);
+                break;
+            case Value::Type::StringArray:
+                v.stringArray.assign(std::max(0, field.arraySize), "");
+                break;
+            case Value::Type::CharArray:
+                v.charArray.assign(std::max(0, field.arraySize), '\0');
+                break;
+            case Value::Type::QubitArray: {
+                int n = std::max(0, field.arraySize);
+                v.qubitArray.resize(n);
+                for (int i = 0; i < n; ++i)
+                    v.qubitArray[i] = allocateTrackedQubit(makeQubitName(i));
+                break;
+            }
+            case Value::Type::ObjectArray: {
+                int n = std::max(0, field.arraySize);
+                v.objectArray.assign(n, {});
+                break;
+            }
+            case Value::Type::Object:
+            case Value::Type::ClassRef:
+            case Value::Type::Void:
+            default:
+                break;
+        }
+        v.className = field.type.className;
+        return v;
     }
 
     void RuntimeEvaluator::execute(Program& program) {
@@ -117,7 +275,19 @@ namespace bloch::runtime {
         m_lastMeasurement.clear();
         m_returnValue = {};
         m_hasReturn = false;
+        m_classTable.clear();
+        m_heap.clear();
+        m_currentClassCtx = nullptr;
+        m_inStaticContext = false;
+        m_inConstructor = false;
+        m_inDestructor = false;
+        m_stopGc = false;
+        m_gcRequested = false;
+        m_allocSinceGc = 0;
         m_sim = QasmSimulator{m_collectQasmLog};
+        buildClassTable(program);
+        for (auto& kv : m_classTable) initStaticFields(kv.second.get());
+        ensureGcThread();
         for (auto& fn : program.functions) {
             m_functions[fn->name] = fn.get();
         }
@@ -125,10 +295,23 @@ namespace bloch::runtime {
         if (it != m_functions.end()) {
             call(it->second, {});
         }
+        m_stopGc = true;
+        m_gcRequested = true;
+        m_gcCv.notify_all();
+        if (m_gcThread.joinable())
+            m_gcThread.join();
+        runCycleCollector();
         // Ensure warnings appear before any normal echo output
         if (m_warnOnExit)
             warnUnmeasured();
         flushEchoes();
+    }
+
+    RuntimeEvaluator::~RuntimeEvaluator() {
+        m_stopGc = true;
+        m_gcCv.notify_all();
+        if (m_gcThread.joinable())
+            m_gcThread.join();
     }
 
     Value RuntimeEvaluator::lookup(const std::string& name) {
@@ -137,6 +320,25 @@ namespace bloch::runtime {
             if (fit != it->end())
                 return fit->second.value;
         }
+        std::shared_ptr<Object> thisObj = currentThisObject();
+        if (m_currentClassCtx) {
+            if (!m_inStaticContext && thisObj) {
+                RuntimeField* field = findInstanceField(m_currentClassCtx, name);
+                if (field && field->offset < thisObj->fields.size())
+                    return thisObj->fields[field->offset];
+            }
+            auto [field, owner] = findStaticFieldWithOwner(m_currentClassCtx, name);
+            if (field && owner && field->offset < owner->staticStorage.size())
+                return owner->staticStorage[field->offset];
+        }
+        auto clsIt = m_classTable.find(name);
+        if (clsIt != m_classTable.end()) {
+            Value v;
+            v.type = Value::Type::ClassRef;
+            v.classRef = clsIt->second.get();
+            v.className = name;
+            return v;
+        }
         return {};
     }
 
@@ -144,12 +346,514 @@ namespace bloch::runtime {
         for (auto it = m_env.rbegin(); it != m_env.rend(); ++it) {
             auto fit = it->find(name);
             if (fit != it->end()) {
-                fit->second.value = v;
+                Value newVal = v;
+                if (fit->second.value.type == Value::Type::Object &&
+                    newVal.type == Value::Type::Object &&
+                    !fit->second.value.className.empty()) {
+                    newVal.className = fit->second.value.className;
+                }
+                fit->second.value = newVal;
                 fit->second.initialized = true;
                 return;
             }
         }
+        std::shared_ptr<Object> thisObj = currentThisObject();
+        if (m_currentClassCtx) {
+            if (!m_inStaticContext && thisObj) {
+                RuntimeField* field = findInstanceField(m_currentClassCtx, name);
+                if (field && field->offset < thisObj->fields.size()) {
+                    Value newVal = v;
+                    const Value& existing = thisObj->fields[field->offset];
+                    if (existing.type == Value::Type::Object && newVal.type == Value::Type::Object &&
+                        !existing.className.empty()) {
+                        newVal.className = existing.className;
+                    }
+                    thisObj->fields[field->offset] = newVal;
+                    return;
+                }
+            }
+            auto [field, owner] = findStaticFieldWithOwner(m_currentClassCtx, name);
+            if (field && owner && field->offset < owner->staticStorage.size()) {
+                Value newVal = v;
+                const Value& existing = owner->staticStorage[field->offset];
+                if (existing.type == Value::Type::Object && newVal.type == Value::Type::Object &&
+                    !existing.className.empty()) {
+                    newVal.className = existing.className;
+                }
+                owner->staticStorage[field->offset] = newVal;
+                return;
+            }
+        }
         m_env.back()[name] = {v, false, true};
+    }
+
+    std::shared_ptr<Object> RuntimeEvaluator::currentThisObject() const {
+        for (auto it = m_env.rbegin(); it != m_env.rend(); ++it) {
+            auto found = it->find("this");
+            if (found != it->end() && found->second.value.objectValue)
+                return found->second.value.objectValue;
+        }
+        return {};
+    }
+
+    RuntimeClass* RuntimeEvaluator::findClass(const std::string& name) const {
+        auto it = m_classTable.find(name);
+        if (it != m_classTable.end())
+            return it->second.get();
+        return nullptr;
+    }
+
+    RuntimeField* RuntimeEvaluator::findInstanceField(RuntimeClass* cls, const std::string& name) {
+        RuntimeClass* cur = cls;
+        while (cur) {
+            auto fit = cur->instanceFieldIndex.find(name);
+            if (fit != cur->instanceFieldIndex.end())
+                return &cur->instanceFields[fit->second];
+            cur = cur->base;
+        }
+        return nullptr;
+    }
+
+    RuntimeField* RuntimeEvaluator::findStaticField(RuntimeClass* cls, const std::string& name) {
+        RuntimeClass* cur = cls;
+        while (cur) {
+            auto fit = cur->staticFieldIndex.find(name);
+            if (fit != cur->staticFieldIndex.end())
+                return &cur->staticFields[fit->second];
+            cur = cur->base;
+        }
+        return nullptr;
+    }
+
+    RuntimeMethod* RuntimeEvaluator::findMethod(RuntimeClass* cls, const std::string& name) {
+        RuntimeClass* cur = cls;
+        while (cur) {
+            auto mit = cur->methods.find(name);
+            if (mit != cur->methods.end())
+                return &mit->second;
+            cur = cur->base;
+        }
+        return nullptr;
+    }
+
+    void RuntimeEvaluator::buildClassTable(Program& program) {
+        m_classTable.clear();
+        std::unordered_map<std::string, std::string> baseNames;
+        for (auto& clsNode : program.classes) {
+            if (!clsNode)
+                continue;
+            auto rc = std::make_shared<RuntimeClass>();
+            rc->name = clsNode->name;
+            rc->isStatic = clsNode->isStatic;
+            rc->isAbstract = clsNode->isAbstract;
+            if (!clsNode->baseName.empty())
+                baseNames[rc->name] = clsNode->baseName.back();
+            m_classTable[rc->name] = rc;
+        }
+        // wire bases and inherit layout
+        for (auto& kv : m_classTable) {
+            auto itBase = baseNames.find(kv.first);
+            if (itBase != baseNames.end()) {
+                kv.second->base = findClass(itBase->second);
+                if (kv.second->base) {
+                    kv.second->instanceFields = kv.second->base->instanceFields;
+                    kv.second->instanceFieldIndex = kv.second->base->instanceFieldIndex;
+                    kv.second->vtable = kv.second->base->vtable;
+                }
+            }
+        }
+        // populate members
+        for (auto& clsNode : program.classes) {
+            if (!clsNode)
+                continue;
+            RuntimeClass* rc = findClass(clsNode->name);
+            if (!rc)
+                continue;
+            for (auto& member : clsNode->members) {
+                if (auto field = dynamic_cast<FieldDeclaration*>(member.get())) {
+                    RuntimeField f;
+                    f.name = field->name;
+                    f.type = typeInfoFromAst(field->fieldType.get());
+                    f.isStatic = field->isStatic;
+                    f.isFinal = field->isFinal;
+                    f.isTracked = field->isTracked;
+                    f.initializer = field->initializer.get();
+                    f.hasInitializer = field->initializer != nullptr;
+                    if (auto arr = dynamic_cast<ArrayType*>(field->fieldType.get()))
+                        f.arraySize = arr->size;
+                    f.line = field->line;
+                    f.column = field->column;
+                    if (f.isTracked || f.type.kind == Value::Type::Qubit ||
+                        f.type.kind == Value::Type::QubitArray)
+                        rc->hasTrackedFields = true;
+                    if (f.isStatic) {
+                        f.offset = rc->staticFields.size();
+                        rc->staticFieldIndex[f.name] = f.offset;
+                        rc->staticFields.push_back(f);
+                    } else {
+                        f.offset = rc->instanceFields.size();
+                        rc->instanceFieldIndex[f.name] = f.offset;
+                        rc->instanceFields.push_back(f);
+                    }
+                } else if (auto method = dynamic_cast<MethodDeclaration*>(member.get())) {
+                    RuntimeMethod m;
+                    m.decl = method;
+                    m.isStatic = method->isStatic;
+                    m.isVirtual = method->isVirtual;
+                    m.isOverride = method->isOverride;
+                    m.owner = rc;
+                    rc->methods[method->name] = m;
+                    RuntimeMethod* stored = &rc->methods[method->name];
+                    if (stored->isVirtual || stored->isOverride) {
+                        size_t idx = rc->vtable.size();
+                        RuntimeMethod* baseMethod = nullptr;
+                        if (rc->base) {
+                            auto it = rc->base->methods.find(method->name);
+                            if (it != rc->base->methods.end() && it->second.isVirtual)
+                                baseMethod = &it->second;
+                        }
+                        if (baseMethod) {
+                            idx = baseMethod->vtableIndex;
+                        } else {
+                            rc->vtable.push_back(nullptr);
+                            idx = rc->vtable.size() - 1;
+                        }
+                        stored->vtableIndex = idx;
+                        if (idx >= rc->vtable.size())
+                            rc->vtable.resize(idx + 1, nullptr);
+                        rc->vtable[idx] = stored;
+                    }
+                } else if (auto ctor = dynamic_cast<ConstructorDeclaration*>(member.get())) {
+                    RuntimeConstructor c;
+                    c.decl = ctor;
+                    for (auto& p : ctor->params) c.params.push_back(typeInfoFromAst(p->type.get()));
+                    rc->constructors.push_back(c);
+                } else if (auto dtor = dynamic_cast<DestructorDeclaration*>(member.get())) {
+                    rc->hasDestructor = true;
+                    rc->destructorDecl = dtor;
+                }
+            }
+            if (rc->staticStorage.size() < rc->staticFields.size())
+                rc->staticStorage.resize(rc->staticFields.size());
+        }
+    }
+
+    void RuntimeEvaluator::initStaticFields(RuntimeClass* cls) {
+        if (!cls)
+            return;
+        for (size_t i = 0; i < cls->staticFields.size(); ++i) {
+            auto& field = cls->staticFields[i];
+            auto& slot = cls->staticStorage[i];
+            if (slot.type != Value::Type::Void)
+                continue;
+            bool prevStatic = m_inStaticContext;
+            auto* prevClass = m_currentClassCtx;
+            m_inStaticContext = true;
+            m_currentClassCtx = cls;
+            slot = defaultValueForField(field, cls->name);
+            if (field.hasInitializer && field.initializer) {
+                slot = eval(field.initializer);
+            }
+            m_inStaticContext = prevStatic;
+            m_currentClassCtx = prevClass;
+        }
+    }
+
+    void RuntimeEvaluator::ensureGcThread() {
+        if (m_gcThread.joinable())
+            return;
+        m_stopGc = false;
+        m_gcRequested = false;
+        m_gcThread = std::thread([this]() {
+            std::unique_lock<std::mutex> lock(m_gcMutex);
+            while (!m_stopGc.load()) {
+                m_gcCv.wait_for(lock, std::chrono::milliseconds(50),
+                                [this]() { return m_stopGc.load(); });
+                if (m_stopGc.load())
+                    break;
+                requestGc();
+            }
+        });
+    }
+
+    void RuntimeEvaluator::requestGc() { m_gcRequested = true; }
+
+    void RuntimeEvaluator::markObject(const std::shared_ptr<Object>& obj) {
+        if (!obj || obj->marked)
+            return;
+        obj->marked = true;
+        for (const auto& field : obj->fields) markValue(field);
+    }
+
+    void RuntimeEvaluator::markValue(const Value& v) {
+        if (v.type == Value::Type::Object && v.objectValue) {
+            markObject(v.objectValue);
+        } else if (v.type == Value::Type::ObjectArray) {
+            for (const auto& o : v.objectArray) markObject(o);
+        }
+    }
+
+    void RuntimeEvaluator::runCycleCollector() {
+        if (!m_gcRequested.load())
+            return;
+        m_gcRequested = false;
+        std::vector<std::shared_ptr<Object>> objects;
+        {
+            std::lock_guard<std::mutex> lock(m_heapMutex);
+            std::vector<std::weak_ptr<Object>> alive;
+            for (auto& w : m_heap) {
+                if (auto obj = w.lock()) {
+                    obj->marked = false;
+                    objects.push_back(obj);
+                    alive.push_back(obj);
+                }
+            }
+            m_heap.swap(alive);
+        }
+        if (objects.empty())
+            return;
+        // Mark roots: environment variables and static storage
+        for (const auto& scope : m_env) {
+            for (const auto& kv : scope) markValue(kv.second.value);
+        }
+        for (const auto& kv : m_classTable) {
+            const auto& cls = kv.second;
+            for (const auto& v : cls->staticStorage) markValue(v);
+        }
+        markValue(m_returnValue);
+        // Sweep unmarked non-tracked objects
+        std::vector<std::shared_ptr<Object>> unreachable;
+        for (auto& obj : objects) {
+            if (!obj->marked && obj->cls && !obj->cls->hasTrackedFields) {
+                obj->skipDestructor = true;
+                unreachable.push_back(obj);
+            }
+        }
+        for (auto& obj : unreachable) {
+            for (auto& f : obj->fields) f = {};
+        }
+        // unreachable will drop here and be reclaimed without running destructors
+        m_allocSinceGc = 0;
+    }
+
+    void RuntimeEvaluator::recordTrackedValue(const std::string& name, const Value& v) {
+        if (v.type == Value::Type::Qubit) {
+            int q = v.qubit;
+            std::string outcome = "?";
+            if (q >= 0 && q < static_cast<int>(m_lastMeasurement.size()) &&
+                m_lastMeasurement[q] != -1) {
+                outcome = m_lastMeasurement[q] ? "1" : "0";
+            }
+            m_trackedCounts[name][outcome]++;
+        } else if (v.type == Value::Type::QubitArray) {
+            bool allMeasured = true;
+            std::string bits;
+            for (int q : v.qubitArray) {
+                if (!(q >= 0 && q < static_cast<int>(m_lastMeasurement.size()) &&
+                      m_lastMeasurement[q] != -1)) {
+                    allMeasured = false;
+                    break;
+                }
+            }
+            std::string outcome = "?";
+            if (allMeasured) {
+                for (int q : v.qubitArray) bits.push_back(m_lastMeasurement[q] ? '1' : '0');
+                outcome = bits;
+            }
+            m_trackedCounts[name][outcome]++;
+        }
+    }
+
+    void RuntimeEvaluator::destroyObject(Object* obj, bool runUserDestructor) {
+        if (!obj || obj->destroyed)
+            return;
+        obj->destroyed = true;
+        if (runUserDestructor && obj->cls) {
+            bool savedReturn = m_hasReturn;
+            for (RuntimeClass* cur = obj->cls; cur; cur = cur->base) {
+                if (!cur->destructorDecl || !cur->destructorDecl->body)
+                    continue;
+                auto prevClass = m_currentClassCtx;
+                auto prevStatic = m_inStaticContext;
+                auto prevCtor = m_inConstructor;
+                auto prevDtor = m_inDestructor;
+                m_currentClassCtx = cur;
+                m_inStaticContext = false;
+                m_inConstructor = false;
+                m_inDestructor = true;
+                beginScope();
+                Value thisVal;
+                thisVal.type = Value::Type::Object;
+                thisVal.objectValue = std::shared_ptr<Object>(obj, [](Object*) {});
+                thisVal.className = cur->name;
+                m_env.back()["this"] = {thisVal, false, true};
+                for (auto& stmt : cur->destructorDecl->body->statements) {
+                    exec(stmt.get());
+                    if (m_hasReturn)
+                        break;
+                }
+                endScope();
+                m_inDestructor = prevDtor;
+                m_inConstructor = prevCtor;
+                m_inStaticContext = prevStatic;
+                m_currentClassCtx = prevClass;
+            }
+            m_hasReturn = savedReturn;
+        }
+        // Reset tracked qubits
+        if (obj->cls) {
+            for (size_t i = 0; i < obj->fields.size(); ++i) {
+                if (i >= obj->cls->instanceFields.size())
+                    continue;
+                const auto& fieldMeta = obj->cls->instanceFields[i];
+                if (fieldMeta.isTracked &&
+                    (obj->fields[i].type == Value::Type::Qubit ||
+                     obj->fields[i].type == Value::Type::QubitArray)) {
+                    recordTrackedValue(obj->cls->name + "." + fieldMeta.name, obj->fields[i]);
+                }
+                if (obj->fields[i].type == Value::Type::Qubit) {
+                    int q = obj->fields[i].qubit;
+                    ensureQubitExists(q, fieldMeta.line, fieldMeta.column);
+                    m_sim.reset(q);
+                    unmarkMeasured(q);
+                    markMeasured(q);
+                } else if (obj->fields[i].type == Value::Type::QubitArray) {
+                    for (int q : obj->fields[i].qubitArray) {
+                        ensureQubitExists(q, fieldMeta.line, fieldMeta.column);
+                        m_sim.reset(q);
+                        unmarkMeasured(q);
+                        markMeasured(q);
+                    }
+                }
+            }
+        }
+        obj->fields.clear();
+    }
+
+    void RuntimeEvaluator::runFieldInitialisers(RuntimeClass* cls,
+                                                const std::shared_ptr<Object>& obj) {
+        if (!cls)
+            return;
+        for (auto& field : cls->instanceFields) {
+            if (field.isStatic)
+                continue;
+            auto& slot = obj->fields[field.offset];
+            if (slot.type == Value::Type::Void)
+                slot = defaultValueForField(field, cls->name);
+            if (field.hasInitializer && field.initializer) {
+                auto prevClass = m_currentClassCtx;
+                bool prevStatic = m_inStaticContext;
+                m_currentClassCtx = cls;
+                m_inStaticContext = false;
+                beginScope();
+                Value thisVal;
+                thisVal.type = Value::Type::Object;
+                thisVal.objectValue = obj;
+                thisVal.className = cls->name;
+                m_env.back()["this"] = {thisVal, false, true};
+                Value init = eval(field.initializer);
+                slot = init;
+                endScope();
+                m_currentClassCtx = prevClass;
+                m_inStaticContext = prevStatic;
+            }
+        }
+    }
+
+    void RuntimeEvaluator::runConstructorChain(RuntimeClass* cls, const std::shared_ptr<Object>& obj,
+                                               ConstructorDeclaration* ctor,
+                                               const std::vector<Value>& args) {
+        if (!cls)
+            return;
+        bool savedReturn = m_hasReturn;
+        m_hasReturn = false;
+        if (cls->base) {
+            ConstructorDeclaration* baseCtor = nullptr;
+            for (auto& c : cls->base->constructors) {
+                if (c.params.empty()) {
+                    baseCtor = c.decl;
+                    break;
+                }
+            }
+            runConstructorChain(cls->base, obj, baseCtor, {});
+        }
+        runFieldInitialisers(cls, obj);
+        if (!ctor)
+            return;
+        auto prevClass = m_currentClassCtx;
+        bool prevStatic = m_inStaticContext;
+        bool prevCtor = m_inConstructor;
+        bool prevDtor = m_inDestructor;
+        m_currentClassCtx = cls;
+        m_inStaticContext = false;
+        m_inConstructor = true;
+        m_inDestructor = false;
+        beginScope();
+        Value thisVal;
+        thisVal.type = Value::Type::Object;
+        thisVal.objectValue = obj;
+        thisVal.className = cls->name;
+        m_env.back()["this"] = {thisVal, false, true};
+        for (size_t i = 0; i < ctor->params.size() && i < args.size(); ++i) {
+            m_env.back()[ctor->params[i]->name] = {args[i], false, true};
+        }
+        if (ctor->body) {
+            for (auto& stmt : ctor->body->statements) {
+                exec(stmt.get());
+                if (m_hasReturn)
+                    break;
+            }
+        }
+        endScope();
+        m_currentClassCtx = prevClass;
+        m_inStaticContext = prevStatic;
+        m_inConstructor = prevCtor;
+        m_inDestructor = prevDtor;
+        m_hasReturn = savedReturn;
+    }
+
+    Value RuntimeEvaluator::callMethod(RuntimeMethod* method, RuntimeClass* staticDispatchClass,
+                                       const std::shared_ptr<Object>& receiver,
+                                       const std::vector<Value>& args) {
+        if (!method || !method->decl)
+            return {};
+        auto prevClass = m_currentClassCtx;
+        bool prevStatic = m_inStaticContext;
+        bool prevCtor = m_inConstructor;
+        bool prevDtor = m_inDestructor;
+        m_currentClassCtx = staticDispatchClass ? staticDispatchClass : method->owner;
+        m_inStaticContext = method->isStatic;
+        m_inConstructor = false;
+        m_inDestructor = false;
+        beginScope();
+        if (!method->isStatic) {
+            Value thisVal;
+            thisVal.type = Value::Type::Object;
+            thisVal.objectValue = receiver;
+            thisVal.className = method->owner ? method->owner->name : "";
+            m_env.back()["this"] = {thisVal, false, true};
+        }
+        m_returnValue = {};
+        for (size_t i = 0; i < method->decl->params.size() && i < args.size(); ++i) {
+            m_env.back()[method->decl->params[i]->name] = {args[i], false, true};
+        }
+        bool prevReturn = m_hasReturn;
+        m_hasReturn = false;
+        if (method->decl->body) {
+            for (auto& stmt : method->decl->body->statements) {
+                exec(stmt.get());
+                if (m_hasReturn)
+                    break;
+            }
+        }
+        Value ret = m_returnValue;
+        endScope();
+        m_hasReturn = prevReturn;
+        m_currentClassCtx = prevClass;
+        m_inStaticContext = prevStatic;
+        m_inConstructor = prevCtor;
+        m_inDestructor = prevDtor;
+        return ret;
     }
 
     Value RuntimeEvaluator::call(FunctionDeclaration* fn, const std::vector<Value>& args) {
@@ -159,6 +863,7 @@ namespace bloch::runtime {
             m_env.back()[fn->params[i]->name] = {args[i], false, true};
         }
         bool prevReturn = m_hasReturn;
+        m_returnValue = {};
         m_hasReturn = false;
         if (fn->body) {
             for (auto& stmt : fn->body->statements) {
@@ -174,6 +879,8 @@ namespace bloch::runtime {
     }
 
     void RuntimeEvaluator::exec(Statement* s) {
+        if (m_gcRequested.load())
+            runCycleCollector();
         if (!s)
             return;
         if (auto var = dynamic_cast<VariableDeclaration*>(s)) {
@@ -239,6 +946,10 @@ namespace bloch::runtime {
                             v.qubitArray[i] = allocateTrackedQubit(var->name);
                     }
                 }
+            } else if (auto named = dynamic_cast<NamedType*>(var->varType.get())) {
+                v.type = Value::Type::Object;
+                if (!named->nameParts.empty())
+                    v.className = named->nameParts.back();
             }
             bool initialized = false;
             if (var->initializer) {
@@ -341,6 +1052,10 @@ namespace bloch::runtime {
                     initialized = true;
                 }
             }
+            if (auto named = dynamic_cast<NamedType*>(var->varType.get())) {
+                if (!named->nameParts.empty())
+                    v.className = named->nameParts.back();
+            }
             m_env.back()[var->name] = {v, var->isTracked, initialized};
         } else if (auto block = dynamic_cast<BlockStatement*>(s)) {
             beginScope();
@@ -414,6 +1129,25 @@ namespace bloch::runtime {
             markMeasured(q.qubit);
             if (q.qubit >= 0 && q.qubit < static_cast<int>(m_lastMeasurement.size()))
                 m_lastMeasurement[q.qubit] = bit;
+        } else if (auto destroy = dynamic_cast<DestroyStatement*>(s)) {
+            if (auto var = dynamic_cast<VariableExpression*>(destroy->target.get())) {
+                assign(var->name, {});
+                requestGc();
+            } else if (auto mem = dynamic_cast<MemberAccessExpression*>(destroy->target.get())) {
+                Value obj = eval(mem->object.get());
+                if (obj.type == Value::Type::Object && obj.objectValue) {
+                    RuntimeField* field =
+                        obj.objectValue->cls ? findInstanceField(obj.objectValue->cls, mem->member)
+                                             : nullptr;
+                    if (field) {
+                        if (field->offset < obj.objectValue->fields.size())
+                            obj.objectValue->fields[field->offset] = {};
+                        requestGc();
+                    }
+                }
+            } else {
+                (void)eval(destroy->target.get());
+            }
         } else if (auto assignStmt = dynamic_cast<AssignmentStatement*>(s)) {
             Value val = eval(assignStmt->value.get());
             assign(assignStmt->name, val);
@@ -523,6 +1257,98 @@ namespace bloch::runtime {
                                      "unsupported array literal type");
             }
             return v;
+        } else if (auto thisExpr = dynamic_cast<ThisExpression*>(e)) {
+            return lookup("this");
+        } else if (auto superExpr = dynamic_cast<SuperExpression*>(e)) {
+            (void)superExpr;
+            Value v;
+            v.type = Value::Type::ClassRef;
+            if (m_currentClassCtx && m_currentClassCtx->base) {
+                v.classRef = m_currentClassCtx->base;
+                v.className = m_currentClassCtx->base->name;
+            }
+            return v;
+        } else if (auto newExpr = dynamic_cast<NewExpression*>(e)) {
+            RuntimeTypeInfo tinfo = typeInfoFromAst(newExpr->classType.get());
+            RuntimeClass* cls = findClass(tinfo.className);
+            if (!cls)
+                throw BlochError(ErrorCategory::Runtime, newExpr->line, newExpr->column,
+                                 "class '" + tinfo.className + "' not found");
+            if (cls->isStatic || cls->isAbstract) {
+                throw BlochError(ErrorCategory::Runtime, newExpr->line, newExpr->column,
+                                 "cannot instantiate static or abstract class '" + cls->name + "'");
+            }
+            auto deleter = [this](Object* obj) {
+                destroyObject(obj, !obj->skipDestructor);
+                delete obj;
+            };
+            auto obj = std::shared_ptr<Object>(new Object{}, deleter);
+            obj->cls = cls;
+            obj->owner = this;
+            obj->fields.assign(cls->instanceFields.size(), {});
+            for (auto& f : cls->instanceFields) {
+                if (!f.isStatic && f.offset < obj->fields.size())
+                    obj->fields[f.offset] = defaultValueForField(f, cls->name);
+            }
+            {
+                std::lock_guard<std::mutex> lock(m_heapMutex);
+                m_heap.push_back(obj);
+            }
+            std::vector<Value> args;
+            for (auto& a : newExpr->arguments) args.push_back(eval(a.get()));
+            ConstructorDeclaration* ctorDecl = nullptr;
+            for (auto& c : cls->constructors) {
+                if (c.params.size() == args.size()) {
+                    ctorDecl = c.decl;
+                    break;
+                }
+            }
+            runConstructorChain(cls, obj, ctorDecl, args);
+            Value v;
+            v.type = Value::Type::Object;
+            v.objectValue = obj;
+            v.className = cls->name;
+            ++m_allocSinceGc;
+            if (m_allocSinceGc > 16)
+                requestGc();
+            return v;
+        } else if (auto memAcc = dynamic_cast<MemberAccessExpression*>(e)) {
+            Value obj = eval(memAcc->object.get());
+            if (obj.type == Value::Type::ClassRef && obj.classRef) {
+                auto [field, owner] = findStaticFieldWithOwner(obj.classRef, memAcc->member);
+                RuntimeMethod* method = findMethod(obj.classRef, memAcc->member);
+                if (field && owner) {
+                    size_t idx = field->offset;
+                    if (idx < owner->staticStorage.size())
+                        return owner->staticStorage[idx];
+                } else if (method) {
+                    Value v;
+                    v.type = Value::Type::ClassRef;
+                    v.classRef = obj.classRef;
+                    v.className = obj.classRef->name;
+                    return v;
+                }
+                throw BlochError(ErrorCategory::Runtime, memAcc->line, memAcc->column,
+                                 "member not found on class");
+            }
+            if (obj.type == Value::Type::Object && obj.objectValue) {
+                RuntimeField* instField =
+                    obj.objectValue->cls ? findInstanceField(obj.objectValue->cls, memAcc->member)
+                                         : nullptr;
+                if (instField) {
+                    if (instField->offset < obj.objectValue->fields.size())
+                        return obj.objectValue->fields[instField->offset];
+                } else {
+                    auto [staticField, owner] =
+                        obj.objectValue->cls
+                            ? findStaticFieldWithOwner(obj.objectValue->cls, memAcc->member)
+                            : std::pair<RuntimeField*, RuntimeClass*>{nullptr, nullptr};
+                    if (staticField && owner &&
+                        staticField->offset < owner->staticStorage.size())
+                        return owner->staticStorage[staticField->offset];
+                }
+            }
+            return {};
         } else if (auto bin = dynamic_cast<BinaryExpression*>(e)) {
             Value l = eval(bin->left.get());
             Value r = eval(bin->right.get());
@@ -806,6 +1632,53 @@ namespace bloch::runtime {
                     }
                     return res;
                 }
+                RuntimeMethod* method = nullptr;
+                RuntimeClass* staticCls = m_currentClassCtx;
+                if (staticCls)
+                    method = findMethod(staticCls, name);
+                if (method) {
+                    std::shared_ptr<Object> receiver;
+                    if (!method->isStatic) {
+                        receiver = currentThisObject();
+                        if (!receiver) {
+                            throw BlochError(ErrorCategory::Runtime, callExpr->line,
+                                             callExpr->column,
+                                             "instance method '" + name +
+                                                 "' requires an object receiver");
+                        }
+                    }
+                    return callMethod(method, staticCls, receiver, args);
+                }
+            } else if (auto member = dynamic_cast<MemberAccessExpression*>(callExpr->callee.get())) {
+                std::vector<Value> args;
+                for (auto& a : callExpr->arguments) args.push_back(eval(a.get()));
+                Value target = eval(member->object.get());
+                RuntimeMethod* method = nullptr;
+                RuntimeClass* staticCls = nullptr;
+                std::shared_ptr<Object> receiver;
+                bool viaSuper = dynamic_cast<SuperExpression*>(member->object.get()) != nullptr;
+                if (target.type == Value::Type::Object && target.objectValue) {
+                    receiver = target.objectValue;
+                    staticCls = !target.className.empty() ? findClass(target.className) : nullptr;
+                    if (!staticCls)
+                        staticCls = receiver->cls;
+                    method = findMethod(staticCls, member->member);
+                    if (method && method->isVirtual && receiver->cls &&
+                        method->vtableIndex < receiver->cls->vtable.size() &&
+                        receiver->cls->vtable[method->vtableIndex]) {
+                        method = receiver->cls->vtable[method->vtableIndex];
+                    }
+                    if (viaSuper && staticCls && staticCls->base) {
+                        method = findMethod(staticCls->base, member->member);
+                        staticCls = staticCls->base;
+                    }
+                } else if (target.type == Value::Type::ClassRef && target.classRef) {
+                    staticCls = target.classRef;
+                    method = findMethod(staticCls, member->member);
+                }
+                if (method) {
+                    return callMethod(method, staticCls, receiver, args);
+                }
             }
         } else if (auto idx = dynamic_cast<MeasureExpression*>(e)) {
             Value q = eval(idx->qubit.get());
@@ -889,6 +1762,32 @@ namespace bloch::runtime {
             Value v = eval(assignExpr->value.get());
             assign(assignExpr->name, v);
             return v;
+        } else if (auto memAssign = dynamic_cast<MemberAssignmentExpression*>(e)) {
+            Value obj = eval(memAssign->object.get());
+            Value rhs = eval(memAssign->value.get());
+            if (obj.type == Value::Type::Object && obj.objectValue) {
+                RuntimeField* instField =
+                    obj.objectValue->cls
+                        ? findInstanceField(obj.objectValue->cls, memAssign->member)
+                        : nullptr;
+                if (instField) {
+                    if (instField->offset < obj.objectValue->fields.size())
+                        obj.objectValue->fields[instField->offset] = rhs;
+                } else {
+                    auto [staticField, owner] =
+                        obj.objectValue->cls
+                            ? findStaticFieldWithOwner(obj.objectValue->cls, memAssign->member)
+                            : std::pair<RuntimeField*, RuntimeClass*>{nullptr, nullptr};
+                    if (staticField && owner &&
+                        staticField->offset < owner->staticStorage.size())
+                        owner->staticStorage[staticField->offset] = rhs;
+                }
+            } else if (obj.type == Value::Type::ClassRef && obj.classRef) {
+                auto [field, owner] = findStaticFieldWithOwner(obj.classRef, memAssign->member);
+                if (field && owner && field->offset < owner->staticStorage.size())
+                    owner->staticStorage[field->offset] = rhs;
+            }
+            return rhs;
         } else if (auto aassign = dynamic_cast<ArrayAssignmentExpression*>(e)) {
             // Only support assigning into variable arrays for 1.0.0
             auto* var = dynamic_cast<VariableExpression*>(aassign->collection.get());
@@ -1084,5 +1983,15 @@ namespace bloch::runtime {
             std::cout << line << std::endl;
         }
         m_echoBuffer.clear();
+    }
+
+    size_t RuntimeEvaluator::heapObjectCount() {
+        std::lock_guard<std::mutex> lock(m_heapMutex);
+        size_t count = 0;
+        for (const auto& w : m_heap) {
+            if (w.lock())
+                ++count;
+        }
+        return count;
     }
 }  // namespace bloch::runtime

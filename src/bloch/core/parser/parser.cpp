@@ -282,6 +282,8 @@ namespace bloch::core {
 
     std::unique_ptr<ClassMember> Parser::parseClassMember(const std::string& className,
                                                           bool isStaticClass) {
+        auto annotations = parseAnnotations();
+
         Visibility visibility = parseVisibility();
         if (visibility != Visibility::Public &&
             (check(TokenType::Public) || check(TokenType::Private) ||
@@ -315,7 +317,13 @@ namespace bloch::core {
             scanningModifiers = false;
         }
 
+        auto trailingAnnotations = parseAnnotations();
+        for (auto& ann : trailingAnnotations) annotations.push_back(std::move(ann));
+
         if (match(TokenType::Constructor)) {
+            if (!annotations.empty()) {
+                reportError("Annotations are not allowed on constructors");
+            }
             if (isStaticClass)
                 reportError("Static classes cannot declare constructors");
             if (isStatic || isVirtual || isOverride)
@@ -324,6 +332,9 @@ namespace bloch::core {
         }
 
         if (match(TokenType::Destructor)) {
+            if (!annotations.empty()) {
+                reportError("Annotations are not allowed on destructors");
+            }
             if (isStaticClass)
                 reportError("Static classes cannot declare destructors");
             if (isStatic || isVirtual || isOverride)
@@ -338,7 +349,8 @@ namespace bloch::core {
             if (isStaticClass && (isVirtual || isOverride)) {
                 reportError("Static classes cannot contain virtual or override methods");
             }
-            return parseMethodDeclaration(visibility, isStatic, isVirtual, isOverride);
+            return parseMethodDeclaration(visibility, isStatic, isVirtual, isOverride,
+                                          std::move(annotations));
         }
 
         if (isVirtual || isOverride) {
@@ -349,15 +361,22 @@ namespace bloch::core {
         }
 
         bool isFinalField = match(TokenType::Final);
-        return parseFieldDeclaration(visibility, isFinalField, isStatic);
+        return parseFieldDeclaration(visibility, isFinalField, isStatic, std::move(annotations));
     }
 
-    std::unique_ptr<FieldDeclaration> Parser::parseFieldDeclaration(Visibility vis, bool isFinal,
-                                                                    bool isStatic) {
+    std::unique_ptr<FieldDeclaration> Parser::parseFieldDeclaration(
+        Visibility vis, bool isFinal, bool isStatic,
+        std::vector<std::unique_ptr<AnnotationNode>> annotations) {
         auto field = std::make_unique<FieldDeclaration>();
         field->visibility = vis;
         field->isFinal = isFinal;
         field->isStatic = isStatic;
+
+        field->annotations = std::move(annotations);
+        for (auto& ann : field->annotations) {
+            if (ann && ann->name == "tracked")
+                field->isTracked = true;
+        }
 
         field->fieldType = parseType();
 
@@ -376,12 +395,18 @@ namespace bloch::core {
 
     std::unique_ptr<MethodDeclaration> Parser::parseMethodDeclaration(Visibility vis, bool isStatic,
                                                                       bool isVirtual,
-                                                                      bool isOverride) {
+                                                                      bool isOverride,
+                                                                      std::vector<std::unique_ptr<AnnotationNode>> annotations) {
         auto method = std::make_unique<MethodDeclaration>();
         method->visibility = vis;
         method->isStatic = isStatic;
         method->isVirtual = isVirtual;
         method->isOverride = isOverride;
+        method->annotations = std::move(annotations);
+        for (auto& ann : method->annotations) {
+            if (ann && ann->name == "quantum")
+                method->hasQuantumAnnotation = true;
+        }
 
         const Token& nameTok = expect(TokenType::Identifier, "Expected method name");
         method->name = nameTok.value;
