@@ -88,8 +88,7 @@ namespace bloch::core {
     }
 
     const SemanticAnalyser::FieldInfo* SemanticAnalyser::resolveField(const std::string& name,
-                                                                      int line,
-                                                                      int column) const {
+                                                                      int line, int column) const {
         if (m_currentClass.empty())
             return nullptr;
         FieldInfo* field = findFieldInHierarchy(m_currentClass, name);
@@ -101,8 +100,9 @@ namespace bloch::core {
         }
         if (m_inStaticContext && !field->isStatic) {
             throw BlochError(ErrorCategory::Semantic, line, column,
-                             "instance field '" + name + "' cannot be referenced in a static "
-                             "context");
+                             "instance field '" + name +
+                                 "' cannot be referenced in a static "
+                                 "context");
         }
         return field;
     }
@@ -531,7 +531,8 @@ namespace bloch::core {
         if (auto lit = dynamic_cast<LiteralExpression*>(expr))
             return combine(typeFromString(lit->literalType), "");
         if (auto var = dynamic_cast<VariableExpression*>(expr)) {
-            TypeInfo local = combine(m_symbols.getType(var->name), m_symbols.getClassName(var->name));
+            TypeInfo local =
+                combine(m_symbols.getType(var->name), m_symbols.getClassName(var->name));
             if (local.value != ValueType::Unknown || !local.className.empty())
                 return local;
             if (auto field = resolveField(var->name, var->line, var->column))
@@ -1019,9 +1020,9 @@ namespace bloch::core {
                                      "Cannot modify final field '" + var->name + "'");
                 }
                 if (field->type.value != ValueType::Int) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "Postfix operator '" + node.op +
-                                         "' requires variable of type 'int'");
+                    throw BlochError(
+                        ErrorCategory::Semantic, node.line, node.column,
+                        "Postfix operator '" + node.op + "' requires variable of type 'int'");
                 }
                 return;
             }
@@ -1490,7 +1491,8 @@ namespace bloch::core {
         TypeInfo ret = typeFromAst(node.returnType.get());
         if (node.hasQuantumAnnotation) {
             bool valid = false;
-            if (ret.className.empty() && (ret.value == ValueType::Bit || ret.value == ValueType::Void))
+            if (ret.className.empty() &&
+                (ret.value == ValueType::Bit || ret.value == ValueType::Void))
                 valid = true;
             if (ret.className == "bit[]")
                 valid = true;

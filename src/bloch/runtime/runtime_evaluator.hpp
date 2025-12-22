@@ -43,36 +43,36 @@ namespace bloch::runtime {
     using core::BinaryExpression;
     using core::BlockStatement;
     using core::CallExpression;
-    using core::DestroyStatement;
     using core::ConstructorDeclaration;
+    using core::DestroyStatement;
     using core::DestructorDeclaration;
-    using core::FieldDeclaration;
     using core::EchoStatement;
     using core::Expression;
     using core::ExpressionStatement;
+    using core::FieldDeclaration;
     using core::ForStatement;
     using core::FunctionDeclaration;
     using core::IfStatement;
     using core::IndexExpression;
     using core::LiteralExpression;
-    using core::MemberAccessExpression;
-    using core::MemberAssignmentExpression;
     using core::MeasureExpression;
     using core::MeasureStatement;
+    using core::MemberAccessExpression;
+    using core::MemberAssignmentExpression;
     using core::MethodDeclaration;
+    using core::NamedType;
     using core::NewExpression;
     using core::Parameter;
     using core::ParenthesizedExpression;
     using core::PostfixExpression;
     using core::PrimitiveType;
     using core::Program;
-    using core::NamedType;
     using core::ResetStatement;
     using core::ReturnStatement;
     using core::Statement;
     using core::SuperExpression;
-    using core::ThisExpression;
     using core::TernaryStatement;
+    using core::ThisExpression;
     using core::Type;
     using core::UnaryExpression;
     using core::VariableDeclaration;
@@ -284,8 +284,7 @@ namespace bloch::runtime {
         Value callMethod(RuntimeMethod* method, RuntimeClass* staticDispatchClass,
                          const std::shared_ptr<Object>& receiver, const std::vector<Value>& args);
         void runConstructorChain(RuntimeClass* cls, const std::shared_ptr<Object>& obj,
-                                 ConstructorDeclaration* ctor,
-                                 const std::vector<Value>& args);
+                                 ConstructorDeclaration* ctor, const std::vector<Value>& args);
         void runFieldInitialisers(RuntimeClass* cls, const std::shared_ptr<Object>& obj);
         void recordTrackedValue(const std::string& name, const Value& v);
         void releaseQubit(int index);

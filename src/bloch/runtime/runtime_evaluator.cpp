@@ -33,8 +33,8 @@ namespace bloch::runtime {
     using support::blochWarning;
     using support::ErrorCategory;
 
-    static std::pair<RuntimeField*, RuntimeClass*> findStaticFieldWithOwner(RuntimeClass* cls,
-                                                                           const std::string& name) {
+    static std::pair<RuntimeField*, RuntimeClass*> findStaticFieldWithOwner(
+        RuntimeClass* cls, const std::string& name) {
         RuntimeClass* cur = cls;
         while (cur) {
             auto fit = cur->staticFieldIndex.find(name);
@@ -348,8 +348,7 @@ namespace bloch::runtime {
             if (fit != it->end()) {
                 Value newVal = v;
                 if (fit->second.value.type == Value::Type::Object &&
-                    newVal.type == Value::Type::Object &&
-                    !fit->second.value.className.empty()) {
+                    newVal.type == Value::Type::Object && !fit->second.value.className.empty()) {
                     newVal.className = fit->second.value.className;
                 }
                 fit->second.value = newVal;
@@ -364,8 +363,8 @@ namespace bloch::runtime {
                 if (field && field->offset < thisObj->fields.size()) {
                     Value newVal = v;
                     const Value& existing = thisObj->fields[field->offset];
-                    if (existing.type == Value::Type::Object && newVal.type == Value::Type::Object &&
-                        !existing.className.empty()) {
+                    if (existing.type == Value::Type::Object &&
+                        newVal.type == Value::Type::Object && !existing.className.empty()) {
                         newVal.className = existing.className;
                     }
                     thisObj->fields[field->offset] = newVal;
@@ -707,9 +706,8 @@ namespace bloch::runtime {
                 if (i >= obj->cls->instanceFields.size())
                     continue;
                 const auto& fieldMeta = obj->cls->instanceFields[i];
-                if (fieldMeta.isTracked &&
-                    (obj->fields[i].type == Value::Type::Qubit ||
-                     obj->fields[i].type == Value::Type::QubitArray)) {
+                if (fieldMeta.isTracked && (obj->fields[i].type == Value::Type::Qubit ||
+                                            obj->fields[i].type == Value::Type::QubitArray)) {
                     recordTrackedValue(obj->cls->name + "." + fieldMeta.name, obj->fields[i]);
                 }
                 if (obj->fields[i].type == Value::Type::Qubit) {
@@ -759,7 +757,8 @@ namespace bloch::runtime {
         }
     }
 
-    void RuntimeEvaluator::runConstructorChain(RuntimeClass* cls, const std::shared_ptr<Object>& obj,
+    void RuntimeEvaluator::runConstructorChain(RuntimeClass* cls,
+                                               const std::shared_ptr<Object>& obj,
                                                ConstructorDeclaration* ctor,
                                                const std::vector<Value>& args) {
         if (!cls)
@@ -1145,9 +1144,9 @@ namespace bloch::runtime {
             } else if (auto mem = dynamic_cast<MemberAccessExpression*>(destroy->target.get())) {
                 Value obj = eval(mem->object.get());
                 if (obj.type == Value::Type::Object && obj.objectValue) {
-                    RuntimeField* field =
-                        obj.objectValue->cls ? findInstanceField(obj.objectValue->cls, mem->member)
-                                             : nullptr;
+                    RuntimeField* field = obj.objectValue->cls
+                                              ? findInstanceField(obj.objectValue->cls, mem->member)
+                                              : nullptr;
                     if (field) {
                         if (field->offset < obj.objectValue->fields.size())
                             obj.objectValue->fields[field->offset] = {};
@@ -1352,8 +1351,7 @@ namespace bloch::runtime {
                         obj.objectValue->cls
                             ? findStaticFieldWithOwner(obj.objectValue->cls, memAcc->member)
                             : std::pair<RuntimeField*, RuntimeClass*>{nullptr, nullptr};
-                    if (staticField && owner &&
-                        staticField->offset < owner->staticStorage.size())
+                    if (staticField && owner && staticField->offset < owner->staticStorage.size())
                         return owner->staticStorage[staticField->offset];
                 }
             }
@@ -1650,15 +1648,15 @@ namespace bloch::runtime {
                     if (!method->isStatic) {
                         receiver = currentThisObject();
                         if (!receiver) {
-                            throw BlochError(ErrorCategory::Runtime, callExpr->line,
-                                             callExpr->column,
-                                             "instance method '" + name +
-                                                 "' requires an object receiver");
+                            throw BlochError(
+                                ErrorCategory::Runtime, callExpr->line, callExpr->column,
+                                "instance method '" + name + "' requires an object receiver");
                         }
                     }
                     return callMethod(method, staticCls, receiver, args);
                 }
-            } else if (auto member = dynamic_cast<MemberAccessExpression*>(callExpr->callee.get())) {
+            } else if (auto member =
+                           dynamic_cast<MemberAccessExpression*>(callExpr->callee.get())) {
                 std::vector<Value> args;
                 for (auto& a : callExpr->arguments) args.push_back(eval(a.get()));
                 Value target = eval(member->object.get());
@@ -1787,8 +1785,7 @@ namespace bloch::runtime {
                         obj.objectValue->cls
                             ? findStaticFieldWithOwner(obj.objectValue->cls, memAssign->member)
                             : std::pair<RuntimeField*, RuntimeClass*>{nullptr, nullptr};
-                    if (staticField && owner &&
-                        staticField->offset < owner->staticStorage.size())
+                    if (staticField && owner && staticField->offset < owner->staticStorage.size())
                         owner->staticStorage[staticField->offset] = rhs;
                 }
             } else if (obj.type == Value::Type::ClassRef && obj.classRef) {

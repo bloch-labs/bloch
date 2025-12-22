@@ -284,8 +284,8 @@ namespace bloch::core {
                                                           bool isStaticClass) {
         auto annotations = parseAnnotations();
 
-        bool hasVisibility = check(TokenType::Public) || check(TokenType::Private) ||
-                             check(TokenType::Protected);
+        bool hasVisibility =
+            check(TokenType::Public) || check(TokenType::Private) || check(TokenType::Protected);
         Visibility visibility = hasVisibility
                                     ? parseVisibility()
                                     : (isStaticClass ? Visibility::Public : Visibility::Private);
@@ -396,10 +396,9 @@ namespace bloch::core {
         return field;
     }
 
-    std::unique_ptr<MethodDeclaration> Parser::parseMethodDeclaration(Visibility vis, bool isStatic,
-                                                                      bool isVirtual,
-                                                                      bool isOverride,
-                                                                      std::vector<std::unique_ptr<AnnotationNode>> annotations) {
+    std::unique_ptr<MethodDeclaration> Parser::parseMethodDeclaration(
+        Visibility vis, bool isStatic, bool isVirtual, bool isOverride,
+        std::vector<std::unique_ptr<AnnotationNode>> annotations) {
         auto method = std::make_unique<MethodDeclaration>();
         method->visibility = vis;
         method->isStatic = isStatic;

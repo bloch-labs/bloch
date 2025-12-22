@@ -601,8 +601,9 @@ TEST(SemanticTest, MissingConstructorFails) {
 }
 
 TEST(SemanticTest, PrivateConstructorNotAccessible) {
-    const char* src = "class A { private constructor() -> A { return this; } } "
-                      "function main() -> void { A a = new A(); }";
+    const char* src =
+        "class A { private constructor() -> A { return this; } } "
+        "function main() -> void { A a = new A(); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);

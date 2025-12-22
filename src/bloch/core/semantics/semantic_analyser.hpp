@@ -131,8 +131,8 @@ namespace bloch::core {
             std::string base;
             bool isStatic = false;
             bool isAbstract = false;
-            bool hasDestructor = true;        // implicit default exists
-            bool hasUserDestructor = false;   // true if explicitly declared
+            bool hasDestructor = true;       // implicit default exists
+            bool hasUserDestructor = false;  // true if explicitly declared
             std::vector<std::string> abstractMethods;
             std::unordered_map<std::string, FieldInfo> fields;
             std::unordered_map<std::string, MethodInfo> methods;

@@ -516,7 +516,8 @@ function main() -> void {
 
 TEST(RuntimeTest, CycleCollectorReclaimsClassicalCycle) {
     const char* src =
-        "class Node { Node next; public constructor() -> Node { } } function main() -> void { Node a = new "
+        "class Node { Node next; public constructor() -> Node { } } function main() -> void { Node "
+        "a = new "
         "Node(); Node b = new Node(); a.next = b; b.next = a; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
@@ -528,7 +529,8 @@ TEST(RuntimeTest, CycleCollectorReclaimsClassicalCycle) {
 
 TEST(RuntimeTest, CycleCollectorSkipsTrackedCycles) {
     const char* src =
-        "class Q { @tracked qubit q; Q other; public constructor() -> Q { } } function main() -> void { Q "
+        "class Q { @tracked qubit q; Q other; public constructor() -> Q { } } function main() -> "
+        "void { Q "
         "a = new Q(); Q b = new Q(); a.other = b; b.other = a; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
