@@ -37,3 +37,8 @@ examples/*.qasm
 # JOSS
 jats/
 paper.pdf
+
+# Docs build artifacts
+docs/_build/
+.venv/
+docs/.venv/

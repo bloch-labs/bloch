@@ -1,0 +1,216 @@
+:root {
+  --brand-purple: #913dd9;
+}
+
+:root,
+[data-theme="light"] {
+  --color-brand-primary: var(--brand-purple);
+  --color-brand-content: var(--brand-purple);
+  --card-border: rgba(145, 61, 217, 0.12);
+  --surface: #ffffff;
+  --text-hero: #12121c;
+  --text-subtle: #4b4b5c;
+  --hero-gradient: linear-gradient(120deg, rgba(145, 61, 217, 0.08), rgba(145, 61, 217, 0.02));
+}
+
+[data-theme="dark"] {
+  --color-brand-primary: #b987eb;
+  --color-brand-content: #b987eb;
+  --card-border: rgba(145, 61, 217, 0.22);
+  --surface: #111019;
+  --text-hero: #f2eefb;
+  --text-subtle: #cbc4db;
+  --hero-gradient: linear-gradient(120deg, rgba(145, 61, 217, 0.2), rgba(145, 61, 217, 0.08));
+}
+
+.sd-btn.sd-btn-primary {
+  background-color: var(--brand-purple);
+  border-color: var(--brand-purple);
+  color: #fff;
+}
+
+.sd-btn.sd-btn-primary:hover,
+.sd-btn.sd-btn-primary:focus {
+  background-color: #7f32be;
+  border-color: #7f32be;
+  color: #fff;
+}
+
+.sd-btn.sd-btn-secondary {
+  color: var(--brand-purple);
+  border-color: var(--brand-purple);
+  background: transparent;
+}
+
+.sd-btn.sd-btn-secondary:hover,
+.sd-btn.sd-btn-secondary:focus {
+  background: rgba(145, 61, 217, 0.08);
+  color: var(--brand-purple);
+}
+
+/* Hero banner inspired by Guppy, but Bloch-styled */
+.hero-banner {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 2.6rem 2.2rem;
+  border-radius: 18px;
+  background: var(--hero-gradient);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.8rem;
+}
+
+@media (max-width: 900px) {
+  .hero-banner {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hero-left h2,
+.hero-left h1,
+.hero-left h3 {
+  margin: 0;
+}
+
+.hero-left h2 {
+  font-size: 1rem;
+  letter-spacing: 0.2rem;
+  color: var(--text-subtle);
+}
+
+.hero-left h1 {
+  font-size: 2.5rem;
+  margin: 0.2rem 0 0.4rem 0;
+  color: var(--text-hero);
+}
+
+.hero-left .release-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(145, 61, 217, 0.12);
+  color: var(--text-subtle);
+  border: 1px solid var(--card-border);
+  font-weight: 650;
+  margin: 0.25rem 0 0.8rem 0;
+}
+
+.release-line {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.65rem;
+  border-radius: 10px;
+  background: rgba(145, 61, 217, 0.1);
+  border: 1px solid var(--card-border);
+  font-size: 0.95rem;
+  color: var(--text-subtle);
+  margin-bottom: 0.6rem;
+}
+
+.hero-left p {
+  margin: 0 0 1.15rem 0;
+  color: var(--text-subtle);
+  font-size: 1.05rem;
+}
+
+.hero-left .hero-actions {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.logo-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+  letter-spacing: 0.05rem;
+  color: var(--text-hero);
+}
+
+.logo-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: conic-gradient(from 45deg, #913dd9, #5f8df7, #34c3ae, #913dd9);
+  position: relative;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.logo-mark::after {
+  content: "";
+  position: absolute;
+  inset: 28%;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.hero-right {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.hero-orb {
+  position: relative;
+  width: min(420px, 90%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(145, 61, 217, 0.16), transparent 55%),
+              radial-gradient(circle at 70% 70%, rgba(145, 61, 217, 0.08), transparent 70%),
+              conic-gradient(from 30deg, rgba(145, 61, 217, 0.25), rgba(145, 61, 217, 0.08), rgba(145, 61, 217, 0.25));
+  border: 12px solid rgba(145, 61, 217, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+}
+
+.hero-orb::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.7), transparent 60%);
+}
+
+/* PennyLane-inspired cards */
+.card-grid {
+  display: grid;
+  gap: 1.1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+@media (min-width: 980px) {
+  .card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.doc-card {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 1.1rem 1.2rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.05);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+  min-height: 100%;
+}
+
+.doc-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+  border-color: rgba(145, 61, 217, 0.3);
+}
+
+.doc-card h3 {
+  margin: 0 0 0.35rem 0;
+  color: var(--text-hero);
+}
+
+.doc-card p {
+  margin: 0 0 0.9rem 0;
+  color: var(--text-subtle);
+}
