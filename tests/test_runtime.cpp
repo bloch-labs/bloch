@@ -481,7 +481,7 @@ TEST(RuntimeTest, RyRzAppearInQasm) {
 TEST(RuntimeTest, ClassCtorDtorVirtualAndStatic) {
     const char* src = R"(
 class Base {
-    constructor() -> Base { echo("Base::ctor"); }
+    public constructor() -> Base { echo("Base::ctor"); }
     destructor -> void { echo("Base::dtor"); }
     virtual function name() -> string { return "Base"; }
     function baseOnly() -> string { return "BaseOnly"; }
@@ -489,7 +489,7 @@ class Base {
 
 class Derived extends Base {
     static int count;
-    constructor() -> Derived { Derived.count = Derived.count + 1; echo("Derived::ctor"); }
+    public constructor() -> Derived { Derived.count = Derived.count + 1; echo("Derived::ctor"); }
     destructor -> void { echo("Derived::dtor"); }
     override function name() -> string { return "Derived"; }
 }
@@ -516,7 +516,7 @@ function main() -> void {
 
 TEST(RuntimeTest, CycleCollectorReclaimsClassicalCycle) {
     const char* src =
-        "class Node { Node next; constructor() -> Node { } } function main() -> void { Node a = new "
+        "class Node { Node next; public constructor() -> Node { } } function main() -> void { Node a = new "
         "Node(); Node b = new Node(); a.next = b; b.next = a; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
@@ -528,7 +528,7 @@ TEST(RuntimeTest, CycleCollectorReclaimsClassicalCycle) {
 
 TEST(RuntimeTest, CycleCollectorSkipsTrackedCycles) {
     const char* src =
-        "class Q { @tracked qubit q; Q other; constructor() -> Q { } } function main() -> void { Q "
+        "class Q { @tracked qubit q; Q other; public constructor() -> Q { } } function main() -> void { Q "
         "a = new Q(); Q b = new Q(); a.other = b; b.other = a; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;

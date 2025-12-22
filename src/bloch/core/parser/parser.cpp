@@ -284,10 +284,13 @@ namespace bloch::core {
                                                           bool isStaticClass) {
         auto annotations = parseAnnotations();
 
-        Visibility visibility = parseVisibility();
-        if (visibility != Visibility::Public &&
-            (check(TokenType::Public) || check(TokenType::Private) ||
-             check(TokenType::Protected))) {
+        bool hasVisibility = check(TokenType::Public) || check(TokenType::Private) ||
+                             check(TokenType::Protected);
+        Visibility visibility = hasVisibility
+                                    ? parseVisibility()
+                                    : (isStaticClass ? Visibility::Public : Visibility::Private);
+        if (hasVisibility && (check(TokenType::Public) || check(TokenType::Private) ||
+                              check(TokenType::Protected))) {
             reportError("Multiple visibility modifiers are not allowed on class members");
         }
 
@@ -458,7 +461,17 @@ namespace bloch::core {
             reportError("Constructor must return '" + className + "'");
         }
 
-        ctor->body = parseBlock();
+        if (match(TokenType::Equals)) {
+            const Token& defTok = expect(TokenType::Default, "Expected 'default' after '='");
+            if (defTok.value != "default") {
+                reportError("Only '= default' is supported for constructors");
+            }
+            (void)expect(TokenType::Semicolon, "Expected ';' after default constructor");
+            ctor->isDefault = true;
+            ctor->body = nullptr;
+        } else {
+            ctor->body = parseBlock();
+        }
         return ctor;
     }
 
@@ -482,7 +495,17 @@ namespace bloch::core {
             reportError("Destructor must return 'void'");
         }
 
-        dtor->body = parseBlock();
+        if (match(TokenType::Equals)) {
+            const Token& defTok = expect(TokenType::Default, "Expected 'default' after '='");
+            if (defTok.value != "default") {
+                reportError("Only '= default' is supported for destructors");
+            }
+            (void)expect(TokenType::Semicolon, "Expected ';' after default destructor");
+            dtor->isDefault = true;
+            dtor->body = nullptr;
+        } else {
+            dtor->body = parseBlock();
+        }
         return dtor;
     }
 

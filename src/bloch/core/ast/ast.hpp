@@ -441,6 +441,7 @@ namespace bloch::core {
     struct ConstructorDeclaration : public ClassMember {
         std::vector<std::unique_ptr<Parameter>> params;
         std::unique_ptr<BlockStatement> body;
+        bool isDefault = false;
 
         ConstructorDeclaration() = default;
         void accept(ASTVisitor& visitor) override;
@@ -449,6 +450,7 @@ namespace bloch::core {
     // Destructor
     struct DestructorDeclaration : public ClassMember {
         std::unique_ptr<BlockStatement> body;
+        bool isDefault = false;
 
         DestructorDeclaration() = default;
         void accept(ASTVisitor& visitor) override;

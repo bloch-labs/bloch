@@ -118,6 +118,7 @@ namespace bloch::core {
             bool isVirtual = false;
             bool isOverride = false;
             bool hasBody = false;
+            bool isDefault = false;  // used for constructors
             TypeInfo returnType;
             std::vector<TypeInfo> paramTypes;
             std::string owner;
@@ -130,11 +131,13 @@ namespace bloch::core {
             std::string base;
             bool isStatic = false;
             bool isAbstract = false;
-            bool hasDestructor = false;
+            bool hasDestructor = true;        // implicit default exists
+            bool hasUserDestructor = false;   // true if explicitly declared
             std::vector<std::string> abstractMethods;
             std::unordered_map<std::string, FieldInfo> fields;
             std::unordered_map<std::string, MethodInfo> methods;
             std::vector<MethodInfo> constructors;
+            std::vector<ConstructorDeclaration*> ctorDecls;  // raw pointers owned by AST
             int line = 0;
             int column = 0;
         };

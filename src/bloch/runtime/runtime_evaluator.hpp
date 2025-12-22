@@ -155,6 +155,7 @@ namespace bloch::runtime {
     struct RuntimeConstructor {
         ConstructorDeclaration* decl = nullptr;
         std::vector<RuntimeTypeInfo> params;
+        bool isDefault = false;
     };
 
     struct RuntimeMethod {
@@ -246,6 +247,7 @@ namespace bloch::runtime {
             bool measured;
         };
         std::vector<QubitInfo> m_qubits;
+        std::vector<int> m_freeQubitIndices;
         // Last measured value per qubit index (-1 if never measured)
         std::vector<int> m_lastMeasurement;
 
@@ -286,6 +288,7 @@ namespace bloch::runtime {
                                  const std::vector<Value>& args);
         void runFieldInitialisers(RuntimeClass* cls, const std::shared_ptr<Object>& obj);
         void recordTrackedValue(const std::string& name, const Value& v);
+        void releaseQubit(int index);
         std::shared_ptr<Object> currentThisObject() const;
 
         // Scope & output helpers

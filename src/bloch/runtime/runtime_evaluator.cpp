@@ -527,6 +527,7 @@ namespace bloch::runtime {
                     RuntimeConstructor c;
                     c.decl = ctor;
                     for (auto& p : ctor->params) c.params.push_back(typeInfoFromAst(p->type.get()));
+                    c.isDefault = ctor->isDefault;
                     rc->constructors.push_back(c);
                 } else if (auto dtor = dynamic_cast<DestructorDeclaration*>(member.get())) {
                     rc->hasDestructor = true;
@@ -715,14 +716,12 @@ namespace bloch::runtime {
                     int q = obj->fields[i].qubit;
                     ensureQubitExists(q, fieldMeta.line, fieldMeta.column);
                     m_sim.reset(q);
-                    unmarkMeasured(q);
-                    markMeasured(q);
+                    releaseQubit(q);
                 } else if (obj->fields[i].type == Value::Type::QubitArray) {
                     for (int q : obj->fields[i].qubitArray) {
                         ensureQubitExists(q, fieldMeta.line, fieldMeta.column);
                         m_sim.reset(q);
-                        unmarkMeasured(q);
-                        markMeasured(q);
+                        releaseQubit(q);
                     }
                 }
             }
@@ -778,6 +777,16 @@ namespace bloch::runtime {
             runConstructorChain(cls->base, obj, baseCtor, {});
         }
         runFieldInitialisers(cls, obj);
+        if (ctor && ctor->isDefault) {
+            // Default constructor: bind parameters to matching fields.
+            for (size_t i = 0; i < ctor->params.size() && i < args.size(); ++i) {
+                const auto& param = ctor->params[i];
+                auto fieldMeta = findInstanceField(cls, param->name);
+                if (fieldMeta && fieldMeta->offset < obj->fields.size()) {
+                    obj->fields[fieldMeta->offset] = args[i];
+                }
+            }
+        }
         if (!ctor)
             return;
         auto prevClass = m_currentClassCtx;
@@ -1889,8 +1898,20 @@ namespace bloch::runtime {
     }
 
     int RuntimeEvaluator::allocateTrackedQubit(const std::string& name) {
-        int idx = m_sim.allocateQubit();
-        m_qubits.push_back({name, false});
+        int idx = -1;
+        if (!m_freeQubitIndices.empty()) {
+            idx = m_freeQubitIndices.back();
+            m_freeQubitIndices.pop_back();
+            m_sim.reset(idx);
+            unmarkMeasured(idx);
+        } else {
+            idx = m_sim.allocateQubit();
+            m_qubits.push_back({name, false});
+        }
+        if (idx >= static_cast<int>(m_qubits.size()))
+            m_qubits.resize(idx + 1);
+        m_qubits[idx].name = name;
+        m_qubits[idx].measured = false;
         if (idx >= static_cast<int>(m_lastMeasurement.size()))
             m_lastMeasurement.resize(idx + 1, -1);
         return idx;
@@ -1899,6 +1920,14 @@ namespace bloch::runtime {
     void RuntimeEvaluator::markMeasured(int index) {
         if (index >= 0 && index < static_cast<int>(m_qubits.size()))
             m_qubits[index].measured = true;
+    }
+
+    void RuntimeEvaluator::releaseQubit(int index) {
+        if (index < 0 || index >= static_cast<int>(m_qubits.size()))
+            return;
+        unmarkMeasured(index);
+        m_qubits[index].name.clear();
+        m_freeQubitIndices.push_back(index);
     }
 
     void RuntimeEvaluator::ensureQubitExists(int index, int line, int column) {
@@ -1926,6 +1955,8 @@ namespace bloch::runtime {
 
     void RuntimeEvaluator::warnUnmeasured() const {
         for (const auto& q : m_qubits) {
+            if (q.name.empty())
+                continue;
             if (!q.measured) {
                 blochWarning(0, 0,
                              "Qubit " + q.name +

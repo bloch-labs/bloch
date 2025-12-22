@@ -349,6 +349,7 @@ namespace bloch::core {
                     MethodInfo ctorInfo;
                     ctorInfo.visibility = ctor->visibility;
                     ctorInfo.hasBody = ctor->body != nullptr;
+                    ctorInfo.isDefault = ctor->isDefault;
                     ctorInfo.owner = info.name;
                     ctorInfo.line = ctor->line;
                     ctorInfo.column = ctor->column;
@@ -356,28 +357,25 @@ namespace bloch::core {
                         ctorInfo.paramTypes.push_back(typeFromAst(p->type.get()));
                     ctorInfo.returnType = combine(ValueType::Unknown, info.name);
                     info.constructors.push_back(ctorInfo);
+                    info.ctorDecls.push_back(ctor);
                 } else if (auto dtor = dynamic_cast<DestructorDeclaration*>(member.get())) {
                     if (info.isStatic) {
                         throw BlochError(
                             ErrorCategory::Semantic, dtor->line, dtor->column,
                             "static class '" + info.name + "' cannot declare destructors");
                     }
-                    if (info.hasDestructor) {
+                    if (info.hasUserDestructor) {
                         throw BlochError(
                             ErrorCategory::Semantic, dtor->line, dtor->column,
                             "class '" + info.name + "' cannot declare multiple destructors");
                     }
                     info.hasDestructor = true;
+                    info.hasUserDestructor = true;
                 }
             }
-            if (info.constructors.empty()) {
-                for (const auto& [fname, f] : info.fields) {
-                    if (f.isFinal && !f.hasInitializer) {
-                        throw BlochError(ErrorCategory::Semantic, f.line, f.column,
-                                         "final field '" + fname +
-                                             "' must be initialised or assigned in a constructor");
-                    }
-                }
+            if (!info.isStatic && info.constructors.empty()) {
+                throw BlochError(ErrorCategory::Semantic, info.line, info.column,
+                                 "class '" + info.name + "' must declare a constructor");
             }
             m_classes[info.name] = std::move(info);
         }
@@ -386,6 +384,48 @@ namespace bloch::core {
             if (!info.base.empty() && !m_classes.count(info.base)) {
                 throw BlochError(ErrorCategory::Semantic, 0, 0,
                                  "base class '" + info.base + "' not found for '" + name + "'");
+            }
+        }
+
+        // Validate default constructors (parameter-field alignment)
+        for (auto& [name, info] : m_classes) {
+            for (auto* ctor : info.ctorDecls) {
+                if (!ctor || !ctor->isDefault)
+                    continue;
+                for (auto& p : ctor->params) {
+                    auto it = info.fields.find(p->name);
+                    if (it == info.fields.end()) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor parameter '" + p->name +
+                                             "' must match an instance field");
+                    }
+                    const FieldInfo& f = it->second;
+                    if (f.isStatic) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor parameter '" + p->name +
+                                             "' cannot bind to static field");
+                    }
+                    if (f.type.value == ValueType::Qubit ||
+                        (!f.type.className.empty() && f.type.value == ValueType::Unknown &&
+                         f.type.className == "qubit")) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor cannot bind qubit fields");
+                    }
+                    TypeInfo pt = typeFromAst(p->type.get());
+                    if (!f.type.className.empty()) {
+                        if (pt.className != f.type.className) {
+                            throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                             "default constructor parameter '" + p->name +
+                                                 "' must match field type '" + f.type.className +
+                                                 "'");
+                        }
+                    } else if (pt.value != f.type.value) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor parameter '" + p->name +
+                                             "' must match field type '" +
+                                             typeToString(f.type.value) + "'");
+                    }
+                }
             }
         }
 
@@ -1234,8 +1274,7 @@ namespace bloch::core {
                     ErrorCategory::Semantic, node.line, node.column,
                     "cannot instantiate static or abstract class '" + cls.className + "'");
             }
-            bool matched =
-                info->constructors.empty() && node.arguments.empty();  // allow implicit default
+            bool matched = false;
             for (const auto& ctor : info->constructors) {
                 if (!isAccessible(ctor.visibility, info->name, m_currentClass))
                     continue;
@@ -1450,11 +1489,14 @@ namespace bloch::core {
         // Only analyse bodies for now.
         TypeInfo ret = typeFromAst(node.returnType.get());
         if (node.hasQuantumAnnotation) {
-            bool valid = ret.className.empty() &&
-                         (ret.value == ValueType::Bit || ret.value == ValueType::Void);
+            bool valid = false;
+            if (ret.className.empty() && (ret.value == ValueType::Bit || ret.value == ValueType::Void))
+                valid = true;
+            if (ret.className == "bit[]")
+                valid = true;
             if (!valid) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "'@quantum' methods must return 'bit' or 'void'");
+                                 "'@quantum' methods must return 'bit', 'bit[]', or 'void'");
             }
         }
         auto savedReturn = m_currentReturn;
@@ -1611,12 +1653,17 @@ namespace bloch::core {
             if (auto prim = dynamic_cast<PrimitiveType*>(node.returnType.get())) {
                 if (prim->name == "bit")
                     valid = true;
+            } else if (auto arr = dynamic_cast<ArrayType*>(node.returnType.get())) {
+                if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
+                    if (elem->name == "bit")
+                        valid = true;
+                }
             } else if (dynamic_cast<VoidType*>(node.returnType.get())) {
                 valid = true;
             }
             if (!valid) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "'@quantum' functions must return 'bit' or 'void'");
+                                 "'@quantum' functions must return 'bit', 'bit[]', or 'void'");
             }
         }
 

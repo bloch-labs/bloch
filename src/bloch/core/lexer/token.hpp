@@ -45,6 +45,7 @@ namespace bloch::core {
         Measure,
         Final,
         Reset,
+        Default,
 
         // Annotations
         At,
