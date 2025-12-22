@@ -415,7 +415,8 @@ TEST(SemanticTest, PrivateFieldNotAccessibleOutsideClass) {
 TEST(SemanticTest, ProtectedFieldAccessibleInSubclass) {
     const char* src =
         "class Base { protected int x = 1; public constructor() -> Base { return this; } } "
-        "class Derived extends Base { public function get() -> int { return this.x; } } "
+        "class Derived extends Base { public constructor() -> Derived = default; public function "
+        "get() -> int { return this.x; } } "
         "function main() -> void { Derived d = new Derived(); int y = d.get(); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
@@ -452,8 +453,9 @@ TEST(SemanticTest, AbstractMethodMustBeImplemented) {
 
 TEST(SemanticTest, AbstractMethodImplementedAllowsInstantiation) {
     const char* src =
-        "class A { public virtual function foo() -> void; } "
-        "class B extends A { public override function foo() -> void { return; } } "
+        "class A { public constructor() -> A = default; public virtual function foo() -> void; } "
+        "class B extends A { public constructor() -> B = default; public override function foo() "
+        "-> void { return; } } "
         "function main() -> void { B b = new B(); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
@@ -555,6 +557,28 @@ TEST(SemanticTest, FinalFieldAssignableInConstructor) {
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
+TEST(SemanticTest, DefaultConstructorParameterChecks) {
+    const char* ok = "class A { int x; public constructor(int x) -> A = default; }";
+    auto programOk = parseProgram(ok);
+    SemanticAnalyser analyserOk;
+    EXPECT_NO_THROW(analyserOk.analyse(*programOk));
+
+    const char* badName = "class A { int a; public constructor(int b) -> A = default; }";
+    auto programBadName = parseProgram(badName);
+    SemanticAnalyser analyserBadName;
+    EXPECT_THROW(analyserBadName.analyse(*programBadName), BlochError);
+
+    const char* badType = "class A { int a; public constructor(float a) -> A = default; }";
+    auto programBadType = parseProgram(badType);
+    SemanticAnalyser analyserBadType;
+    EXPECT_THROW(analyserBadType.analyse(*programBadType), BlochError);
+
+    const char* badQubit = "class A { qubit q; public constructor(qubit q) -> A = default; }";
+    auto programBadQubit = parseProgram(badQubit);
+    SemanticAnalyser analyserBadQubit;
+    EXPECT_THROW(analyserBadQubit.analyse(*programBadQubit), BlochError);
+}
+
 TEST(SemanticTest, DestroyNonClassFails) {
     const char* src = "int i = 1; destroy i;";
     auto program = parseProgram(src);
@@ -566,6 +590,36 @@ TEST(SemanticTest, CallingFieldAsFunctionFails) {
     const char* src =
         "class A { public int x = 1; public constructor() -> A { return this; } } "
         "function main() -> void { A a = new A(); a.x(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, MissingConstructorFails) {
+    const char* src = "class A { int x; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, PrivateConstructorNotAccessible) {
+    const char* src =
+        "class A { private constructor() -> A { return this; } } "
+        "function main() -> void { A a = new A(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, QuantumFunctionBitArrayReturnAllowed) {
+    const char* src = "@quantum function foo() -> bit[] { bit[2] m = {0b, 1b}; return m; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, QuantumFunctionInvalidReturnFails) {
+    const char* src = "@quantum function foo() -> int { return 1; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);

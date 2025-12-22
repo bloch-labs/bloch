@@ -1,0 +1,42 @@
+// Class-based quantum teleportation of a single-qubit state.
+class Teleporter {
+    public constructor() -> Teleporter = default;
+
+    @quantum
+    public function teleport(qubit msg, qubit a, qubit b) -> bit[2] {
+        // Create shared Bell pair between a and b.
+        entangle(a, b);
+        // Bell-basis measurement on (msg, a).
+        cx(msg, a);
+        h(msg);
+        bit m0 = measure msg;
+        bit m1 = measure a;
+        // Send classical corrections to b.
+        if (m1) { x(b); }
+        if (m0) { z(b); }
+        bit[2] outcome = {m0, m1};
+        return outcome;
+    }
+
+    @quantum
+    private function entangle(qubit a, qubit b) -> void {
+        h(a);
+        cx(a, b);
+    }
+}
+
+function main() -> void {
+    // Prepare a state to teleport: |+> for visibility in the histogram.
+    @tracked qubit msg;
+    @tracked qubit a;
+    @tracked qubit b;
+
+    h(msg);
+
+    Teleporter tp = new Teleporter();
+    bit[2] m = tp.teleport(msg, a, b);
+
+    // Verify the teleported state on b.
+    bit out = measure b;
+    echo("m0=" + m[0] + ", m1=" + m[1] + ", teleported=" + out);
+}

@@ -87,6 +87,26 @@ namespace bloch::core {
         return nullptr;
     }
 
+    const SemanticAnalyser::FieldInfo* SemanticAnalyser::resolveField(const std::string& name,
+                                                                      int line, int column) const {
+        if (m_currentClass.empty())
+            return nullptr;
+        FieldInfo* field = findFieldInHierarchy(m_currentClass, name);
+        if (!field)
+            return nullptr;
+        if (!isAccessible(field->visibility, field->owner, m_currentClass)) {
+            throw BlochError(ErrorCategory::Semantic, line, column,
+                             "field '" + name + "' is not accessible here");
+        }
+        if (m_inStaticContext && !field->isStatic) {
+            throw BlochError(ErrorCategory::Semantic, line, column,
+                             "instance field '" + name +
+                                 "' cannot be referenced in a static "
+                                 "context");
+        }
+        return field;
+    }
+
     bool SemanticAnalyser::isSubclassOf(const std::string& derived, const std::string& base) const {
         if (derived.empty() || base.empty())
             return false;
@@ -283,6 +303,7 @@ namespace bloch::core {
                     f.isStatic = field->isStatic;
                     f.isFinal = field->isFinal;
                     f.hasInitializer = field->initializer != nullptr;
+                    f.isTracked = field->isTracked;
                     f.type = typeFromAst(field->fieldType.get());
                     f.owner = info.name;
                     f.line = field->line;
@@ -328,6 +349,7 @@ namespace bloch::core {
                     MethodInfo ctorInfo;
                     ctorInfo.visibility = ctor->visibility;
                     ctorInfo.hasBody = ctor->body != nullptr;
+                    ctorInfo.isDefault = ctor->isDefault;
                     ctorInfo.owner = info.name;
                     ctorInfo.line = ctor->line;
                     ctorInfo.column = ctor->column;
@@ -335,28 +357,25 @@ namespace bloch::core {
                         ctorInfo.paramTypes.push_back(typeFromAst(p->type.get()));
                     ctorInfo.returnType = combine(ValueType::Unknown, info.name);
                     info.constructors.push_back(ctorInfo);
+                    info.ctorDecls.push_back(ctor);
                 } else if (auto dtor = dynamic_cast<DestructorDeclaration*>(member.get())) {
                     if (info.isStatic) {
                         throw BlochError(
                             ErrorCategory::Semantic, dtor->line, dtor->column,
                             "static class '" + info.name + "' cannot declare destructors");
                     }
-                    if (info.hasDestructor) {
+                    if (info.hasUserDestructor) {
                         throw BlochError(
                             ErrorCategory::Semantic, dtor->line, dtor->column,
                             "class '" + info.name + "' cannot declare multiple destructors");
                     }
                     info.hasDestructor = true;
+                    info.hasUserDestructor = true;
                 }
             }
-            if (info.constructors.empty()) {
-                for (const auto& [fname, f] : info.fields) {
-                    if (f.isFinal && !f.hasInitializer) {
-                        throw BlochError(ErrorCategory::Semantic, f.line, f.column,
-                                         "final field '" + fname +
-                                             "' must be initialised or assigned in a constructor");
-                    }
-                }
+            if (!info.isStatic && info.constructors.empty()) {
+                throw BlochError(ErrorCategory::Semantic, info.line, info.column,
+                                 "class '" + info.name + "' must declare a constructor");
             }
             m_classes[info.name] = std::move(info);
         }
@@ -365,6 +384,48 @@ namespace bloch::core {
             if (!info.base.empty() && !m_classes.count(info.base)) {
                 throw BlochError(ErrorCategory::Semantic, 0, 0,
                                  "base class '" + info.base + "' not found for '" + name + "'");
+            }
+        }
+
+        // Validate default constructors (parameter-field alignment)
+        for (auto& [name, info] : m_classes) {
+            for (auto* ctor : info.ctorDecls) {
+                if (!ctor || !ctor->isDefault)
+                    continue;
+                for (auto& p : ctor->params) {
+                    auto it = info.fields.find(p->name);
+                    if (it == info.fields.end()) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor parameter '" + p->name +
+                                             "' must match an instance field");
+                    }
+                    const FieldInfo& f = it->second;
+                    if (f.isStatic) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor parameter '" + p->name +
+                                             "' cannot bind to static field");
+                    }
+                    if (f.type.value == ValueType::Qubit ||
+                        (!f.type.className.empty() && f.type.value == ValueType::Unknown &&
+                         f.type.className == "qubit")) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor cannot bind qubit fields");
+                    }
+                    TypeInfo pt = typeFromAst(p->type.get());
+                    if (!f.type.className.empty()) {
+                        if (pt.className != f.type.className) {
+                            throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                             "default constructor parameter '" + p->name +
+                                                 "' must match field type '" + f.type.className +
+                                                 "'");
+                        }
+                    } else if (pt.value != f.type.value) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor parameter '" + p->name +
+                                             "' must match field type '" +
+                                             typeToString(f.type.value) + "'");
+                    }
+                }
             }
         }
 
@@ -469,8 +530,15 @@ namespace bloch::core {
             return combine(ValueType::Unknown, "");
         if (auto lit = dynamic_cast<LiteralExpression*>(expr))
             return combine(typeFromString(lit->literalType), "");
-        if (auto var = dynamic_cast<VariableExpression*>(expr))
-            return combine(m_symbols.getType(var->name), m_symbols.getClassName(var->name));
+        if (auto var = dynamic_cast<VariableExpression*>(expr)) {
+            TypeInfo local =
+                combine(m_symbols.getType(var->name), m_symbols.getClassName(var->name));
+            if (local.value != ValueType::Unknown || !local.className.empty())
+                return local;
+            if (auto field = resolveField(var->name, var->line, var->column))
+                return field->type;
+            return combine(ValueType::Unknown, "");
+        }
         if (dynamic_cast<ThisExpression*>(expr))
             return combine(ValueType::Unknown, m_currentClass);
         if (auto par = dynamic_cast<ParenthesizedExpression*>(expr))
@@ -491,6 +559,16 @@ namespace bloch::core {
                 auto bi = builtInGates.find(callee->name);
                 if (bi != builtInGates.end())
                     return combine(bi->second.returnType, "");
+                if (!m_currentClass.empty()) {
+                    auto* method = findMethodInHierarchy(m_currentClass, callee->name);
+                    if (method) {
+                        if (!method->isStatic && m_inStaticContext)
+                            return combine(ValueType::Unknown, "");
+                        if (!isAccessible(method->visibility, method->owner, m_currentClass))
+                            return combine(ValueType::Unknown, "");
+                        return method->returnType;
+                    }
+                }
             } else if (auto mem = dynamic_cast<MemberAccessExpression*>(call->callee.get())) {
                 auto obj = inferTypeInfo(mem->object.get());
                 if (!obj.className.empty()) {
@@ -534,8 +612,15 @@ namespace bloch::core {
             return combine(ValueType::Unknown, "");
         }
         if (auto post = dynamic_cast<PostfixExpression*>(expr)) {
-            if (auto v = dynamic_cast<VariableExpression*>(post->left.get()))
-                return combine(m_symbols.getType(v->name), m_symbols.getClassName(v->name));
+            if (auto v = dynamic_cast<VariableExpression*>(post->left.get())) {
+                TypeInfo local =
+                    combine(m_symbols.getType(v->name), m_symbols.getClassName(v->name));
+                if (local.value != ValueType::Unknown || !local.className.empty())
+                    return local;
+                if (auto field = resolveField(v->name, v->line, v->column))
+                    return field->type;
+                return combine(ValueType::Unknown, "");
+            }
             return combine(ValueType::Unknown, "");
         }
         if (auto mem = dynamic_cast<MemberAccessExpression*>(expr)) {
@@ -833,24 +918,20 @@ namespace bloch::core {
     void SemanticAnalyser::visit(ResetStatement& node) {
         if (node.target)
             node.target->accept(*this);
-        if (auto var = dynamic_cast<VariableExpression*>(node.target.get())) {
-            ValueType t = m_symbols.getType(var->name);
-            if (t != ValueType::Unknown && t != ValueType::Qubit) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "reset target must be a 'qubit'");
-            }
+        auto tinfo = inferTypeInfo(node.target.get());
+        if (tinfo.value != ValueType::Unknown && tinfo.value != ValueType::Qubit) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "reset target must be a 'qubit'");
         }
     }
 
     void SemanticAnalyser::visit(MeasureStatement& node) {
         if (node.qubit)
             node.qubit->accept(*this);
-        if (auto var = dynamic_cast<VariableExpression*>(node.qubit.get())) {
-            ValueType t = m_symbols.getType(var->name);
-            if (t != ValueType::Unknown && t != ValueType::Qubit) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "measure target must be a 'qubit'");
-            }
+        auto tinfo = inferTypeInfo(node.qubit.get());
+        if (tinfo.value != ValueType::Unknown && tinfo.value != ValueType::Qubit) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "measure target must be a 'qubit'");
         }
     }
 
@@ -866,16 +947,44 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(AssignmentStatement& node) {
-        if (!isDeclared(node.name)) {
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "Variable '" + node.name + "' not declared");
+        if (isDeclared(node.name)) {
+            if (isFinal(node.name)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "Cannot assign to final variable '" + node.name + "'");
+            }
+            if (node.value)
+                node.value->accept(*this);
+            return;
         }
-        if (isFinal(node.name)) {
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "Cannot assign to final variable '" + node.name + "'");
+        if (auto field = resolveField(node.name, node.line, node.column)) {
+            if (field->isFinal) {
+                bool allowed = m_inConstructor && !field->isStatic;
+                if (!allowed) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "cannot assign to final field '" + node.name + "'");
+                }
+            }
+            if (node.value) {
+                auto valType = inferTypeInfo(node.value.get());
+                if (!field->type.className.empty()) {
+                    if (valType.className != field->type.className) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "assignment to field '" + node.name + "' expects '" +
+                                             field->type.className + "'");
+                    }
+                } else if (field->type.value != ValueType::Unknown &&
+                           valType.value != ValueType::Unknown &&
+                           field->type.value != valType.value) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "assignment to field '" + node.name + "' expects '" +
+                                         typeToString(field->type.value) + "'");
+                }
+                node.value->accept(*this);
+            }
+            return;
         }
-        if (node.value)
-            node.value->accept(*this);
+        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                         "Variable '" + node.name + "' not declared");
     }
 
     void SemanticAnalyser::visit(BinaryExpression& node) {
@@ -892,20 +1001,33 @@ namespace bloch::core {
 
     void SemanticAnalyser::visit(PostfixExpression& node) {
         if (auto var = dynamic_cast<VariableExpression*>(node.left.get())) {
-            if (!isDeclared(var->name)) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "Variable '" + var->name + "' not declared");
+            if (isDeclared(var->name)) {
+                if (isFinal(var->name)) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "Cannot modify final variable '" + var->name + "'");
+                }
+                ValueType t = m_symbols.getType(var->name);
+                if (t != ValueType::Int) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, node.line, node.column,
+                        "Postfix operator '" + node.op + "' requires variable of type 'int'");
+                }
+                return;
             }
-            if (isFinal(var->name)) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "Cannot modify final variable '" + var->name + "'");
+            if (auto field = resolveField(var->name, node.line, node.column)) {
+                if (field->isFinal) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "Cannot modify final field '" + var->name + "'");
+                }
+                if (field->type.value != ValueType::Int) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, node.line, node.column,
+                        "Postfix operator '" + node.op + "' requires variable of type 'int'");
+                }
+                return;
             }
-            ValueType t = m_symbols.getType(var->name);
-            if (t != ValueType::Int) {
-                throw BlochError(
-                    ErrorCategory::Semantic, node.line, node.column,
-                    "Postfix operator '" + node.op + "' requires variable of type 'int'");
-            }
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "Variable '" + var->name + "' not declared");
         } else if (node.left) {
             node.left->accept(*this);
             throw BlochError(
@@ -917,10 +1039,12 @@ namespace bloch::core {
     void SemanticAnalyser::visit(LiteralExpression&) {}
 
     void SemanticAnalyser::visit(VariableExpression& node) {
-        if (!isDeclared(node.name) && !isFunctionDeclared(node.name)) {
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "Variable '" + node.name + "' not declared");
-        }
+        if (isDeclared(node.name) || isFunctionDeclared(node.name))
+            return;
+        if (resolveField(node.name, node.line, node.column))
+            return;
+        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                         "Variable '" + node.name + "' not declared");
     }
 
     void SemanticAnalyser::visit(CallExpression& node) {
@@ -951,18 +1075,41 @@ namespace bloch::core {
         };
 
         if (auto var = dynamic_cast<VariableExpression*>(node.callee.get())) {
+            MethodInfo* methodInfo = nullptr;
             if (!isDeclared(var->name) && !isFunctionDeclared(var->name)) {
-                throw BlochError(ErrorCategory::Semantic, var->line, var->column,
-                                 "Variable '" + var->name + "' not declared");
+                if (!m_currentClass.empty())
+                    methodInfo = findMethodInHierarchy(m_currentClass, var->name);
+                if (methodInfo) {
+                    if (!isAccessible(methodInfo->visibility, methodInfo->owner, m_currentClass)) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "method '" + var->name + "' is not accessible here");
+                    }
+                    if (!methodInfo->isStatic && m_inStaticContext) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "instance method '" + var->name +
+                                             "' cannot be called in a static context");
+                    }
+                } else {
+                    if (resolveField(var->name, var->line, var->column)) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "'" + var->name + "' is a field and cannot be called");
+                    }
+                    throw BlochError(ErrorCategory::Semantic, var->line, var->column,
+                                     "Variable '" + var->name + "' not declared");
+                }
             }
-            size_t expected = getFunctionParamCount(var->name);
-            if (expected != node.arguments.size()) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "Function '" + var->name + "' expects " +
-                                     std::to_string(expected) + " argument(s)");
+            if (methodInfo) {
+                checkArgs(methodInfo->paramTypes, var->name, node.line, node.column);
+            } else {
+                size_t expected = getFunctionParamCount(var->name);
+                if (expected != node.arguments.size()) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "Function '" + var->name + "' expects " +
+                                         std::to_string(expected) + " argument(s)");
+                }
+                auto types = getFunctionParamTypes(var->name);
+                checkArgs(types, var->name, node.line, node.column);
             }
-            auto types = getFunctionParamTypes(var->name);
-            checkArgs(types, var->name, node.line, node.column);
         } else if (auto member = dynamic_cast<MemberAccessExpression*>(node.callee.get())) {
             if (member->object)
                 member->object->accept(*this);
@@ -1128,8 +1275,7 @@ namespace bloch::core {
                     ErrorCategory::Semantic, node.line, node.column,
                     "cannot instantiate static or abstract class '" + cls.className + "'");
             }
-            bool matched =
-                info->constructors.empty() && node.arguments.empty();  // allow implicit default
+            bool matched = false;
             for (const auto& ctor : info->constructors) {
                 if (!isAccessible(ctor.visibility, info->name, m_currentClass))
                     continue;
@@ -1215,26 +1361,52 @@ namespace bloch::core {
     void SemanticAnalyser::visit(MeasureExpression& node) {
         if (node.qubit)
             node.qubit->accept(*this);
-        if (auto var = dynamic_cast<VariableExpression*>(node.qubit.get())) {
-            ValueType t = m_symbols.getType(var->name);
-            if (t != ValueType::Unknown && t != ValueType::Qubit) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "measure target must be a 'qubit'");
-            }
+        auto tinfo = inferTypeInfo(node.qubit.get());
+        if (tinfo.value != ValueType::Unknown && tinfo.value != ValueType::Qubit) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "measure target must be a 'qubit'");
         }
     }
 
     void SemanticAnalyser::visit(AssignmentExpression& node) {
-        if (!isDeclared(node.name)) {
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "Variable '" + node.name + "' not declared");
+        if (isDeclared(node.name)) {
+            if (isFinal(node.name)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "Cannot assign to final variable '" + node.name + "'");
+            }
+            if (node.value)
+                node.value->accept(*this);
+            return;
         }
-        if (isFinal(node.name)) {
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "Cannot assign to final variable '" + node.name + "'");
+        if (auto field = resolveField(node.name, node.line, node.column)) {
+            if (field->isFinal) {
+                bool allowed = m_inConstructor && !field->isStatic;
+                if (!allowed) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "cannot assign to final field '" + node.name + "'");
+                }
+            }
+            if (node.value) {
+                auto valType = inferTypeInfo(node.value.get());
+                if (!field->type.className.empty()) {
+                    if (valType.className != field->type.className) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "assignment to field '" + node.name + "' expects '" +
+                                             field->type.className + "'");
+                    }
+                } else if (field->type.value != ValueType::Unknown &&
+                           valType.value != ValueType::Unknown &&
+                           field->type.value != valType.value) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "assignment to field '" + node.name + "' expects '" +
+                                         typeToString(field->type.value) + "'");
+                }
+                node.value->accept(*this);
+            }
+            return;
         }
-        if (node.value)
-            node.value->accept(*this);
+        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                         "Variable '" + node.name + "' not declared");
     }
 
     void SemanticAnalyser::visit(MemberAssignmentExpression& node) {
@@ -1317,6 +1489,18 @@ namespace bloch::core {
     void SemanticAnalyser::visit(MethodDeclaration& node) {
         // Only analyse bodies for now.
         TypeInfo ret = typeFromAst(node.returnType.get());
+        if (node.hasQuantumAnnotation) {
+            bool valid = false;
+            if (ret.className.empty() &&
+                (ret.value == ValueType::Bit || ret.value == ValueType::Void))
+                valid = true;
+            if (ret.className == "bit[]")
+                valid = true;
+            if (!valid) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "'@quantum' methods must return 'bit', 'bit[]', or 'void'");
+            }
+        }
         auto savedReturn = m_currentReturn;
         auto savedClass = m_currentClass;
         bool savedStatic = m_inStaticContext;
@@ -1471,12 +1655,17 @@ namespace bloch::core {
             if (auto prim = dynamic_cast<PrimitiveType*>(node.returnType.get())) {
                 if (prim->name == "bit")
                     valid = true;
+            } else if (auto arr = dynamic_cast<ArrayType*>(node.returnType.get())) {
+                if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
+                    if (elem->name == "bit")
+                        valid = true;
+                }
             } else if (dynamic_cast<VoidType*>(node.returnType.get())) {
                 valid = true;
             }
             if (!valid) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "'@quantum' functions must return 'bit' or 'void'");
+                                 "'@quantum' functions must return 'bit', 'bit[]', or 'void'");
             }
         }
 
