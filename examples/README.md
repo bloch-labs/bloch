@@ -24,6 +24,8 @@ bloch examples/01_hadamard.bloch --shots=1024
 - `02_bell_state.bloch` — Bell pair ((|00⟩+|11⟩)/√2) → ~50/50 `00` and `11`  
 - `03_deutsch_jozsa.bloch` — Deutsch-Jozsa algorithm comparing constant vs balanced oracles  
 - `04_grover_search.bloch` — Grover search over 2 qubits, marking `11` as the winner
+- `05_teleport_class.bloch` — class-based single-qubit teleportation (entangle + corrections)
+- `06_maxcut_c4_class.bloch` — class-based QAOA p=1 for MaxCut on a 4-node cycle
 
 ## 01 Hadamard on |0⟩
 
@@ -110,7 +112,37 @@ qubit[] data
 outcome | count |  prob
 --------+-------+-----
 11      |  1024 | 1.000
+
+
 ```
+
+## 05 Teleportation (class-based)
+
+**File:** `examples/09_teleport_class.bloch`
+
+**Try:**
+```bash
+bloch examples/09_teleport_class.bloch --shots=512
+```
+
+Prepares a |+> state to teleport, builds a Bell pair via the `Teleporter` class, measures the sender, and applies classical corrections to the receiver.  
+**Expected output (representative single-shot echo):**
+```
+m0=1, m1=1, teleported=0
+```
+Across many shots, the receiver’s outcome matches the input state (here |+>, so 0/1 ~50/50).
+
+## 06 MaxCut on C4 (class-based QAOA p=1)
+
+**File:** `examples/10_maxcut_c4_class.bloch`
+
+**Try:**
+```bash
+bloch examples/10_maxcut_c4_class.bloch --shots=1024
+```
+
+Encapsulates a p=1 QAOA for the 4-node cycle. Constructor captures `(gamma, beta)`; `run` builds |+>^4, applies the cost on edges (0,1), (1,2), (2,3), (3,0), then a mixer.  
+**Expected output:** Histogram concentrated on bitstrings with alternating bits (e.g., `0101`, `1010`), which are the MaxCut optima for C4.
 
 ## FAQ
 

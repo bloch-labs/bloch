@@ -119,6 +119,7 @@ namespace bloch::core {
             bool isStatic = false;
             bool isFinal = false;
             bool hasInitializer = false;
+            bool isTracked = false;
             TypeInfo type;
             std::string owner;
             int line = 0;
@@ -131,6 +132,7 @@ namespace bloch::core {
             bool isVirtual = false;
             bool isOverride = false;
             bool hasBody = false;
+            bool isDefault = false;  // used for constructors
             TypeInfo returnType;
             std::vector<TypeInfo> paramTypes;
             std::string owner;
@@ -143,11 +145,13 @@ namespace bloch::core {
             std::string base;
             bool isStatic = false;
             bool isAbstract = false;
-            bool hasDestructor = false;
+            bool hasDestructor = true;       // implicit default exists
+            bool hasUserDestructor = false;  // true if explicitly declared
             std::vector<std::string> abstractMethods;
             std::unordered_map<std::string, FieldInfo> fields;
             std::unordered_map<std::string, MethodInfo> methods;
             std::vector<MethodInfo> constructors;
+            std::vector<ConstructorDeclaration*> ctorDecls;  // raw pointers owned by AST
             int line = 0;
             int column = 0;
         };
@@ -184,6 +188,7 @@ namespace bloch::core {
                                           const std::string& method) const;
         FieldInfo* findFieldInHierarchy(const std::string& className,
                                         const std::string& field) const;
+        const FieldInfo* resolveField(const std::string& name, int line, int column) const;
         bool isSubclassOf(const std::string& derived, const std::string& base) const;
         void validateOverrides(ClassInfo& info);
         void validateAbstractness(ClassInfo& info);

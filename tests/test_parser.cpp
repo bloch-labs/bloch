@@ -571,7 +571,7 @@ class Foo {
 TEST(ParserTest, DestructorValidation) {
     const char* badReturn = R"(
 class Foo {
-    public destructor -> int { }
+    public destructor() -> int { }
 }
 )";
     Lexer lexer1(badReturn);
@@ -588,6 +588,16 @@ class Foo {
     auto tokens2 = lexer2.tokenize();
     Parser parser2(std::move(tokens2));
     EXPECT_THROW((void)parser2.parse(), BlochError);
+
+    const char* missingParens = R"(
+class Foo {
+    public destructor -> void { }
+}
+)";
+    Lexer lexer3(missingParens);
+    auto tokens3 = lexer3.tokenize();
+    Parser parser3(std::move(tokens3));
+    EXPECT_THROW((void)parser3.parse(), BlochError);
 }
 
 TEST(ParserTest, ParsesNewAndDestroyWithClassVariables) {
@@ -616,4 +626,47 @@ function main() -> void {
     auto* destroyVar = dynamic_cast<VariableExpression*>(destroyStmt->target.get());
     ASSERT_NE(destroyVar, nullptr);
     EXPECT_EQ(destroyVar->name, "f");
+}
+
+TEST(ParserTest, ParsesDefaultConstructor) {
+    const char* src = R"(
+class Foo {
+    int x;
+    public constructor(int x) -> Foo = default;
+}
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->classes.size(), 1u);
+    auto* foo = program->classes[0].get();
+    ASSERT_EQ(foo->members.size(), 2u);
+    auto* ctor = dynamic_cast<ConstructorDeclaration*>(foo->members[1].get());
+    ASSERT_NE(ctor, nullptr);
+    EXPECT_TRUE(ctor->isDefault);
+    EXPECT_EQ(ctor->params.size(), 1u);
+    EXPECT_EQ(ctor->params[0]->name, "x");
+    EXPECT_EQ(ctor->body, nullptr);
+}
+
+TEST(ParserTest, ParsesDefaultDestructor) {
+    const char* src = R"(
+class Foo {
+    public destructor() -> void = default;
+}
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->classes.size(), 1u);
+    auto* foo = program->classes[0].get();
+    ASSERT_EQ(foo->members.size(), 1u);
+    auto* dtor = dynamic_cast<DestructorDeclaration*>(foo->members[0].get());
+    ASSERT_NE(dtor, nullptr);
+    EXPECT_TRUE(dtor->isDefault);
+    EXPECT_EQ(dtor->body, nullptr);
 }

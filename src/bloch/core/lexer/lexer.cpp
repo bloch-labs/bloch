@@ -254,6 +254,7 @@ namespace bloch::core {
             {"measure", TokenType::Measure},
             {"final", TokenType::Final},
             {"reset", TokenType::Reset},
+            {"default", TokenType::Default},
 
             // Annotation Values
             {"quantum", TokenType::Quantum},

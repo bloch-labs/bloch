@@ -282,10 +282,15 @@ namespace bloch::core {
 
     std::unique_ptr<ClassMember> Parser::parseClassMember(const std::string& className,
                                                           bool isStaticClass) {
-        Visibility visibility = parseVisibility();
-        if (visibility != Visibility::Public &&
-            (check(TokenType::Public) || check(TokenType::Private) ||
-             check(TokenType::Protected))) {
+        auto annotations = parseAnnotations();
+
+        bool hasVisibility =
+            check(TokenType::Public) || check(TokenType::Private) || check(TokenType::Protected);
+        Visibility visibility = hasVisibility
+                                    ? parseVisibility()
+                                    : (isStaticClass ? Visibility::Public : Visibility::Private);
+        if (hasVisibility && (check(TokenType::Public) || check(TokenType::Private) ||
+                              check(TokenType::Protected))) {
             reportError("Multiple visibility modifiers are not allowed on class members");
         }
 
@@ -315,7 +320,13 @@ namespace bloch::core {
             scanningModifiers = false;
         }
 
+        auto trailingAnnotations = parseAnnotations();
+        for (auto& ann : trailingAnnotations) annotations.push_back(std::move(ann));
+
         if (match(TokenType::Constructor)) {
+            if (!annotations.empty()) {
+                reportError("Annotations are not allowed on constructors");
+            }
             if (isStaticClass)
                 reportError("Static classes cannot declare constructors");
             if (isStatic || isVirtual || isOverride)
@@ -324,6 +335,9 @@ namespace bloch::core {
         }
 
         if (match(TokenType::Destructor)) {
+            if (!annotations.empty()) {
+                reportError("Annotations are not allowed on destructors");
+            }
             if (isStaticClass)
                 reportError("Static classes cannot declare destructors");
             if (isStatic || isVirtual || isOverride)
@@ -338,7 +352,8 @@ namespace bloch::core {
             if (isStaticClass && (isVirtual || isOverride)) {
                 reportError("Static classes cannot contain virtual or override methods");
             }
-            return parseMethodDeclaration(visibility, isStatic, isVirtual, isOverride);
+            return parseMethodDeclaration(visibility, isStatic, isVirtual, isOverride,
+                                          std::move(annotations));
         }
 
         if (isVirtual || isOverride) {
@@ -349,15 +364,22 @@ namespace bloch::core {
         }
 
         bool isFinalField = match(TokenType::Final);
-        return parseFieldDeclaration(visibility, isFinalField, isStatic);
+        return parseFieldDeclaration(visibility, isFinalField, isStatic, std::move(annotations));
     }
 
-    std::unique_ptr<FieldDeclaration> Parser::parseFieldDeclaration(Visibility vis, bool isFinal,
-                                                                    bool isStatic) {
+    std::unique_ptr<FieldDeclaration> Parser::parseFieldDeclaration(
+        Visibility vis, bool isFinal, bool isStatic,
+        std::vector<std::unique_ptr<AnnotationNode>> annotations) {
         auto field = std::make_unique<FieldDeclaration>();
         field->visibility = vis;
         field->isFinal = isFinal;
         field->isStatic = isStatic;
+
+        field->annotations = std::move(annotations);
+        for (auto& ann : field->annotations) {
+            if (ann && ann->name == "tracked")
+                field->isTracked = true;
+        }
 
         field->fieldType = parseType();
 
@@ -374,14 +396,19 @@ namespace bloch::core {
         return field;
     }
 
-    std::unique_ptr<MethodDeclaration> Parser::parseMethodDeclaration(Visibility vis, bool isStatic,
-                                                                      bool isVirtual,
-                                                                      bool isOverride) {
+    std::unique_ptr<MethodDeclaration> Parser::parseMethodDeclaration(
+        Visibility vis, bool isStatic, bool isVirtual, bool isOverride,
+        std::vector<std::unique_ptr<AnnotationNode>> annotations) {
         auto method = std::make_unique<MethodDeclaration>();
         method->visibility = vis;
         method->isStatic = isStatic;
         method->isVirtual = isVirtual;
         method->isOverride = isOverride;
+        method->annotations = std::move(annotations);
+        for (auto& ann : method->annotations) {
+            if (ann && ann->name == "quantum")
+                method->hasQuantumAnnotation = true;
+        }
 
         const Token& nameTok = expect(TokenType::Identifier, "Expected method name");
         method->name = nameTok.value;
@@ -433,7 +460,17 @@ namespace bloch::core {
             reportError("Constructor must return '" + className + "'");
         }
 
-        ctor->body = parseBlock();
+        if (match(TokenType::Equals)) {
+            const Token& defTok = expect(TokenType::Default, "Expected 'default' after '='");
+            if (defTok.value != "default") {
+                reportError("Only '= default' is supported for constructors");
+            }
+            (void)expect(TokenType::Semicolon, "Expected ';' after default constructor");
+            ctor->isDefault = true;
+            ctor->body = nullptr;
+        } else {
+            ctor->body = parseBlock();
+        }
         return ctor;
     }
 
@@ -444,12 +481,11 @@ namespace bloch::core {
         dtor->line = dtorTok.line;
         dtor->column = dtorTok.column;
 
-        if (match(TokenType::LParen)) {
-            if (!check(TokenType::RParen)) {
-                reportError("Destructor cannot have parameters");
-            }
-            (void)expect(TokenType::RParen, "Expected ')' after 'destructor'");
+        (void)expect(TokenType::LParen, "Expected '(' after 'destructor'");
+        if (!check(TokenType::RParen)) {
+            reportError("Destructor cannot have parameters");
         }
+        (void)expect(TokenType::RParen, "Expected ')' after 'destructor'");
 
         (void)expect(TokenType::Arrow, "Expected '->' before destructor return type");
         auto retType = parseType();
@@ -457,7 +493,17 @@ namespace bloch::core {
             reportError("Destructor must return 'void'");
         }
 
-        dtor->body = parseBlock();
+        if (match(TokenType::Equals)) {
+            const Token& defTok = expect(TokenType::Default, "Expected 'default' after '='");
+            if (defTok.value != "default") {
+                reportError("Only '= default' is supported for destructors");
+            }
+            (void)expect(TokenType::Semicolon, "Expected ';' after default destructor");
+            dtor->isDefault = true;
+            dtor->body = nullptr;
+        } else {
+            dtor->body = parseBlock();
+        }
         return dtor;
     }
 
