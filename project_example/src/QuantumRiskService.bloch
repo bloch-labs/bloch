@@ -1,0 +1,34 @@
+import circuits.FourQubitRiskOracle;
+import lib.MathUtils;
+
+class QuantumRiskService {
+    // Tunable parameters the service owner can update
+    private float targetGamma;
+    private float targetBeta;
+
+    public constructor(float gamma, float beta) -> QuantumRiskService {
+        this.targetGamma = gamma;
+        this.targetBeta = beta;
+    }
+
+    // Public API: run the risk circuit and return a bitstring outcome
+    @quantum
+    public function evaluate(qubit[4] q) -> bit[4] {
+        FourQubitRiskOracle oracle = new FourQubitRiskOracle(targetGamma, targetBeta);
+        oracle.run(q);
+
+        bit[4] outcome = {
+            measure q[0],
+            measure q[1],
+            measure q[2],
+            measure q[3]
+        };
+        return outcome;
+    }
+
+    // Example of how a classical config might adjust schedule
+    public function retune(float factor) -> void {
+        targetGamma = MathUtils.clamp(targetGamma * factor, 0.0f, MathUtils.PI);
+        targetBeta = MathUtils.clamp(targetBeta * factor, 0.0f, MathUtils.PI);
+    }
+}

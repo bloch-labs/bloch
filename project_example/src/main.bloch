@@ -1,0 +1,16 @@
+import QuantumRiskService;
+import lib.MathUtils;
+
+function main() -> void {
+    // In a real microservice, these might come from config or an API request
+    float gamma = 0.70f;
+    float beta = 0.35f;
+
+    QuantumRiskService service = new QuantumRiskService(gamma, beta);
+
+    // tracked measurements mimic a batch call the service might expose
+    @tracked qubit[4] qreg;
+    bit[4] result = service.evaluate(qreg);
+
+    echo("sampled outcome: " + result);
+}

@@ -1,0 +1,47 @@
+import lib.MathUtils;
+
+class FourQubitRiskOracle {
+    // Private members capture circuit parameters
+    private float gamma;
+    private float beta;
+
+    public constructor(float gamma, float beta) -> FourQubitRiskOracle = default;
+
+    // Single round of a MaxCut-like mixer/cost layer as a toy "risk" score
+    @quantum
+    public function run(qubit[4] q) -> void {
+        preparePlus(q);
+        applyCost(q, gamma);
+        applyMixer(q, beta);
+    }
+
+    @quantum
+    private function preparePlus(qubit[4] q) -> void {
+        for (int i = 0; i < 4; i = i + 1) {
+            h(q[i]);
+        }
+    }
+
+    @quantum
+    private function applyCost(qubit[4] q, float g) -> void {
+        // Simple cycle C4
+        zz(q[0], q[1], g);
+        zz(q[1], q[2], g);
+        zz(q[2], q[3], g);
+        zz(q[3], q[0], g);
+    }
+
+    @quantum
+    private function applyMixer(qubit[4] q, float b) -> void {
+        for (int i = 0; i < 4; i = i + 1) {
+            rx(q[i], 2.0f * b);
+        }
+    }
+
+    @quantum
+    private function zz(qubit a, qubit b, float g) -> void {
+        cx(a, b);
+        rz(b, -g);
+        cx(a, b);
+    }
+}
