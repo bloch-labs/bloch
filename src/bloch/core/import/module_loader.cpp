@@ -61,7 +61,7 @@ namespace bloch::core {
         }
         std::string src((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         Lexer lexer(src);
-        auto tokens = lexer.tokenize();
+        std::vector<Token> tokens = lexer.tokenize();
         Parser parser(std::move(tokens));
         return parser.parse();
     }
@@ -103,7 +103,7 @@ namespace bloch::core {
             return;
 
         m_stack.push_back(canon);
-        auto program = parseFile(canon);
+        std::unique_ptr<Program> program = parseFile(canon);
 
         fs::path parent = fs::path(canon).parent_path();
         for (auto& imp : program->imports) {
@@ -128,9 +128,9 @@ namespace bloch::core {
 
         loadModule(entryFile);
 
-        auto merged = std::make_unique<Program>();
+        std::unique_ptr<Program> merged = std::make_unique<Program>();
         for (const auto& path : m_loadOrder) {
-            auto& mod = m_cache[path];
+            std::unique_ptr<Program>& mod = m_cache[path];
             for (auto& cls : mod->classes) merged->classes.push_back(std::move(cls));
             for (auto& fn : mod->functions) merged->functions.push_back(std::move(fn));
             for (auto& stmt : mod->statements) merged->statements.push_back(std::move(stmt));

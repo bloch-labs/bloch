@@ -18,6 +18,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -122,7 +123,7 @@ int main(int argc, char** argv) {
 
     try {
         bloch::core::ModuleLoader loader;
-        auto program = loader.load(file);
+        std::unique_ptr<bloch::core::Program> program = loader.load(file);
         bloch::core::SemanticAnalyser analyser;
         analyser.analyse(*program);
         std::string qasm;
