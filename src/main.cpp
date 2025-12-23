@@ -23,8 +23,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "bloch/core/lexer/lexer.hpp"
-#include "bloch/core/parser/parser.hpp"
+#include "bloch/core/import/module_loader.hpp"
 #include "bloch/core/semantics/semantic_analyser.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
 #include "bloch/support/error/bloch_error.hpp"
@@ -118,21 +117,12 @@ int main(int argc, char** argv) {
     if (shotsProvided && shots > 1 && echoOpt.empty())
         bloch::support::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
 
-    std::ifstream in(file);
-    if (!in) {
-        std::cerr << "Failed to open " << file << "\n";
-        return 1;
-    }
-
     // Run a non-blocking update check at most once every 72 hours.
     bloch::update::checkForUpdatesIfDue(BLOCH_VERSION);
 
-    std::string src((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     try {
-        bloch::core::Lexer lexer(src);
-        auto tokens = lexer.tokenize();
-        bloch::core::Parser parser(std::move(tokens));
-        auto program = parser.parse();
+        bloch::core::ModuleLoader loader;
+        auto program = loader.load(file);
         bloch::core::SemanticAnalyser analyser;
         analyser.analyse(*program);
         std::string qasm;

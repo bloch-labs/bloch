@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 
+#include "bloch/core/import/module_loader.hpp"
 #include "bloch/core/lexer/lexer.hpp"
 #include "bloch/core/parser/parser.hpp"
 #include "bloch/core/semantics/semantic_analyser.hpp"
@@ -31,6 +35,20 @@ static std::unique_ptr<Program> parseProgram(const char* src) {
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
     return parser.parse();
+}
+
+static std::filesystem::path makeTempDir(const std::string& name) {
+    auto base = std::filesystem::temp_directory_path() /
+                ("bloch_import_" + name + "_" +
+                 std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(base);
+    return base;
+}
+
+static void writeFile(const std::filesystem::path& path, const std::string& contents) {
+    std::ofstream out(path);
+    out << contents;
+    out.close();
 }
 
 TEST(QasmSimulatorTest, AllocatesPowersOfTwoStateSize) {
@@ -540,4 +558,84 @@ TEST(RuntimeTest, CycleCollectorSkipsTrackedCycles) {
     RuntimeEvaluator eval;
     eval.execute(*program);
     EXPECT_GE(eval.heapObjectCount(), 2u);
+}
+
+TEST(RuntimeTest, ImportsPublicClassAcrossModules) {
+    auto dir = makeTempDir("basic");
+    writeFile(dir / "Greeter.bloch",
+              "class Greeter { public constructor() -> Greeter = default; public function "
+              "hello() -> string { return \"hello\"; } }\n");
+    writeFile(dir / "main.bloch",
+              "import Greeter; function main() -> void { Greeter g = new Greeter(); "
+              "echo(g.hello()); }\n");
+
+    ModuleLoader loader({dir.string()});
+    auto program = loader.load((dir / "main.bloch").string());
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    std::filesystem::remove_all(dir);
+    EXPECT_EQ("hello\n", output.str());
+}
+
+TEST(RuntimeTest, DottedImportResolvesNestedPath) {
+    auto dir = makeTempDir("nested");
+    std::filesystem::create_directories(dir / "pkg");
+    writeFile(dir / "pkg" / "Utils.bloch",
+              "class Utils { public constructor() -> Utils = default; public function value() -> "
+              "int { return 7; } }\n");
+    writeFile(dir / "main.bloch",
+              "import pkg.Utils; function main() -> void { Utils u = new Utils(); echo(u.value()); "
+              "}\n");
+
+    ModuleLoader loader({dir.string()});
+    auto program = loader.load((dir / "main.bloch").string());
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    std::filesystem::remove_all(dir);
+    EXPECT_EQ("7\n", output.str());
+}
+
+TEST(RuntimeTest, ImportRespectsPrivateMembersAcrossModules) {
+    auto dir = makeTempDir("visibility");
+    writeFile(dir / "Secret.bloch",
+              "class Secret { public constructor() -> Secret = default; private function hidden() "
+              "-> void { } public function expose() -> void { hidden(); } }\n");
+    writeFile(dir / "main.bloch",
+              "import Secret; function main() -> void { Secret s = new Secret(); s.hidden(); }\n");
+
+    ModuleLoader loader({dir.string()});
+    auto program = loader.load((dir / "main.bloch").string());
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RuntimeTest, ImportCycleFailsWithDiagnostic) {
+    auto dir = makeTempDir("cycle");
+    writeFile(dir / "A.bloch", "import B; function main() -> void { }\n");
+    writeFile(dir / "B.bloch", "import A; \n");
+
+    ModuleLoader loader({dir.string()});
+    EXPECT_THROW(loader.load((dir / "A.bloch").string()), BlochError);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RuntimeTest, MultipleMainAcrossModulesFails) {
+    auto dir = makeTempDir("multi_main");
+    writeFile(dir / "Lib.bloch", "function main() -> void { }\n");
+    writeFile(dir / "App.bloch", "import Lib; function main() -> void { }\n");
+
+    ModuleLoader loader({dir.string()});
+    EXPECT_THROW(loader.load((dir / "App.bloch").string()), BlochError);
+    std::filesystem::remove_all(dir);
 }
