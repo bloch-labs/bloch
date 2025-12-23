@@ -118,7 +118,7 @@ namespace bloch::core {
 
     // Main parse function
     std::unique_ptr<Program> Parser::parse() {
-        auto program = std::make_unique<Program>();
+        std::unique_ptr<Program> program = std::make_unique<Program>();
         // We alternate between function declarations and top-level statements.
         // Extra statements generated from multi-declarations are flushed as we go.
         while (!isAtEnd()) {
@@ -141,7 +141,7 @@ namespace bloch::core {
     // Top level
 
     std::unique_ptr<ImportDeclaration> Parser::parseImport() {
-        auto import = std::make_unique<ImportDeclaration>();
+        std::unique_ptr<ImportDeclaration> import = std::make_unique<ImportDeclaration>();
         const Token& importTok = previous();
         import->line = importTok.line;
         import->column = importTok.column;
@@ -173,7 +173,7 @@ namespace bloch::core {
 
         const Token& nameTok = expect(TokenType::Identifier, "Expected class name after 'class'");
 
-        auto cls = std::make_unique<ClassDeclaration>();
+        std::unique_ptr<ClassDeclaration> cls = std::make_unique<ClassDeclaration>();
         cls->name = nameTok.value;
         cls->line = nameTok.line;
         cls->column = nameTok.column;
@@ -189,7 +189,7 @@ namespace bloch::core {
 
         (void)expect(TokenType::LBrace, "Expected '{' to start class body");
         while (!check(TokenType::RBrace) && !isAtEnd()) {
-            auto member = parseClassMember(cls->name, cls->isStatic);
+            std::unique_ptr<ClassMember> member = parseClassMember(cls->name, cls->isStatic);
             if (member)
                 cls->members.push_back(std::move(member));
         }
@@ -200,7 +200,7 @@ namespace bloch::core {
 
     // Function Declaration
     std::unique_ptr<FunctionDeclaration> Parser::parseFunction() {
-        auto func = std::make_unique<FunctionDeclaration>();
+        std::unique_ptr<FunctionDeclaration> func = std::make_unique<FunctionDeclaration>();
 
         // Parse annotations
         while (check(TokenType::At)) {
@@ -232,7 +232,7 @@ namespace bloch::core {
         // Parse parameters
         (void)expect(TokenType::LParen, "Expected '(' after function name");
         while (!check(TokenType::RParen)) {
-            auto param = std::make_unique<Parameter>();
+            std::unique_ptr<Parameter> param = std::make_unique<Parameter>();
 
             param->type = parseType();
 
@@ -282,7 +282,7 @@ namespace bloch::core {
 
     std::unique_ptr<ClassMember> Parser::parseClassMember(const std::string& className,
                                                           bool isStaticClass) {
-        auto annotations = parseAnnotations();
+        std::vector<std::unique_ptr<AnnotationNode>> annotations = parseAnnotations();
 
         bool hasVisibility =
             check(TokenType::Public) || check(TokenType::Private) || check(TokenType::Protected);
@@ -320,7 +320,7 @@ namespace bloch::core {
             scanningModifiers = false;
         }
 
-        auto trailingAnnotations = parseAnnotations();
+        std::vector<std::unique_ptr<AnnotationNode>> trailingAnnotations = parseAnnotations();
         for (auto& ann : trailingAnnotations) annotations.push_back(std::move(ann));
 
         if (match(TokenType::Constructor)) {
@@ -370,7 +370,7 @@ namespace bloch::core {
     std::unique_ptr<FieldDeclaration> Parser::parseFieldDeclaration(
         Visibility vis, bool isFinal, bool isStatic,
         std::vector<std::unique_ptr<AnnotationNode>> annotations) {
-        auto field = std::make_unique<FieldDeclaration>();
+        std::unique_ptr<FieldDeclaration> field = std::make_unique<FieldDeclaration>();
         field->visibility = vis;
         field->isFinal = isFinal;
         field->isStatic = isStatic;
@@ -399,7 +399,7 @@ namespace bloch::core {
     std::unique_ptr<MethodDeclaration> Parser::parseMethodDeclaration(
         Visibility vis, bool isStatic, bool isVirtual, bool isOverride,
         std::vector<std::unique_ptr<AnnotationNode>> annotations) {
-        auto method = std::make_unique<MethodDeclaration>();
+        std::unique_ptr<MethodDeclaration> method = std::make_unique<MethodDeclaration>();
         method->visibility = vis;
         method->isStatic = isStatic;
         method->isVirtual = isVirtual;
@@ -438,7 +438,7 @@ namespace bloch::core {
 
     std::unique_ptr<ConstructorDeclaration> Parser::parseConstructorDeclaration(
         Visibility vis, const std::string& className) {
-        auto ctor = std::make_unique<ConstructorDeclaration>();
+        std::unique_ptr<ConstructorDeclaration> ctor = std::make_unique<ConstructorDeclaration>();
         ctor->visibility = vis;
         const Token& ctorTok = previous();
         ctor->line = ctorTok.line;
@@ -448,7 +448,7 @@ namespace bloch::core {
         ctor->params = parseParameterList();
         (void)expect(TokenType::RParen, "Expected ')' after constructor parameters");
         (void)expect(TokenType::Arrow, "Expected '->' before constructor return type");
-        auto retType = parseType();
+        std::unique_ptr<Type> retType = parseType();
 
         bool matches = false;
         if (auto named = dynamic_cast<NamedType*>(retType.get())) {
@@ -475,7 +475,7 @@ namespace bloch::core {
     }
 
     std::unique_ptr<DestructorDeclaration> Parser::parseDestructorDeclaration(Visibility vis) {
-        auto dtor = std::make_unique<DestructorDeclaration>();
+        std::unique_ptr<DestructorDeclaration> dtor = std::make_unique<DestructorDeclaration>();
         dtor->visibility = vis;
         const Token& dtorTok = previous();
         dtor->line = dtorTok.line;
@@ -488,7 +488,7 @@ namespace bloch::core {
         (void)expect(TokenType::RParen, "Expected ')' after 'destructor'");
 
         (void)expect(TokenType::Arrow, "Expected '->' before destructor return type");
-        auto retType = parseType();
+        std::unique_ptr<Type> retType = parseType();
         if (!dynamic_cast<VoidType*>(retType.get())) {
             reportError("Destructor must return 'void'");
         }
@@ -515,7 +515,7 @@ namespace bloch::core {
 
     std::unique_ptr<VariableDeclaration> Parser::parseVariableDeclaration(
         std::unique_ptr<Type> preParsedType, bool isFinal, bool allowMultiple) {
-        auto var = std::make_unique<VariableDeclaration>();
+        std::unique_ptr<VariableDeclaration> var = std::make_unique<VariableDeclaration>();
         var->isFinal = isFinal;
 
         // Annotations
@@ -560,7 +560,7 @@ namespace bloch::core {
                 reportError("Cannot initialise multiple qubit declarations");
             const Token& extraToken =
                 expect(TokenType::Identifier, "Expected variable name after ','");
-            auto extraVar = std::make_unique<VariableDeclaration>();
+            std::unique_ptr<VariableDeclaration> extraVar = std::make_unique<VariableDeclaration>();
             extraVar->isFinal = isFinal;
             extraVar->annotations = cloneAnnotations(var->annotations);
             extraVar->varType = cloneType(*var->varType);
@@ -585,8 +585,8 @@ namespace bloch::core {
             reportError(std::string("\"") + "@" + invalidName +
                         "\" is not a valid Bloch annotation");
         }
-        auto nameToken = advance();
-        auto annotation = std::make_unique<AnnotationNode>();
+        Token nameToken = advance();
+        std::unique_ptr<AnnotationNode> annotation = std::make_unique<AnnotationNode>();
         annotation->name = nameToken.value;
         return annotation;
     }
@@ -638,12 +638,12 @@ namespace bloch::core {
         if (check(TokenType::Identifier) && checkNext(TokenType::Equals))
             return parseAssignment();
 
-        auto expr = parseExpression();
+        std::unique_ptr<Expression> expr = parseExpression();
         if (match(TokenType::Question)) {
-            auto thenBranch = parseStatement();
+            std::unique_ptr<Statement> thenBranch = parseStatement();
             (void)expect(TokenType::Colon, "Expected ':' after true branch");
-            auto elseBranch = parseStatement();
-            auto stmt = std::make_unique<TernaryStatement>();
+            std::unique_ptr<Statement> elseBranch = parseStatement();
+            std::unique_ptr<TernaryStatement> stmt = std::make_unique<TernaryStatement>();
             stmt->condition = std::move(expr);
             stmt->thenBranch = std::move(thenBranch);
             stmt->elseBranch = std::move(elseBranch);
@@ -651,7 +651,7 @@ namespace bloch::core {
         }
 
         (void)expect(TokenType::Semicolon, "Expected ';' after expression");
-        auto stmt = std::make_unique<ExpressionStatement>();
+        std::unique_ptr<ExpressionStatement> stmt = std::make_unique<ExpressionStatement>();
         stmt->expression = std::move(expr);
         return stmt;
     }
@@ -660,7 +660,7 @@ namespace bloch::core {
     std::unique_ptr<BlockStatement> Parser::parseBlock() {
         const Token& lbrace = expect(TokenType::LBrace, "Expected '{' to start block");
 
-        auto block = std::make_unique<BlockStatement>();
+        std::unique_ptr<BlockStatement> block = std::make_unique<BlockStatement>();
         block->line = lbrace.line;
         block->column = lbrace.column;
         while (!check(TokenType::RBrace) && !isAtEnd()) {
@@ -674,7 +674,7 @@ namespace bloch::core {
 
     // return expr;
     std::unique_ptr<ReturnStatement> Parser::parseReturn() {
-        auto stmt = std::make_unique<ReturnStatement>();
+        std::unique_ptr<ReturnStatement> stmt = std::make_unique<ReturnStatement>();
         stmt->line = previous().line;
         stmt->column = previous().column;
 
@@ -689,17 +689,17 @@ namespace bloch::core {
     // if (cond) {...} else {...}
     std::unique_ptr<IfStatement> Parser::parseIf() {
         (void)expect(TokenType::LParen, "Expected '(' after 'if'");
-        auto condition = parseExpression();
+        std::unique_ptr<Expression> condition = parseExpression();
         (void)expect(TokenType::RParen, "Expected ')' after condition");
 
-        auto thenBranch = parseBlock();
+        std::unique_ptr<BlockStatement> thenBranch = parseBlock();
 
         std::unique_ptr<BlockStatement> elseBranch = nullptr;
         if (match(TokenType::Else)) {
             elseBranch = parseBlock();
         }
 
-        auto stmt = std::make_unique<IfStatement>();
+        std::unique_ptr<IfStatement> stmt = std::make_unique<IfStatement>();
         stmt->condition = std::move(condition);
         stmt->thenBranch = std::move(thenBranch);
         stmt->elseBranch = std::move(elseBranch);
@@ -728,15 +728,15 @@ namespace bloch::core {
             (void)advance();
         }
 
-        auto condition = parseExpression();
+        std::unique_ptr<Expression> condition = parseExpression();
         (void)expect(TokenType::Semicolon, "Expected ';' after loop condition");
 
-        auto increment = parseExpression();
+        std::unique_ptr<Expression> increment = parseExpression();
         (void)expect(TokenType::RParen, "Expected ')' after for clause");
 
-        auto body = parseBlock();
+        std::unique_ptr<BlockStatement> body = parseBlock();
 
-        auto stmt = std::make_unique<ForStatement>();
+        std::unique_ptr<ForStatement> stmt = std::make_unique<ForStatement>();
         stmt->initializer = std::move(initializer);
         stmt->condition = std::move(condition);
         stmt->increment = std::move(increment);
@@ -748,11 +748,11 @@ namespace bloch::core {
     // while (cond) {...}
     std::unique_ptr<WhileStatement> Parser::parseWhile() {
         (void)expect(TokenType::LParen, "Expected '(' after 'while'");
-        auto condition = parseExpression();
+        std::unique_ptr<Expression> condition = parseExpression();
         (void)expect(TokenType::RParen, "Expected ')' after condition");
-        auto body = parseBlock();
+        std::unique_ptr<BlockStatement> body = parseBlock();
 
-        auto stmt = std::make_unique<WhileStatement>();
+        std::unique_ptr<WhileStatement> stmt = std::make_unique<WhileStatement>();
         stmt->condition = std::move(condition);
         stmt->body = std::move(body);
         return stmt;
@@ -762,11 +762,11 @@ namespace bloch::core {
     std::unique_ptr<EchoStatement> Parser::parseEcho() {
         const Token& echoTok = previous();
         (void)expect(TokenType::LParen, "Expected '(' after 'echo'");
-        auto value = parseExpression();
+        std::unique_ptr<Expression> value = parseExpression();
         (void)expect(TokenType::RParen, "Expected ')' after echo argument");
         (void)expect(TokenType::Semicolon, "Expected ';' after echo statement");
 
-        auto stmt = std::make_unique<EchoStatement>();
+        std::unique_ptr<EchoStatement> stmt = std::make_unique<EchoStatement>();
         stmt->value = std::move(value);
         stmt->line = echoTok.line;
         stmt->column = echoTok.column;
@@ -776,7 +776,7 @@ namespace bloch::core {
     // reset q0;
     std::unique_ptr<ResetStatement> Parser::parseReset() {
         const Token& resetTok = previous();
-        auto stmt = std::make_unique<ResetStatement>();
+        std::unique_ptr<ResetStatement> stmt = std::make_unique<ResetStatement>();
         stmt->target = parseExpression();
         (void)expect(TokenType::Semicolon, "Expected ';' after reset target");
         stmt->line = resetTok.line;
@@ -787,7 +787,7 @@ namespace bloch::core {
     // measure q0;
     std::unique_ptr<MeasureStatement> Parser::parseMeasure() {
         const Token& measureTok = previous();
-        auto stmt = std::make_unique<MeasureStatement>();
+        std::unique_ptr<MeasureStatement> stmt = std::make_unique<MeasureStatement>();
         stmt->qubit = parseExpression();
         (void)expect(TokenType::Semicolon, "Expected ';' after measure target");
         stmt->line = measureTok.line;
@@ -798,7 +798,7 @@ namespace bloch::core {
     // destroy expr;
     std::unique_ptr<DestroyStatement> Parser::parseDestroy() {
         const Token& destroyTok = previous();
-        auto stmt = std::make_unique<DestroyStatement>();
+        std::unique_ptr<DestroyStatement> stmt = std::make_unique<DestroyStatement>();
         stmt->target = parseExpression();
         (void)expect(TokenType::Semicolon, "Expected ';' after destroy target");
         stmt->line = destroyTok.line;
@@ -816,7 +816,7 @@ namespace bloch::core {
         std::string name = nameToken.value;
         (void)expect(TokenType::Equals, "Expected '=' in assignment");
 
-        auto stmt = std::make_unique<AssignmentStatement>();
+        std::unique_ptr<AssignmentStatement> stmt = std::make_unique<AssignmentStatement>();
         stmt->name = name;
         stmt->line = nameToken.line;
         stmt->column = nameToken.column;
@@ -827,9 +827,9 @@ namespace bloch::core {
     }
 
     std::unique_ptr<ExpressionStatement> Parser::parseExpressionStatement() {
-        auto expr = parseExpression();
+        std::unique_ptr<Expression> expr = parseExpression();
         (void)expect(TokenType::Semicolon, "Expected ';' after expression");
-        auto stmt = std::make_unique<ExpressionStatement>();
+        std::unique_ptr<ExpressionStatement> stmt = std::make_unique<ExpressionStatement>();
         stmt->expression = std::move(expr);
         return stmt;
     }
@@ -838,7 +838,7 @@ namespace bloch::core {
     std::unique_ptr<Expression> Parser::parseExpression() { return parseAssignmentExpression(); }
 
     std::unique_ptr<Expression> Parser::parseAssignmentExpression() {
-        auto expr = parseLogicalOr();
+        std::unique_ptr<Expression> expr = parseLogicalOr();
 
         if (match(TokenType::Equals)) {
             // Assignment to variable or array index
@@ -846,8 +846,9 @@ namespace bloch::core {
                 int line = varExpr->line;
                 int column = varExpr->column;
                 std::string name = varExpr->name;
-                auto value = parseAssignmentExpression();
-                auto assign = std::make_unique<AssignmentExpression>(name, std::move(value));
+                std::unique_ptr<Expression> value = parseAssignmentExpression();
+                std::unique_ptr<AssignmentExpression> assign =
+                    std::make_unique<AssignmentExpression>(name, std::move(value));
                 assign->line = line;
                 assign->column = column;
                 return assign;
@@ -856,9 +857,10 @@ namespace bloch::core {
                 std::unique_ptr<IndexExpression> idx(static_cast<IndexExpression*>(expr.release()));
                 int line = idx->line;
                 int column = idx->column;
-                auto value = parseAssignmentExpression();
-                auto arrayAssign = std::make_unique<ArrayAssignmentExpression>(
-                    std::move(idx->collection), std::move(idx->index), std::move(value));
+                std::unique_ptr<Expression> value = parseAssignmentExpression();
+                std::unique_ptr<ArrayAssignmentExpression> arrayAssign =
+                    std::make_unique<ArrayAssignmentExpression>(
+                        std::move(idx->collection), std::move(idx->index), std::move(value));
                 arrayAssign->line = line;
                 arrayAssign->column = column;
                 return arrayAssign;
@@ -867,9 +869,10 @@ namespace bloch::core {
                     static_cast<MemberAccessExpression*>(expr.release()));
                 int line = mem->line;
                 int column = mem->column;
-                auto value = parseAssignmentExpression();
-                auto memberAssign = std::make_unique<MemberAssignmentExpression>(
-                    std::move(mem->object), mem->member, std::move(value));
+                std::unique_ptr<Expression> value = parseAssignmentExpression();
+                std::unique_ptr<MemberAssignmentExpression> memberAssign =
+                    std::make_unique<MemberAssignmentExpression>(std::move(mem->object),
+                                                                 mem->member, std::move(value));
                 memberAssign->line = line;
                 memberAssign->column = column;
                 return memberAssign;
@@ -882,11 +885,11 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseLogicalOr() {
-        auto expr = parseLogicalAnd();
+        std::unique_ptr<Expression> expr = parseLogicalAnd();
 
         while (match(TokenType::PipePipe)) {
             std::string op = previous().value;
-            auto right = parseLogicalAnd();
+            std::unique_ptr<Expression> right = parseLogicalAnd();
             expr = std::make_unique<BinaryExpression>(
                 BinaryExpression{op, std::move(expr), std::move(right)});
         }
@@ -895,11 +898,11 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseLogicalAnd() {
-        auto expr = parseBitwiseOr();
+        std::unique_ptr<Expression> expr = parseBitwiseOr();
 
         while (match(TokenType::AmpersandAmpersand)) {
             std::string op = previous().value;
-            auto right = parseBitwiseOr();
+            std::unique_ptr<Expression> right = parseBitwiseOr();
             expr = std::make_unique<BinaryExpression>(
                 BinaryExpression{op, std::move(expr), std::move(right)});
         }
@@ -908,11 +911,11 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseBitwiseOr() {
-        auto expr = parseBitwiseXor();
+        std::unique_ptr<Expression> expr = parseBitwiseXor();
 
         while (match(TokenType::Pipe)) {
             std::string op = previous().value;
-            auto right = parseBitwiseXor();
+            std::unique_ptr<Expression> right = parseBitwiseXor();
             expr = std::make_unique<BinaryExpression>(
                 BinaryExpression{op, std::move(expr), std::move(right)});
         }
@@ -921,11 +924,11 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseBitwiseXor() {
-        auto expr = parseBitwiseAnd();
+        std::unique_ptr<Expression> expr = parseBitwiseAnd();
 
         while (match(TokenType::Caret)) {
             std::string op = previous().value;
-            auto right = parseBitwiseAnd();
+            std::unique_ptr<Expression> right = parseBitwiseAnd();
             expr = std::make_unique<BinaryExpression>(
                 BinaryExpression{op, std::move(expr), std::move(right)});
         }
@@ -934,11 +937,11 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseBitwiseAnd() {
-        auto expr = parseEquality();
+        std::unique_ptr<Expression> expr = parseEquality();
 
         while (match(TokenType::Ampersand)) {
             std::string op = previous().value;
-            auto right = parseEquality();
+            std::unique_ptr<Expression> right = parseEquality();
             expr = std::make_unique<BinaryExpression>(
                 BinaryExpression{op, std::move(expr), std::move(right)});
         }
@@ -947,11 +950,11 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseEquality() {
-        auto expr = parseComparison();
+        std::unique_ptr<Expression> expr = parseComparison();
 
         while (match(TokenType::EqualEqual) || match(TokenType::BangEqual)) {
             std::string op = previous().value;
-            auto right = parseComparison();
+            std::unique_ptr<Expression> right = parseComparison();
             expr = std::make_unique<BinaryExpression>(
                 BinaryExpression{op, std::move(expr), std::move(right)});
         }
@@ -960,12 +963,12 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseComparison() {
-        auto expr = parseAdditive();
+        std::unique_ptr<Expression> expr = parseAdditive();
 
         while (match(TokenType::Greater) || match(TokenType::Less) ||
                match(TokenType::GreaterEqual) || match(TokenType::LessEqual)) {
             std::string op = previous().value;
-            auto right = parseAdditive();
+            std::unique_ptr<Expression> right = parseAdditive();
             expr = std::make_unique<BinaryExpression>(
                 BinaryExpression{op, std::move(expr), std::move(right)});
         }
@@ -974,11 +977,11 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseAdditive() {
-        auto expr = parseMultiplicative();
+        std::unique_ptr<Expression> expr = parseMultiplicative();
 
         while (match(TokenType::Plus) || match(TokenType::Minus)) {
             std::string op = previous().value;
-            auto right = parseMultiplicative();
+            std::unique_ptr<Expression> right = parseMultiplicative();
             expr = std::make_unique<BinaryExpression>(
                 BinaryExpression{op, std::move(expr), std::move(right)});
         }
@@ -987,11 +990,11 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseMultiplicative() {
-        auto expr = parseUnary();
+        std::unique_ptr<Expression> expr = parseUnary();
 
         while (match(TokenType::Star) || match(TokenType::Slash) || match(TokenType::Percent)) {
             std::string op = previous().value;
-            auto right = parseUnary();
+            std::unique_ptr<Expression> right = parseUnary();
             expr = std::make_unique<BinaryExpression>(
                 BinaryExpression{op, std::move(expr), std::move(right)});
         }
@@ -1002,7 +1005,7 @@ namespace bloch::core {
     std::unique_ptr<Expression> Parser::parseUnary() {
         if (match(TokenType::Minus) || match(TokenType::Bang) || match(TokenType::Tilde)) {
             std::string op = previous().value;
-            auto right = parseUnary();
+            std::unique_ptr<Expression> right = parseUnary();
             return std::make_unique<UnaryExpression>(UnaryExpression{op, std::move(right)});
         }
 
@@ -1010,7 +1013,7 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Expression> Parser::parseCall() {
-        auto expr = parsePrimary();
+        std::unique_ptr<Expression> expr = parsePrimary();
 
         while (true) {
             if (match(TokenType::LParen)) {
@@ -1024,7 +1027,8 @@ namespace bloch::core {
                 (void)expect(TokenType::RParen, "Expected ')' after arguments");
                 int calleeLine = expr ? expr->line : 0;
                 int calleeColumn = expr ? expr->column : 0;
-                auto call = std::make_unique<CallExpression>(std::move(expr), std::move(args));
+                std::unique_ptr<CallExpression> call =
+                    std::make_unique<CallExpression>(std::move(expr), std::move(args));
                 if (calleeLine > 0) {
                     call->line = calleeLine;
                     call->column = calleeColumn;
@@ -1035,9 +1039,9 @@ namespace bloch::core {
                 expr = std::move(call);
             } else if (match(TokenType::LBracket)) {
                 const Token& lbr = previous();
-                auto idxExpr = std::make_unique<IndexExpression>();
+                std::unique_ptr<IndexExpression> idxExpr = std::make_unique<IndexExpression>();
                 idxExpr->collection = std::move(expr);
-                auto indexNode = parseExpression();
+                std::unique_ptr<Expression> indexNode = parseExpression();
                 // Parser check for constant negative indices like a[-1]
                 bool negativeConst = false;
                 if (auto lit = dynamic_cast<LiteralExpression*>(indexNode.get())) {
@@ -1074,7 +1078,8 @@ namespace bloch::core {
                 const Token& dotTok = previous();
                 const Token& memberTok =
                     expect(TokenType::Identifier, "Expected member name after '.'");
-                auto member = std::make_unique<MemberAccessExpression>();
+                std::unique_ptr<MemberAccessExpression> member =
+                    std::make_unique<MemberAccessExpression>();
                 member->object = std::move(expr);
                 member->member = memberTok.value;
                 member->line = dotTok.line;
@@ -1082,7 +1087,8 @@ namespace bloch::core {
                 expr = std::move(member);
             } else if (match(TokenType::PlusPlus) || match(TokenType::MinusMinus)) {
                 std::string op = previous().value;
-                auto post = std::make_unique<PostfixExpression>(op, std::move(expr));
+                std::unique_ptr<PostfixExpression> post =
+                    std::make_unique<PostfixExpression>(op, std::move(expr));
                 post->line = previous().line;
                 post->column = previous().column;
                 expr = std::move(post);
@@ -1098,7 +1104,7 @@ namespace bloch::core {
         if (match(TokenType::IntegerLiteral) || match(TokenType::FloatLiteral) ||
             match(TokenType::BitLiteral) || match(TokenType::StringLiteral) ||
             match(TokenType::CharLiteral)) {
-            auto tok = previous();
+            Token tok = previous();
             std::string litType;
             switch (tok.type) {
                 case TokenType::IntegerLiteral:
@@ -1124,8 +1130,9 @@ namespace bloch::core {
 
         if (match(TokenType::Measure)) {
             const Token& measureTok = previous();
-            auto target = parseExpression();
-            auto expr = std::make_unique<MeasureExpression>(MeasureExpression{std::move(target)});
+            std::unique_ptr<Expression> target = parseExpression();
+            std::unique_ptr<MeasureExpression> expr =
+                std::make_unique<MeasureExpression>(MeasureExpression{std::move(target)});
             expr->line = measureTok.line;
             expr->column = measureTok.column;
             return expr;
@@ -1133,7 +1140,7 @@ namespace bloch::core {
 
         if (match(TokenType::This)) {
             const Token& tok = previous();
-            auto expr = std::make_unique<ThisExpression>();
+            std::unique_ptr<ThisExpression> expr = std::make_unique<ThisExpression>();
             expr->line = tok.line;
             expr->column = tok.column;
             return expr;
@@ -1141,7 +1148,7 @@ namespace bloch::core {
 
         if (match(TokenType::Super)) {
             const Token& tok = previous();
-            auto expr = std::make_unique<SuperExpression>();
+            std::unique_ptr<SuperExpression> expr = std::make_unique<SuperExpression>();
             expr->line = tok.line;
             expr->column = tok.column;
             return expr;
@@ -1149,11 +1156,11 @@ namespace bloch::core {
 
         if (match(TokenType::New)) {
             const Token& newTok = previous();
-            auto type = parseType();
+            std::unique_ptr<Type> type = parseType();
             (void)expect(TokenType::LParen, "Expected '(' after type in 'new' expression");
-            auto args = parseArgumentList();
+            std::vector<std::unique_ptr<Expression>> args = parseArgumentList();
             (void)expect(TokenType::RParen, "Expected ')' after arguments");
-            auto expr = std::make_unique<NewExpression>();
+            std::unique_ptr<NewExpression> expr = std::make_unique<NewExpression>();
             expr->classType = std::move(type);
             expr->arguments = std::move(args);
             expr->line = newTok.line;
@@ -1163,22 +1170,23 @@ namespace bloch::core {
 
         if (match(TokenType::Identifier)) {
             const Token& token = previous();
-            auto expr = std::make_unique<VariableExpression>(VariableExpression{token.value});
+            std::unique_ptr<VariableExpression> expr =
+                std::make_unique<VariableExpression>(VariableExpression{token.value});
             expr->line = token.line;
             expr->column = token.column;
             return expr;
         }
 
         if (match(TokenType::LBrace)) {
-            auto start = previous();
-            auto expr = parseArrayLiteral();
+            Token start = previous();
+            std::unique_ptr<Expression> expr = parseArrayLiteral();
             expr->line = start.line;
             expr->column = start.column;
             return expr;
         }
 
         if (match(TokenType::LParen)) {
-            auto expr = parseExpression();
+            std::unique_ptr<Expression> expr = parseExpression();
             (void)expect(TokenType::RParen, "Expected ')' after expression");
             return std::make_unique<ParenthesizedExpression>(
                 ParenthesizedExpression{std::move(expr)});
@@ -1284,7 +1292,7 @@ namespace bloch::core {
         std::vector<std::unique_ptr<Parameter>> parameters;
 
         while (!check(TokenType::RParen)) {
-            auto param = std::make_unique<Parameter>();
+            std::unique_ptr<Parameter> param = std::make_unique<Parameter>();
 
             // Parse type
             param->type = parseType();
@@ -1323,54 +1331,60 @@ namespace bloch::core {
 
     std::unique_ptr<Expression> Parser::cloneExpression(const Expression& expr) {
         if (auto lit = dynamic_cast<const LiteralExpression*>(&expr)) {
-            auto clone = std::make_unique<LiteralExpression>(lit->value, lit->literalType);
+            std::unique_ptr<LiteralExpression> clone =
+                std::make_unique<LiteralExpression>(lit->value, lit->literalType);
             clone->line = lit->line;
             clone->column = lit->column;
             return clone;
         }
         if (auto var = dynamic_cast<const VariableExpression*>(&expr)) {
-            auto clone = std::make_unique<VariableExpression>(var->name);
+            std::unique_ptr<VariableExpression> clone =
+                std::make_unique<VariableExpression>(var->name);
             clone->line = var->line;
             clone->column = var->column;
             return clone;
         }
         if (auto bin = dynamic_cast<const BinaryExpression*>(&expr)) {
-            auto left = cloneExpression(*bin->left);
-            auto right = cloneExpression(*bin->right);
-            auto clone =
+            std::unique_ptr<Expression> left = cloneExpression(*bin->left);
+            std::unique_ptr<Expression> right = cloneExpression(*bin->right);
+            std::unique_ptr<BinaryExpression> clone =
                 std::make_unique<BinaryExpression>(bin->op, std::move(left), std::move(right));
             clone->line = bin->line;
             clone->column = bin->column;
             return clone;
         }
         if (auto un = dynamic_cast<const UnaryExpression*>(&expr)) {
-            auto right = cloneExpression(*un->right);
-            auto clone = std::make_unique<UnaryExpression>(un->op, std::move(right));
+            std::unique_ptr<Expression> right = cloneExpression(*un->right);
+            std::unique_ptr<UnaryExpression> clone =
+                std::make_unique<UnaryExpression>(un->op, std::move(right));
             clone->line = un->line;
             clone->column = un->column;
             return clone;
         }
         if (auto post = dynamic_cast<const PostfixExpression*>(&expr)) {
-            auto left = cloneExpression(*post->left);
-            auto clone = std::make_unique<PostfixExpression>(post->op, std::move(left));
+            std::unique_ptr<Expression> left = cloneExpression(*post->left);
+            std::unique_ptr<PostfixExpression> clone =
+                std::make_unique<PostfixExpression>(post->op, std::move(left));
             clone->line = post->line;
             clone->column = post->column;
             return clone;
         }
         if (auto call = dynamic_cast<const CallExpression*>(&expr)) {
-            auto callee = cloneExpression(*call->callee);
+            std::unique_ptr<Expression> callee = cloneExpression(*call->callee);
             std::vector<std::unique_ptr<Expression>> args;
             for (const auto& arg : call->arguments) {
                 args.push_back(cloneExpression(*arg));
             }
-            auto clone = std::make_unique<CallExpression>(std::move(callee), std::move(args));
+            std::unique_ptr<CallExpression> clone =
+                std::make_unique<CallExpression>(std::move(callee), std::move(args));
             clone->line = call->line;
             clone->column = call->column;
             return clone;
         }
         if (auto member = dynamic_cast<const MemberAccessExpression*>(&expr)) {
-            auto object = cloneExpression(*member->object);
-            auto clone = std::make_unique<MemberAccessExpression>();
+            std::unique_ptr<Expression> object = cloneExpression(*member->object);
+            std::unique_ptr<MemberAccessExpression> clone =
+                std::make_unique<MemberAccessExpression>();
             clone->object = std::move(object);
             clone->member = member->member;
             clone->line = member->line;
@@ -1385,7 +1399,7 @@ namespace bloch::core {
             for (const auto& arg : newExpr->arguments) {
                 args.push_back(cloneExpression(*arg));
             }
-            auto clone = std::make_unique<NewExpression>();
+            std::unique_ptr<NewExpression> clone = std::make_unique<NewExpression>();
             clone->classType = std::move(classType);
             clone->arguments = std::move(args);
             clone->line = newExpr->line;
@@ -1393,21 +1407,21 @@ namespace bloch::core {
             return clone;
         }
         if (auto thisExpr = dynamic_cast<const ThisExpression*>(&expr)) {
-            auto clone = std::make_unique<ThisExpression>();
+            std::unique_ptr<ThisExpression> clone = std::make_unique<ThisExpression>();
             clone->line = thisExpr->line;
             clone->column = thisExpr->column;
             return clone;
         }
         if (auto superExpr = dynamic_cast<const SuperExpression*>(&expr)) {
-            auto clone = std::make_unique<SuperExpression>();
+            std::unique_ptr<SuperExpression> clone = std::make_unique<SuperExpression>();
             clone->line = superExpr->line;
             clone->column = superExpr->column;
             return clone;
         }
         if (auto idx = dynamic_cast<const IndexExpression*>(&expr)) {
-            auto collection = cloneExpression(*idx->collection);
-            auto index = cloneExpression(*idx->index);
-            auto clone = std::make_unique<IndexExpression>();
+            std::unique_ptr<Expression> collection = cloneExpression(*idx->collection);
+            std::unique_ptr<Expression> index = cloneExpression(*idx->index);
+            std::unique_ptr<IndexExpression> clone = std::make_unique<IndexExpression>();
             clone->collection = std::move(collection);
             clone->index = std::move(index);
             clone->line = idx->line;
@@ -1419,48 +1433,53 @@ namespace bloch::core {
             for (const auto& el : arr->elements) {
                 elems.push_back(cloneExpression(*el));
             }
-            auto clone = std::make_unique<ArrayLiteralExpression>(std::move(elems));
+            std::unique_ptr<ArrayLiteralExpression> clone =
+                std::make_unique<ArrayLiteralExpression>(std::move(elems));
             clone->line = arr->line;
             clone->column = arr->column;
             return clone;
         }
         if (auto par = dynamic_cast<const ParenthesizedExpression*>(&expr)) {
-            auto inner = cloneExpression(*par->expression);
-            auto clone = std::make_unique<ParenthesizedExpression>(std::move(inner));
+            std::unique_ptr<Expression> inner = cloneExpression(*par->expression);
+            std::unique_ptr<ParenthesizedExpression> clone =
+                std::make_unique<ParenthesizedExpression>(std::move(inner));
             clone->line = par->line;
             clone->column = par->column;
             return clone;
         }
         if (auto meas = dynamic_cast<const MeasureExpression*>(&expr)) {
-            auto target = cloneExpression(*meas->qubit);
-            auto clone = std::make_unique<MeasureExpression>(std::move(target));
+            std::unique_ptr<Expression> target = cloneExpression(*meas->qubit);
+            std::unique_ptr<MeasureExpression> clone =
+                std::make_unique<MeasureExpression>(std::move(target));
             clone->line = meas->line;
             clone->column = meas->column;
             return clone;
         }
         if (auto assign = dynamic_cast<const AssignmentExpression*>(&expr)) {
-            auto value = cloneExpression(*assign->value);
-            auto clone = std::make_unique<AssignmentExpression>(
+            std::unique_ptr<Expression> value = cloneExpression(*assign->value);
+            std::unique_ptr<AssignmentExpression> clone = std::make_unique<AssignmentExpression>(
                 AssignmentExpression{assign->name, std::move(value)});
             clone->line = assign->line;
             clone->column = assign->column;
             return clone;
         }
         if (auto memberAssign = dynamic_cast<const MemberAssignmentExpression*>(&expr)) {
-            auto object = cloneExpression(*memberAssign->object);
-            auto value = cloneExpression(*memberAssign->value);
-            auto clone = std::make_unique<MemberAssignmentExpression>(
-                std::move(object), memberAssign->member, std::move(value));
+            std::unique_ptr<Expression> object = cloneExpression(*memberAssign->object);
+            std::unique_ptr<Expression> value = cloneExpression(*memberAssign->value);
+            std::unique_ptr<MemberAssignmentExpression> clone =
+                std::make_unique<MemberAssignmentExpression>(
+                    std::move(object), memberAssign->member, std::move(value));
             clone->line = memberAssign->line;
             clone->column = memberAssign->column;
             return clone;
         }
         if (auto arrAssign = dynamic_cast<const ArrayAssignmentExpression*>(&expr)) {
-            auto collection = cloneExpression(*arrAssign->collection);
-            auto index = cloneExpression(*arrAssign->index);
-            auto value = cloneExpression(*arrAssign->value);
-            auto clone = std::make_unique<ArrayAssignmentExpression>(
-                std::move(collection), std::move(index), std::move(value));
+            std::unique_ptr<Expression> collection = cloneExpression(*arrAssign->collection);
+            std::unique_ptr<Expression> index = cloneExpression(*arrAssign->index);
+            std::unique_ptr<Expression> value = cloneExpression(*arrAssign->value);
+            std::unique_ptr<ArrayAssignmentExpression> clone =
+                std::make_unique<ArrayAssignmentExpression>(std::move(collection), std::move(index),
+                                                            std::move(value));
             clone->line = arrAssign->line;
             clone->column = arrAssign->column;
             return clone;
@@ -1472,7 +1491,7 @@ namespace bloch::core {
         if (auto prim = dynamic_cast<const PrimitiveType*>(&type))
             return std::make_unique<PrimitiveType>(prim->name);
         if (auto named = dynamic_cast<const NamedType*>(&type)) {
-            auto clone = std::make_unique<NamedType>(named->nameParts);
+            std::unique_ptr<NamedType> clone = std::make_unique<NamedType>(named->nameParts);
             clone->line = named->line;
             clone->column = named->column;
             return clone;
@@ -1481,8 +1500,8 @@ namespace bloch::core {
             std::unique_ptr<Expression> sizeExprClone;
             if (array->sizeExpression)
                 sizeExprClone = cloneExpression(*array->sizeExpression);
-            auto clone = std::make_unique<ArrayType>(cloneType(*array->elementType), array->size,
-                                                     std::move(sizeExprClone));
+            std::unique_ptr<ArrayType> clone = std::make_unique<ArrayType>(
+                cloneType(*array->elementType), array->size, std::move(sizeExprClone));
             clone->line = array->line;
             clone->column = array->column;
             return clone;

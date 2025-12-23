@@ -1,0 +1,15 @@
+// Static helper class for simple quantum calculations (ħ set to 1 for clarity)
+static class QuantumMath {
+    public static final float PI = 3.14159265f;
+    public static final float HBAR = 1.0f; // natural units: ħ = 1 keeps numbers readable
+
+    // ΔE = ħ ω (here ħ = 1). Frequency is in Hz, return is in arbitrary energy units.
+    public static function energyFromFrequency(float freqHz) -> float {
+        return HBAR * 2.0f * PI * freqHz;
+    }
+
+    // Phase accumulated under free evolution: φ = ω t
+    public static function phaseAccumulation(float omegaRadPerSec, float timeSec) -> float {
+        return omegaRadPerSec * timeSec;
+    }
+}

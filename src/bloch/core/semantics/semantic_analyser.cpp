@@ -708,17 +708,10 @@ namespace bloch::core {
         m_currentReturn = combine(ValueType::Unknown, "");
         m_foundReturn = false;
         m_functions.clear();
-        m_functionInfo.clear();
+    m_functionInfo.clear();
 
-        buildClassRegistry(program);
-        if (!program.imports.empty()) {
-            auto* first = program.imports.front().get();
-            int line = first ? first->line : 0;
-            int col = first ? first->column : 0;
-            throw BlochError(ErrorCategory::Semantic, line, col,
-                             "imports are parsed but not yet supported by the semantic analyser");
-        }
-        ScopeGuard globalScope(*this);
+    buildClassRegistry(program);
+    ScopeGuard globalScope(*this);
         // Make class names visible as types/values (for static access).
         for (const auto& kv : m_classes) {
             declare(kv.first, true, combine(ValueType::Unknown, kv.first), true);
