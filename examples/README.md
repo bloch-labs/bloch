@@ -26,6 +26,7 @@ bloch examples/01_hadamard.bloch --shots=1024
 - `04_grover_search.bloch` — Grover search over 2 qubits, marking `11` as the winner
 - `05_teleport_class.bloch` — class-based single-qubit teleportation (entangle + corrections)
 - `06_maxcut_c4_class.bloch` — class-based QAOA p=1 for MaxCut on a 4-node cycle
+- `multifile/QuantumMath.bloch` + `multifile/main.bloch` — multi-file import demo with a static helper
 
 ## 01 Hadamard on |0⟩
 
@@ -143,6 +144,22 @@ bloch examples/10_maxcut_c4_class.bloch --shots=1024
 
 Encapsulates a p=1 QAOA for the 4-node cycle. Constructor captures `(gamma, beta)`; `run` builds |+>^4, applies the cost on edges (0,1), (1,2), (2,3), (3,0), then a mixer.  
 **Expected output:** Histogram concentrated on bitstrings with alternating bits (e.g., `0101`, `1010`), which are the MaxCut optima for C4.
+
+## Multi-file import: static QuantumMath helper
+
+**Files:** `examples/multifile/QuantumMath.bloch`, `examples/multifile/main.bloch`
+
+Shows how to split code across files: `main.bloch` imports the static `QuantumMath` helper and uses it to estimate a two-level system’s energy gap and phase accumulation.  
+**Try:**
+```bash
+bloch examples/multifile/main.bloch
+```
+**Expected output (representative):**
+```
+ω (rad/s): 1256637040.0
+ΔE (arb units): 1256637040.0
+Phase after 100 us (rad): 125663.7030
+```
 
 ## FAQ
 
