@@ -1,6 +1,6 @@
 # Contributing to Bloch
 
-Thanks for helping shape Bloch! This guide keeps the contribution process simple while the language evolves rapidly.
+Thanks for helping shape Bloch! This guide keeps the contribution process simple while the language evolves rapidly. The versioned contributor docs live in [`docs/`](docs/) for deeper guidance.
 
 ---
 

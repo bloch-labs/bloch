@@ -85,10 +85,10 @@ Additional generator options (Ninja, CLion toolchains, etc.) are covered in [CON
 Includes now follow this structure (e.g., `#include "bloch/core/parser/parser.hpp"`), and new components should live in the matching namespace.
 
 ## User Documentation
-[docs.bloch-labs.com/bloch/overview](https://docs.bloch-labs.com/bloch/overview)
+The Starlight docs site lives in [`docs/`](docs/). It includes versioned user guides for Bloch v1.0.x and v1.1.x.
 
-## Developer Documenation
-[Wiki](https://github.com/bloch-labs/bloch/wiki/)
+## Developer Documentation
+Contributor guidance is now versioned alongside the user docs in [`docs/`](docs/).
 
 ## Releases
 v1.0.0 will ship manually while we build the release pipeline. Run the **Manual Packager** workflow (Actions → “Manual Packager”) against the desired branch/tag to produce Linux, macOS, and Windows archives plus checksums; the GitHub Wiki documents the end-to-end checklist.
