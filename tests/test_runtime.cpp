@@ -367,7 +367,7 @@ TEST(RuntimeTest, MeasureExpressionAfterMeasurementThrows) {
 
 TEST(RuntimeTest, ResetClearsQubit) {
     const char* src =
-        "@quantum function main() -> bit { qubit q; x(q); reset q; bit r = measure q; return r; }";
+        "function main() -> bit { qubit q; x(q); reset q; bit r = measure q; return r; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);

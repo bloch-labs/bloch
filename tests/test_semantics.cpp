@@ -120,6 +120,20 @@ TEST(SemanticTest, QuantumReturnTypeInvalidChar) {
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
+TEST(SemanticTest, ShotsAnnotationAllowedOnMain) {
+    const char* src = "@shots(5) function main() -> void { }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, ShotsAnnotationRejectedOffMain) {
+    const char* src = "@shots(5) function foo() -> void { }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
 TEST(SemanticTest, VoidFunctionReturnValueFails) {
     const char* src = "function foo() -> void { return 1; }";
     auto program = parseProgram(src);

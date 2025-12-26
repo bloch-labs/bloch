@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -386,11 +387,12 @@ namespace bloch::core {
     // Annotation
     struct AnnotationNode : public ASTNode {
         std::string name;
-        std::string value;
+        std::string value = std::string{""};
+        bool isFunctionAnnotation = false;
+        bool isVariableAnnotation = false;
 
         AnnotationNode() = default;
-        AnnotationNode(const std::string& name, const std::string& value)
-            : name(name), value(value) {}
+        AnnotationNode(std::string& name, std::string& value) : name(name), value(value) {}
         void accept(ASTVisitor& visitor) override;
     };
 
@@ -476,6 +478,7 @@ namespace bloch::core {
         std::unique_ptr<BlockStatement> body;
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
         bool hasQuantumAnnotation = false;
+        bool hasShotsAnnotation = false;
 
         FunctionDeclaration() = default;
         void accept(ASTVisitor& visitor) override;
@@ -487,6 +490,7 @@ namespace bloch::core {
         std::vector<std::unique_ptr<ClassDeclaration>> classes;
         std::vector<std::unique_ptr<FunctionDeclaration>> functions;
         std::vector<std::unique_ptr<Statement>> statements;
+        std::pair<bool, int> shots;
 
         Program() = default;
 

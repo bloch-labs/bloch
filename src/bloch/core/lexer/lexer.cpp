@@ -259,6 +259,7 @@ namespace bloch::core {
             // Annotation Values
             {"quantum", TokenType::Quantum},
             {"tracked", TokenType::Tracked},
+            {"shots", TokenType::Shots},
 
             // Class System
             {"class", TokenType::Class},

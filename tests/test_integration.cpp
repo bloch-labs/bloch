@@ -269,6 +269,44 @@ function main() -> void {
     EXPECT_NE(output.find("?"), std::string::npos);
 }
 
+TEST(IntegrationTest, ShotsAnnotationSetsCount) {
+    std::string src = R"(
+@shots(3)
+function main() -> void {
+    @tracked qubit q;
+    x(q);
+}
+)";
+    std::string output = runBloch(src, "shots_annotation.bloch");
+    EXPECT_NE(output.find("Shots: 3"), std::string::npos);
+    EXPECT_EQ(output.find("The '--shots=N' flag will be deprecated"), std::string::npos);
+}
+
+TEST(IntegrationTest, ShotsFlagStillWorksAndWarns) {
+    std::string src = R"(
+function main() -> void {
+    @tracked qubit q;
+    x(q);
+}
+)";
+    std::string output = runBloch(src, "shots_flag.bloch", "--shots=4");
+    EXPECT_NE(output.find("Shots: 4"), std::string::npos);
+    EXPECT_NE(output.find("The '--shots=N' flag will be deprecated"), std::string::npos);
+}
+
+TEST(IntegrationTest, ShotsAnnotationOverridesFlagAndWarns) {
+    std::string src = R"(
+@shots(2)
+function main() -> void {
+    @tracked qubit q;
+    x(q);
+}
+)";
+    std::string output = runBloch(src, "shots_annotation_override.bloch", "--shots=5");
+    EXPECT_NE(output.find("Shots: 2"), std::string::npos);
+    EXPECT_NE(output.find("differs from your @shots(N) annotation"), std::string::npos);
+}
+
 TEST(IntegrationTest, ArrayOperationsAndEcho) {
     std::string src = R"(
 function main() -> void { 

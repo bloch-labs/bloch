@@ -78,7 +78,8 @@ namespace bloch::core {
             bool isFinal, bool allowMultiple = true);
         [[nodiscard]] std::unique_ptr<VariableDeclaration> parseVariableDeclaration(
             std::unique_ptr<Type> preParsedType, bool isFinal, bool allowMultiple = true);
-        [[nodiscard]] std::unique_ptr<AnnotationNode> parseAnnotation();
+        [[nodiscard]] std::unique_ptr<AnnotationNode> parseVariableAnnotation();
+        [[nodiscard]] std::unique_ptr<AnnotationNode> parseFunctionAnnotation();
         [[nodiscard]] std::vector<std::unique_ptr<AnnotationNode>> parseAnnotations();
 
         // Statements

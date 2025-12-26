@@ -80,6 +80,9 @@ int main(int argc, char** argv) {
     bool emitQasm = false;
     int shots = 1;
     bool shotsProvided = false;
+    bool isCliShots = false;
+    int cliShots = 1;
+    bool isAnnotationShots = false;
     std::string echoOpt;
     std::string file;
     for (int i = 1; i < argc; ++i) {
@@ -96,9 +99,9 @@ int main(int argc, char** argv) {
         } else if (arg == "--emit-qasm") {
             emitQasm = true;
         } else if (arg.rfind("--shots=", 0) == 0) {
-            shotsProvided = true;
-            shots = std::stoi(arg.substr(8));
-            if (shots <= 0) {
+            isCliShots = true;
+            cliShots = std::stoi(arg.substr(8));
+            if (cliShots <= 0) {
                 std::cerr << "--shots must be positive\n";
                 return 1;
             }
@@ -112,11 +115,6 @@ int main(int argc, char** argv) {
         std::cerr << "No input file provided (use --help for usage)\n";
         return 1;
     }
-    // By default we suppress echo when taking many shots, unless the user
-    // explicitly asks for it via --echo=all.
-    bool echoAll = echoOpt.empty() ? (!shotsProvided || shots == 1) : (echoOpt == "all");
-    if (shotsProvided && shots > 1 && echoOpt.empty())
-        bloch::support::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
 
     // Run a non-blocking update check at most once every 72 hours.
     bloch::update::checkForUpdatesIfDue(BLOCH_VERSION);
@@ -124,6 +122,35 @@ int main(int argc, char** argv) {
     try {
         bloch::core::ModuleLoader loader;
         std::unique_ptr<bloch::core::Program> program = loader.load(file);
+        bool isAnnotationShots = program->shots.first;
+
+        if (isCliShots && !isAnnotationShots) {
+            shotsProvided = true;
+            shots = cliShots;
+            bloch::support::blochWarning(
+                0, 0,
+                "The '--shots=N' flag will be deprecated in v2.0.0. Please decorate your main() "
+                "function with the @shots(N) annotation instead.");
+        } else if (!isCliShots && isAnnotationShots) {
+            shotsProvided = true;
+            shots = program->shots.second;
+        } else if (isCliShots && isAnnotationShots) {
+            shotsProvided = true;
+            shots = program->shots.second;
+            if (cliShots != shots) {
+                bloch::support::blochWarning(
+                    0, 0,
+                    "The '--shots=N' flag differs from your @shots(N) annotation. Ignoring CLI "
+                    "flag and using annotation value.");
+            }
+        }
+
+        // By default we suppress echo when taking many shots, unless the user
+        // explicitly asks for it via --echo=all.
+        bool echoAll = echoOpt.empty() ? (!shotsProvided || shots == 1) : (echoOpt == "all");
+        if (shotsProvided && shots > 1 && echoOpt.empty())
+            bloch::support::blochInfo(0, 0, "suppressing echo; to view them use --echo=all");
+
         bloch::core::SemanticAnalyser analyser;
         analyser.analyse(*program);
         std::string qasm;

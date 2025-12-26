@@ -66,7 +66,7 @@ namespace bloch::core {
     bool Parser::checkFunctionAnnotation() const {
         if (!check(TokenType::At))
             return false;
-        if (!checkNext(TokenType::Quantum))
+        if (!checkNext(TokenType::Quantum) && !checkNext(TokenType::Shots))
             return false;
         return true;
     }
@@ -204,19 +204,17 @@ namespace bloch::core {
 
         // Parse annotations
         while (check(TokenType::At)) {
-            (void)advance();
-            if (match(TokenType::Quantum)) {
-                std::string name = previous().value;
-                std::string value = "";
-                func->annotations.push_back(
-                    std::make_unique<AnnotationNode>(AnnotationNode{name, value}));
+            (void)previous();
+            std::unique_ptr<AnnotationNode> annotation = parseFunctionAnnotation();
+            // TODO: Refactor this to a switch statement
+            if (annotation->name == "quantum") {
                 func->hasQuantumAnnotation = true;
+            } else if (annotation->name == "shots") {
+                func->hasShotsAnnotation = true;
             } else {
-                const Token& invalid = peek();
-                std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
-                reportError(std::string("\"") + "@" + invalidName +
-                            "\" is not a valid Bloch annotation");
+                reportError("Invalid annotation name");
             }
+            func->annotations.push_back(std::move(annotation));
         }
 
         (void)expect(TokenType::Function, "Expected 'function' keyword");
@@ -575,19 +573,44 @@ namespace bloch::core {
         return var;
     }
 
-    // @quantum, @tracked
-    std::unique_ptr<AnnotationNode> Parser::parseAnnotation() {
+    // @tracked
+    std::unique_ptr<AnnotationNode> Parser::parseVariableAnnotation() {
         (void)expect(TokenType::At, "Expected '@' to begin annotation");
 
-        if (!check(TokenType::Quantum) && !check(TokenType::Tracked)) {
+        if (!check(TokenType::Tracked)) {
             const Token& invalid = peek();
             std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
             reportError(std::string("\"") + "@" + invalidName +
-                        "\" is not a valid Bloch annotation");
+                        "\" is not a valid Bloch variable annotation");
         }
-        Token nameToken = advance();
+        Token annotationToken = advance();
         std::unique_ptr<AnnotationNode> annotation = std::make_unique<AnnotationNode>();
-        annotation->name = nameToken.value;
+        annotation->name = annotationToken.value;
+        annotation->isVariableAnnotation = true;
+        return annotation;
+    }
+
+    //@quantum, @shots(N)
+    std::unique_ptr<AnnotationNode> Parser::parseFunctionAnnotation() {
+        (void)expect(TokenType::At, "Expected '@' to begin annotation");
+
+        if (!check(TokenType::Quantum) && !check(TokenType::Shots)) {
+            const Token& invalid = peek();
+            std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
+            reportError(std::string("\"") + "@" + invalidName +
+                        "\" is not a valid Bloch function/method annotation");
+        }
+        Token annotationToken = advance();
+        Token numberOfShots;
+        if (annotationToken.type == TokenType::Shots) {
+            (void)expect(TokenType::LParen, "Expected opening bracket '('");
+            numberOfShots = expect(TokenType::IntegerLiteral, "Number of shots must be an integer");
+            (void)expect(TokenType::RParen, "Expected closing bracket ')'");
+        }
+        std::unique_ptr<AnnotationNode> annotation = std::make_unique<AnnotationNode>();
+        annotation->name = annotationToken.value;
+        annotation->value = numberOfShots.value.empty() ? std::string{""} : numberOfShots.value;
+        annotation->isFunctionAnnotation = true;
         return annotation;
     }
 
@@ -595,7 +618,13 @@ namespace bloch::core {
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
 
         while (check(TokenType::At)) {
-            annotations.push_back(parseAnnotation());
+            // TODO: refactor this, currently if invalid variable annotation is used, it will be
+            // caught rather than thrown this is a rather hacky solution.
+            try {
+                annotations.push_back(parseVariableAnnotation());
+            } catch (BlochError error) {
+                annotations.push_back(parseFunctionAnnotation());
+            }
         }
 
         return annotations;
