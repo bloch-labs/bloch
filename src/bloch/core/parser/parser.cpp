@@ -618,6 +618,8 @@ namespace bloch::core {
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
 
         while (check(TokenType::At)) {
+            // TODO: refactor this, currently if invalid variable annotation is used, it will be
+            // caught rather than thrown this is a rather hacky solution.
             try {
                 annotations.push_back(parseVariableAnnotation());
             } catch (BlochError error) {
