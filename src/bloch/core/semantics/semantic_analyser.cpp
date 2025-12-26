@@ -1644,21 +1644,40 @@ namespace bloch::core {
 
     void SemanticAnalyser::visit(FunctionDeclaration& node) {
         if (node.hasQuantumAnnotation) {
-            bool valid = false;
+            bool returnTypeIsValid = false;
             if (auto prim = dynamic_cast<PrimitiveType*>(node.returnType.get())) {
                 if (prim->name == "bit")
-                    valid = true;
+                    returnTypeIsValid = true;
             } else if (auto arr = dynamic_cast<ArrayType*>(node.returnType.get())) {
                 if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
                     if (elem->name == "bit")
-                        valid = true;
+                        returnTypeIsValid = true;
                 }
             } else if (dynamic_cast<VoidType*>(node.returnType.get())) {
-                valid = true;
+                returnTypeIsValid = true;
             }
-            if (!valid) {
+
+            if (!returnTypeIsValid) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "'@quantum' functions must return 'bit', 'bit[]', or 'void'");
+                                 "'@quantum' functions must return 'bit', 'bit[]', or 'void'.");
+            }
+
+            // @quantum is not allowed on the main() entry point function
+            if (node.name == "main") {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "'@quantum' cannot decorate the main() function.");
+            }
+        }
+
+        if (node.hasShotsAnnotation) {
+            bool isOnMainFunction = false;
+            if (node.name == "main") {
+                isOnMainFunction = true;
+            }
+
+            if (!isOnMainFunction) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "'@shots(N)' can only decorate the main() function.");
             }
         }
 
