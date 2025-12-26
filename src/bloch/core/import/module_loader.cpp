@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <sstream>
 
 #include "bloch/core/lexer/lexer.hpp"
@@ -137,9 +138,21 @@ namespace bloch::core {
         }
 
         size_t mainCount = 0;
-        for (auto& fn : merged->functions)
-            if (fn && fn->name == "main")
+        for (std::unique_ptr<FunctionDeclaration>& fn : merged->functions) {
+            if (fn && fn->name == "main") {
                 ++mainCount;
+                if (fn->hasShotsAnnotation) {
+                    for (std::unique_ptr<AnnotationNode>& annotation : fn->annotations) {
+                        if (annotation && annotation->name == "shots") {
+                            int shotCount = std::stoi(annotation->value);
+                            merged->shots = {true, shotCount};
+                        }
+                    }
+                } else {
+                    merged->shots = {false, 1};
+                }
+            }
+        }
 
         if (mainCount == 0) {
             throw BlochError(ErrorCategory::Semantic, 0, 0,

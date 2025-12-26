@@ -51,6 +51,7 @@ namespace bloch::core {
         At,
         Quantum,
         Tracked,
+        Shots,
 
         // Class System
         Class,

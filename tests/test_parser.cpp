@@ -221,6 +221,29 @@ TEST(ParserTest, ParseQuantumFunction) {
     EXPECT_EQ(func->annotations[0]->name, "quantum");
 }
 
+TEST(ParserTest, ParseShotsAnnotationOnMain) {
+    const char* src = "@shots(7) function main() -> void { }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->functions.size(), 1u);
+    auto* func = program->functions[0].get();
+    EXPECT_TRUE(func->hasShotsAnnotation);
+    ASSERT_EQ(func->annotations.size(), 1u);
+    EXPECT_EQ(func->annotations[0]->name, "shots");
+    EXPECT_EQ(func->annotations[0]->value, "7");
+}
+
+TEST(ParserTest, ShotsAnnotationRequiresIntegerArgument) {
+    const char* src = "@shots(foo) function main() -> void { }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochError);
+}
+
 TEST(ParserTest, ExpressionPrecedence) {
     const char* src = "int x = 1 + 2 * 3;";
     Lexer lexer(src);
