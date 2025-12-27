@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 
+#include "bloch/core/import/module_loader.hpp"
 #include "bloch/core/lexer/lexer.hpp"
 #include "bloch/core/parser/parser.hpp"
 #include "bloch/core/semantics/semantic_analyser.hpp"
@@ -31,6 +35,20 @@ static std::unique_ptr<Program> parseProgram(const char* src) {
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
     return parser.parse();
+}
+
+static std::filesystem::path makeTempDir(const std::string& name) {
+    auto base = std::filesystem::temp_directory_path() /
+                ("bloch_import_" + name + "_" +
+                 std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(base);
+    return base;
+}
+
+static void writeFile(const std::filesystem::path& path, const std::string& contents) {
+    std::ofstream out(path);
+    out << contents;
+    out.close();
 }
 
 TEST(QasmSimulatorTest, AllocatesPowersOfTwoStateSize) {
@@ -349,7 +367,7 @@ TEST(RuntimeTest, MeasureExpressionAfterMeasurementThrows) {
 
 TEST(RuntimeTest, ResetClearsQubit) {
     const char* src =
-        "@quantum function main() -> bit { qubit q; x(q); reset q; bit r = measure q; return r; }";
+        "function main() -> bit { qubit q; x(q); reset q; bit r = measure q; return r; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
@@ -476,4 +494,148 @@ TEST(RuntimeTest, RyRzAppearInQasm) {
     std::string qasm = eval.getQasm();
     EXPECT_NE(qasm.find("ry("), std::string::npos);
     EXPECT_NE(qasm.find("rz("), std::string::npos);
+}
+
+TEST(RuntimeTest, ClassCtorDtorVirtualAndStatic) {
+    const char* src = R"(
+class Base {
+    public constructor() -> Base { echo("Base::ctor"); }
+    destructor() -> void { echo("Base::dtor"); }
+    public virtual function name() -> string { return "Base"; }
+    public function baseOnly() -> string { return "BaseOnly"; }
+}
+
+class Derived extends Base {
+    public static int count;
+    public constructor() -> Derived { Derived.count = Derived.count + 1; echo("Derived::ctor"); }
+    destructor() -> void { echo("Derived::dtor"); }
+    public override function name() -> string { return "Derived"; }
+}
+
+function main() -> void {
+    Derived b = new Derived();
+    echo(b.name());
+    echo(b.baseOnly());
+    echo(Derived.count);
+    destroy b;
+}
+)";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("Base::ctor\nDerived::ctor\nDerived\nBaseOnly\n1\nDerived::dtor\nBase::dtor\n",
+              output.str());
+}
+
+TEST(RuntimeTest, CycleCollectorReclaimsClassicalCycle) {
+    const char* src =
+        "class Node { public Node next; public constructor() -> Node { } } function main() -> void "
+        "{ Node "
+        "a = new "
+        "Node(); Node b = new Node(); a.next = b; b.next = a; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    EXPECT_EQ(eval.heapObjectCount(), 0u);
+}
+
+TEST(RuntimeTest, CycleCollectorSkipsTrackedCycles) {
+    const char* src =
+        "class Q { @tracked qubit q; public Q other; public constructor() -> Q { } } function "
+        "main() -> "
+        "void { Q "
+        "a = new Q(); Q b = new Q(); a.other = b; b.other = a; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    EXPECT_GE(eval.heapObjectCount(), 2u);
+}
+
+TEST(RuntimeTest, ImportsPublicClassAcrossModules) {
+    auto dir = makeTempDir("basic");
+    writeFile(dir / "Greeter.bloch",
+              "class Greeter { public constructor() -> Greeter = default; public function "
+              "hello() -> string { return \"hello\"; } }\n");
+    writeFile(dir / "main.bloch",
+              "import Greeter; function main() -> void { Greeter g = new Greeter(); "
+              "echo(g.hello()); }\n");
+
+    ModuleLoader loader({dir.string()});
+    auto program = loader.load((dir / "main.bloch").string());
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    std::filesystem::remove_all(dir);
+    EXPECT_EQ("hello\n", output.str());
+}
+
+TEST(RuntimeTest, DottedImportResolvesNestedPath) {
+    auto dir = makeTempDir("nested");
+    std::filesystem::create_directories(dir / "pkg");
+    writeFile(dir / "pkg" / "Utils.bloch",
+              "class Utils { public constructor() -> Utils = default; public function value() -> "
+              "int { return 7; } }\n");
+    writeFile(dir / "main.bloch",
+              "import pkg.Utils; function main() -> void { Utils u = new Utils(); echo(u.value()); "
+              "}\n");
+
+    ModuleLoader loader({dir.string()});
+    auto program = loader.load((dir / "main.bloch").string());
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    std::filesystem::remove_all(dir);
+    EXPECT_EQ("7\n", output.str());
+}
+
+TEST(RuntimeTest, ImportRespectsPrivateMembersAcrossModules) {
+    auto dir = makeTempDir("visibility");
+    writeFile(dir / "Secret.bloch",
+              "class Secret { public constructor() -> Secret = default; private function hidden() "
+              "-> void { } public function expose() -> void { hidden(); } }\n");
+    writeFile(dir / "main.bloch",
+              "import Secret; function main() -> void { Secret s = new Secret(); s.hidden(); }\n");
+
+    ModuleLoader loader({dir.string()});
+    auto program = loader.load((dir / "main.bloch").string());
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RuntimeTest, ImportCycleFailsWithDiagnostic) {
+    auto dir = makeTempDir("cycle");
+    writeFile(dir / "A.bloch", "import B; function main() -> void { }\n");
+    writeFile(dir / "B.bloch", "import A; \n");
+
+    ModuleLoader loader({dir.string()});
+    EXPECT_THROW(loader.load((dir / "A.bloch").string()), BlochError);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RuntimeTest, MultipleMainAcrossModulesFails) {
+    auto dir = makeTempDir("multi_main");
+    writeFile(dir / "Lib.bloch", "function main() -> void { }\n");
+    writeFile(dir / "App.bloch", "import Lib; function main() -> void { }\n");
+
+    ModuleLoader loader({dir.string()});
+    EXPECT_THROW(loader.load((dir / "App.bloch").string()), BlochError);
+    std::filesystem::remove_all(dir);
 }

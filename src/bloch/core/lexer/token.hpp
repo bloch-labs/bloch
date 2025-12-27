@@ -45,11 +45,13 @@ namespace bloch::core {
         Measure,
         Final,
         Reset,
+        Default,
 
         // Annotations
         At,
         Quantum,
         Tracked,
+        Shots,
 
         // Class System
         Class,

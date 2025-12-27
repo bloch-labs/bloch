@@ -1,0 +1,16 @@
+import QuantumMath;
+
+function main() -> void {
+    // 20 MHz transition (radio-frequency regime for some spin systems)
+    float freqHz = 20000000.0f;
+    float omega = 2.0f * QuantumMath.PI * freqHz;
+    float energy = QuantumMath.energyFromFrequency(freqHz);
+
+    // Let the state freely precess for 100 microseconds
+    float timeSec = 0.0001f;
+    float phase = QuantumMath.phaseAccumulation(omega, timeSec);
+
+    echo("ω (rad/s): " + omega);
+    echo("ΔE (arb units): " + energy);
+    echo("Phase after 100 us (rad): " + phase);
+}

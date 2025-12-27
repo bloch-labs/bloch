@@ -1,0 +1,52 @@
+// MaxCut on a 4-node cycle (C4) using QAOA p=1, wrapped in a class.
+class MaxCutC4 {
+    
+    private float gamma;
+    private float beta;
+
+    public constructor(float gamma, float beta) -> MaxCutC4 = default;
+
+    @quantum
+    public function run(qubit[4] q) -> void {
+        // |+>^4
+        for (int i = 0; i < 4; i++) { 
+            h(q[i]); 
+        }
+        
+        // Cost layer on C4 edges: (0,1), (1,2), (2,3), (3,0)
+        costEdge(q[0], q[1], gamma);
+        costEdge(q[1], q[2], gamma);
+        costEdge(q[2], q[3], gamma);
+        costEdge(q[3], q[0], gamma);
+        
+        // Mixer layer
+        for (int i = 0; i < 4; i++) { 
+            mixer(q[i], beta); 
+        }
+    }
+
+    @quantum
+    private function costEdge(qubit u, qubit v, float gamma) -> void {
+        cx(u, v);
+        rz(v, -gamma);
+        cx(u, v);
+    }
+
+    @quantum
+    private function mixer(qubit q, float beta) -> void {
+        rx(q, 2.0f * beta);
+    }
+}
+
+function main() -> void {
+    @tracked qubit[4] q;
+
+    final float gamma = 0.665313f;
+    final float beta = 0.306563f;
+
+    MaxCutC4 algo = new MaxCutC4(gamma, beta);
+    algo.run(q);
+
+    bit[4] out = {measure q[0], measure q[1], measure q[2], measure q[3]};
+    echo(out);
+}

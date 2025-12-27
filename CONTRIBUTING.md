@@ -83,6 +83,7 @@ The automated release pipeline is paused while we rebuild it based on new archit
 - `.clang-format` defines the canonical style—run `clang-format -i <files>` or let your editor handle it.
 - Prefer `snake_case` filenames, `PascalCase` types, and `camelCase` functions/methods.
 - C++ namespaces mirror `src/bloch/*` (`bloch::core`, `bloch::runtime`, `bloch::support`, `bloch::update`); add new code in the matching folder and include it via `bloch/<area>/...`.
+- `auto` usage: spell out types when they convey ownership/semantics (AST nodes, unique/shared pointers, optionals, primitives). Use `auto` for iterators, lambdas, obvious temporaries, or verbose templated types; favour readability over minimal typing.
 - Tests live in `tests/`; add or update coverage when changing behaviour.
 
 ---
