@@ -1192,6 +1192,87 @@ namespace bloch::runtime {
             return v;
         } else if (auto paren = dynamic_cast<ParenthesizedExpression*>(e)) {
             return eval(paren->expression.get());
+        } else if (auto cast = dynamic_cast<CastExpression*>(e)) {
+            Value in = eval(cast->expression.get());
+            RuntimeTypeInfo target = typeInfoFromAst(cast->targetType.get());
+            switch (target.kind) {
+                case Value::Type::Int: {
+                    Value v;
+                    v.type = Value::Type::Int;
+                    if (in.type == Value::Type::Int) {
+                        v.intValue = in.intValue;
+                        return v;
+                    }
+                    if (in.type == Value::Type::Bit) {
+                        v.intValue = in.bitValue;
+                        return v;
+                    }
+                    if (in.type == Value::Type::Float) {
+                        v.intValue = static_cast<int>(in.floatValue);
+                        return v;
+                    }
+                    if (in.type == Value::Type::Char) {
+                        v.intValue = static_cast<int>(in.charValue);
+                        return v;
+                    }
+                    break;
+                }
+                case Value::Type::Float: {
+                    Value v;
+                    v.type = Value::Type::Float;
+                    if (in.type == Value::Type::Float) {
+                        v.floatValue = in.floatValue;
+                        return v;
+                    }
+                    if (in.type == Value::Type::Int) {
+                        v.floatValue = static_cast<double>(in.intValue);
+                        return v;
+                    }
+                    if (in.type == Value::Type::Bit) {
+                        v.floatValue = static_cast<double>(in.bitValue);
+                        return v;
+                    }
+                    if (in.type == Value::Type::Char) {
+                        v.floatValue = static_cast<double>(in.charValue);
+                        return v;
+                    }
+                    break;
+                }
+                case Value::Type::Bit: {
+                    Value v;
+                    v.type = Value::Type::Bit;
+                    if (in.type == Value::Type::Bit) {
+                        v.bitValue = in.bitValue;
+                        return v;
+                    }
+                    if (in.type == Value::Type::Int) {
+                        v.bitValue = in.intValue != 0 ? 1 : 0;
+                        return v;
+                    }
+                    if (in.type == Value::Type::Float) {
+                        v.bitValue = in.floatValue != 0.0 ? 1 : 0;
+                        return v;
+                    }
+                    break;
+                }
+                case Value::Type::Char: {
+                    Value v;
+                    v.type = Value::Type::Char;
+                    if (in.type == Value::Type::Char) {
+                        v.charValue = in.charValue;
+                        return v;
+                    }
+                    if (in.type == Value::Type::Int) {
+                        v.charValue = static_cast<char>(in.intValue);
+                        return v;
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+            throw BlochError(ErrorCategory::Runtime, cast->line, cast->column,
+                             "invalid cast operation");
         } else if (auto var = dynamic_cast<VariableExpression*>(e)) {
             return lookup(var->name);
         } else if (auto arr = dynamic_cast<ArrayLiteralExpression*>(e)) {
@@ -1387,10 +1468,7 @@ namespace bloch::runtime {
                     throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
                                      "division by zero");
                 }
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float) {
-                    return {Value::Type::Float, 0, lNum / rNum};
-                }
-                return {Value::Type::Int, static_cast<int>(lNum / rNum)};
+                return {Value::Type::Float, 0, lNum / rNum};
             }
             if (bin->op == "%") {
                 if (rInt == 0) {

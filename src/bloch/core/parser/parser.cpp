@@ -1215,10 +1215,24 @@ namespace bloch::core {
         }
 
         if (match(TokenType::LParen)) {
+            const Token& lparen = previous();
+            if (isTypeAhead()) {
+                std::unique_ptr<Type> targetType = parseType();
+                (void)expect(TokenType::RParen, "Expected ')' after type in cast expression");
+                std::unique_ptr<Expression> operand = parseUnary();
+                std::unique_ptr<CastExpression> cast =
+                    std::make_unique<CastExpression>(std::move(targetType), std::move(operand));
+                cast->line = lparen.line;
+                cast->column = lparen.column;
+                return cast;
+            }
             std::unique_ptr<Expression> expr = parseExpression();
             (void)expect(TokenType::RParen, "Expected ')' after expression");
-            return std::make_unique<ParenthesizedExpression>(
-                ParenthesizedExpression{std::move(expr)});
+            auto paren = std::make_unique<ParenthesizedExpression>(ParenthesizedExpression{
+                std::move(expr)});
+            paren->line = lparen.line;
+            paren->column = lparen.column;
+            return paren;
         }
 
         reportError("Expected expression");
@@ -1388,6 +1402,17 @@ namespace bloch::core {
                 std::make_unique<UnaryExpression>(un->op, std::move(right));
             clone->line = un->line;
             clone->column = un->column;
+            return clone;
+        }
+        if (auto cast = dynamic_cast<const CastExpression*>(&expr)) {
+            std::unique_ptr<Type> target;
+            if (cast->targetType)
+                target = cloneType(*cast->targetType);
+            std::unique_ptr<Expression> inner = cloneExpression(*cast->expression);
+            std::unique_ptr<CastExpression> clone =
+                std::make_unique<CastExpression>(std::move(target), std::move(inner));
+            clone->line = cast->line;
+            clone->column = cast->column;
             return clone;
         }
         if (auto post = dynamic_cast<const PostfixExpression*>(&expr)) {
