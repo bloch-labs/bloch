@@ -1022,9 +1022,9 @@ namespace bloch::core {
             return typeToString(t.value);
         };
         auto reject = [&](const TypeInfo& from, const TypeInfo& to) {
-            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "Cannot explicitally cast from " + typeLabel(from) + " to " +
-                                 typeLabel(to));
+            throw BlochError(
+                ErrorCategory::Semantic, node.line, node.column,
+                "Cannot explicitally cast from " + typeLabel(from) + " to " + typeLabel(to));
         };
         if (target.value == ValueType::Void || !target.className.empty() ||
             !isNumericNonChar(target.value)) {

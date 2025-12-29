@@ -1228,8 +1228,8 @@ namespace bloch::core {
             }
             std::unique_ptr<Expression> expr = parseExpression();
             (void)expect(TokenType::RParen, "Expected ')' after expression");
-            auto paren = std::make_unique<ParenthesizedExpression>(ParenthesizedExpression{
-                std::move(expr)});
+            auto paren =
+                std::make_unique<ParenthesizedExpression>(ParenthesizedExpression{std::move(expr)});
             paren->line = lparen.line;
             paren->column = lparen.column;
             return paren;
