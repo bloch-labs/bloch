@@ -2,7 +2,28 @@
 title: Annotations
 ---
 
-Annotations in Bloch v1.0.x (as of the initial release).
+Annotations modify function or variable behavior.
 
-- `@quantum` — marks a function as quantum.
-- `@tracked` — marks a `qubit` or `qubit[]` for automatic measurement aggregation at scope exit. Results print after multi-shot runs.
+### @quantum (functions)
+Marks a function as quantum-only.
+```bloch
+@quantum
+function oracle(qubit a, qubit b) -> void {
+    cx(a, b);
+}
+```
+Constraints:
+- Return type must be `void`, `bit`, or `bit[]`.
+- `main` cannot be annotated `@quantum`.
+
+### @tracked (variables)
+Accumulates measurement histograms when running multiple shots.
+```bloch
+function main() -> void {
+    @tracked qubit[2] q;
+    h(q[0]); cx(q[0], q[1]);
+    bit[2] out = {measure q[0], measure q[1]};
+    echo(out);
+}
+```
+Use with `--shots=N` to emit aggregated outcome tables. Available only on `qubit` and `qubit[]`.

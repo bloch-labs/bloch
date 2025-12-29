@@ -1,39 +1,41 @@
 ---
-title: Tooling & CLI
+title: Tooling
 ---
 
-Command-line switches, build tasks, and debugging patterns for 1.1.x.
+Operate Bloch 1.1.x with the CLI, module loader, and shot orchestration.
 
-## CLI usage
+## CLI essentials
 ```bash
-bloch [options] <file.bloch>
+bloch app.bloch                    # runs app.bloch (and its imports)
+bloch app.bloch --emit-qasm        # write app.qasm
+bloch app.bloch --shots=512        # legacy shot flag; overridden by @shots on main
+bloch app.bloch --echo=all         # print echo output on every shot
+bloch app.bloch --echo=none        # suppress echo
 ```
-Common options:
-- `--shots=N` — repeat execution N times and aggregate `@tracked` outcomes.
-- `--emit-qasm` — print generated OpenQASM (also writes `<file>.qasm` next to your source).
-- `--echo=all|none` — override automatic echo suppression during multi-shot runs.
-- `--update` — self-update to the latest release.
-- `--version`, `--help`.
+`@shots(N)` on `main` is the authoritative shot count. When both are present, the annotation wins and the CLI warns if values differ.
 
-## Run and inspect examples
+## Modules
+- Resolve imports relative to the current file, then configured search paths, then CWD.
+- All imported modules merge into a single program; exactly one `main` is allowed.
+- Import cycles are detected and rejected with a semantic error.
+
+## Working with examples
 ```bash
-bloch examples/02_bell_state.bloch --shots=512
-bloch examples/04_grover_search.bloch --emit-qasm
+bloch examples/05_teleport_class.bloch --shots=1024
+bloch examples/06_maxcut_c4_class.bloch --emit-qasm
 ```
 
-## Outputs and files
-- `<file>.qasm` is written alongside your source after each run.
-- `--emit-qasm` also prints the QASM log to stdout.
-- Tracked summaries show counts and probabilities when `--shots` > 1; warnings about unmeasured qubits appear before echoes.
+## QASM artifacts
+- `<source>.qasm` is written next to the entry file after execution.
+- Use QASM logs to validate circuit shape and to interop with external simulators.
 
 ## Debugging tips
-- Keep `@tracked` on qubits you want to observe; it only affects reporting, not state.
-- For per-shot debugging plus aggregates, use `--shots=N --echo=all`.
-- Reset before reusing qubits: `reset q;` clears the measured marker.
+- Use `echo` for classical state and `@tracked` for quantum histograms.
+- If you see access errors, check member visibility and static vs. instance context.
+- Constructors must match their class name; `= default` constructors cannot bind qubit fields.
 
-## Build/test shortcuts
-- Configure & build release:  
-  `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel`
-- Run tests:  
-  `ctest --test-dir build --output-on-failure`
-- For debug symbols: configure with `-DCMAKE_BUILD_TYPE=Debug`.
+## Environment checks
+```bash
+bloch --version
+bloch --help
+```

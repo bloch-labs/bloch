@@ -2,19 +2,26 @@
 title: Keywords
 ---
 
-Keywords in Bloch v1.1.x (as of release).
+Reserved words in Bloch 1.1.x.
 
-## Types
-- `int`, `float`, `bit`, `char`, `string`, `qubit`, `void`
+### Types
+`int`, `float`, `string`, `char`, `qubit`, `bit`, `void`
 
-## Declarations and structure
-- `function`, `return`, `final`, `import`
+### Declarations and flow
+`function`, `return`, `final`, `if`, `else`, `for`, `while`
 
-## Control flow
-- `if`, `else`, `for`, `while`
+### Quantum operations
+`measure`, `reset`
 
-## Quantum operations
-- `measure`, `reset`
+### Classes and objects
+`class`, `static`, `abstract`, `virtual`, `override`, `extends`, `public`, `private`, `protected`, `constructor`, `destructor`, `new`, `destroy`, `super`, `this`, `default`
 
-## Classes and OOP
-- `class`, `public`, `private`, `protected`, `static`, `extends`, `abstract`, `virtual`, `override`, `constructor`, `destructor`, `new`, `super`, `this`, `destroy`
+### Modules
+`import`
+
+### Built-in utility
+`echo` is a built-in statement-like function for printing classical data.
+
+### Notes
+- Annotations start with `@` and are defined in [Annotations](annotations.md).
+- `super` is valid only in constructors; `this` is invalid in static contexts.

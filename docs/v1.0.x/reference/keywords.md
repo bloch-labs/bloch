@@ -2,19 +2,20 @@
 title: Keywords
 ---
 
-Keywords in Bloch v1.0.x (as of the initial release).
+Reserved words in Bloch 1.0.x.
 
-## Types
-- `int`, `float`, `bit`, `char`, `string`, `qubit`, `void`
+### Types
+`int`, `float`, `string`, `char`, `qubit`, `bit`, `void`
 
-## Declarations and structure
-- `function`, `return`, `final`, `import`
+### Declarations and flow
+`function`, `return`, `final`, `if`, `else`, `for`, `while`
 
-## Control flow
-- `if`, `else`, `for`, `while`
+### Quantum operations
+`measure`, `reset`
 
-## Quantum operations
-- `measure`, `reset`
+### Built-in utility
+`echo` is a built-in statement-like function for printing classical data.
 
-## Classes
-- Class-related keywords are reserved in 1.0.x but not implemented; programs should use the functional style.
+### Notes
+- Annotations begin with `@` and use names defined in [Annotations](annotations.md).
+- There are no class, import, or module keywords in 1.0.x.

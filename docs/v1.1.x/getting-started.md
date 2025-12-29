@@ -2,35 +2,34 @@
 title: Getting Started
 ---
 
-Install Bloch 1.1.x, verify your setup, and run your first hybrid program. This guide mirrors enterprise install guides (Linux/macOS/Windows), includes troubleshooting, and ends with a Hello World.
+Set up Bloch 1.1.x and exercise the new class system, imports, and `@shots` annotation. These steps assume the current `main` branch features (classes, `destroy`, `@shots`, module loader).
 
-## Install a release build
-Requires macOS or Linux with curl, or Windows PowerShell 5.1+.
+## Prerequisites
+- macOS, Linux, or Windows with a POSIX-like shell.
+- `curl` plus `cmake`/`clang` or MSVC if building from source.
+- At least 4 GB RAM for the simulator; more for >20 qubits.
 
-### Linux & macOS
+## Install a 1.1.x build
+Linux / macOS:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- latest
+# To pin a specific tag: bash -s -- v1.1.0
 ```
-Swap `latest` for a specific tag (for example, `v1.1.0`). The script downloads the archive, verifies checksums, installs `bloch`, and updates your shell profile. Set `INSTALL_DIR=/custom/path` before `bash` to override the destination.
 
-### Windows
+Windows (PowerShell):
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.ps1 -UseBasicParsing -OutFile $env:TEMP\bloch-install.ps1; & $env:TEMP\bloch-install.ps1 -Version latest"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.ps1 -UseBasicParsing -OutFile $env:TEMP\\bloch-install.ps1; & $env:TEMP\\bloch-install.ps1 -Version latest"
 ```
-Swap `-Version latest` for the tag you want. Installs to `%LOCALAPPDATA%\Programs\Bloch` by default and adds that directory to your user `PATH`.
 
-### Verify the install
+Verify:
 ```bash
 bloch --version
 ```
-You should see `v1.1.x` plus a commit hash. Validate the runtime with a Bell state:
-```bash
-bloch examples/02_bell_state.bloch --shots=512
-```
-Expect roughly even counts for `00` and `11`.
 
-## Hello World (single-qubit Hadamard)
+## Hello, Bloch with @shots
+Create `hello.bloch`:
 ```bloch
+@shots(1024)
 function main() -> void {
     @tracked qubit q;
     h(q);
@@ -38,60 +37,70 @@ function main() -> void {
     echo(b);
 }
 ```
-Save as `hello.bloch`, then run:
+Run:
 ```bash
-bloch hello.bloch --shots=256
+bloch hello.bloch --emit-qasm
 ```
-You should see roughly equal counts for `0` and `1` in the tracked summary.
+`@shots` pins the run to 1024 aggregated shots; the CLI `--shots` flag is ignored if it disagrees. The simulator prepares \(\ket{+} = \tfrac{1}{\sqrt{2}}(|0\rangle + |1\rangle)\), so the histogram should be balanced.
 
-## Bell state (two qubits)
+## A minimal class example
+`teleport.bloch`:
 ```bloch
+class Teleporter {
+    public constructor() -> Teleporter = default;
+
+    @quantum
+    public function entangle(qubit a, qubit b) -> void {
+        h(a); cx(a, b);
+    }
+
+    @quantum
+    public function teleport(qubit msg, qubit a, qubit b) -> bit[2] {
+        entangle(a, b);
+        cx(msg, a);
+        h(msg);
+        bit m0 = measure msg;
+        bit m1 = measure a;
+        if (m1) { x(b); }
+        if (m0) { z(b); }
+        return {m0, m1};
+    }
+}
+
+@shots(2048)
 function main() -> void {
-    @tracked qubit[2] qreg;
-    h(qreg[0]);           // Create superposition
-    cx(qreg[0], qreg[1]); // Entangle
-    bit[2] out = {measure qreg[0], measure qreg[1]};
-    echo(out);
+    @tracked qubit msg;
+    @tracked qubit a;
+    @tracked qubit b;
+
+    Teleporter tp = new Teleporter();
+    bit[2] m = tp.teleport(msg, a, b);
+    bit out = measure b;
+    echo("m0=" + m[0] + ", m1=" + m[1] + ", teleported=" + out);
 }
 ```
-Save as `bell_state.bloch`, then run:
-```bash
-bloch bell_state.bloch
-```
-Useful flags:
-- `--shots=N` to repeat and aggregate tracked outcomes.
-- `--emit-qasm` to print the generated OpenQASM (also writes `<file>.qasm`).
-- `--echo=all|none` to control `echo(...)` output (auto-suppressed when `--shots` is large).
+Run to see a three-qubit teleportation with aggregated counts and a generated `teleport.qasm`.
 
-## Build from source (for contributors or custom builds)
+The circuit core is:
+$$
+\Qcircuit @C=1em @R=.7em {
+  \lstick{|\psi\rangle} & \qw      & \ctrl{1} & \gate{H} & \meter & \cw & \control \cw \\
+  \lstick{|0\rangle}    & \gate{H} & \targ    & \qw     & \meter & \cw & \control \cw \\
+  \lstick{|0\rangle}    & \qw      & \qw      & \qw     & \qw    & \gate{X^m Z^n} & \meter \\
+}
+$$
 
-### Linux & macOS
+## Build from source (optional)
 ```bash
-git clone https://github.com/bloch-labs/bloch.git
-cd bloch
+git checkout main
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
+./build/bin/bloch examples/05_teleport_class.bloch --shots=1024
 ```
-Need debug symbols? Switch `-DCMAKE_BUILD_TYPE=Debug`.
-
-### Windows (Visual Studio)
-```powershell
-git clone https://github.com/bloch-labs/bloch.git
-cd bloch
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release --parallel
-ctest --test-dir build --config Release --output-on-failure
-```
-This produces `build/Bloch.sln` and places `bloch.exe` under `build/bin/Release/`.
 
 ## Troubleshooting
-- `bloch: command not found` — ensure install dir is on `PATH` (rerun installer or export `PATH` manually).
-- `Permission denied` on install script — run `chmod +x` on the downloaded script or use `bash -s --`.
-- Windows PowerShell execution policy errors — start PowerShell as Administrator and allow the script to run, then revert policy if desired.
-- Build failures: confirm CMake ≥ 3.16, compiler supports C++20, and clean the `build/` directory before reconfiguring.
-
-## Upgrade / uninstall
-- Upgrade to the latest: rerun the installer with `latest` or run `bloch --update`.
-- Switch versions: rerun the installer with the desired tag (for example, `v1.1.0`).
-- Uninstall: remove the installed binary directory (`/usr/local/bin/bloch` or `%LOCALAPPDATA%\Programs\Bloch`) and delete any PATH edits the script added to your shell profile.
+- `@shots` must decorate `main`; other functions will fail semantic checks.
+- Float literals require a trailing `f`; bit literals must be `0b` or `1b`.
+- When both CLI `--shots` and `@shots` are present, the annotation wins (CLI emits a warning if different).
+- Strings use raw characters; escape sequences are not parsed in 1.1.x.

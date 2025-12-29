@@ -2,220 +2,154 @@
 title: Language Tour
 ---
 
-Walk through Bloch 1.1.x syntax, semantics, patterns, and best practices.
+A guided walkthrough of every construct available in Bloch 1.1.x, from primitives to classes and modules.
 
-## Program structure
-- `main` is required and is the entry point.
-- Helpers can be classical or marked `@quantum`.
-- Keep quantum helpers small; orchestrate with classical control for readability.
+## Program layout
+- One `main` function across all imported files. Decorate it with `@shots(N)` to control shot count from source.
+- Modules are plain `.bloch` files; use `import path.to.module;` to merge them. Import cycles are rejected.
 
+## Values and literals
+```bloch
+int n = 4;
+float theta = 0.5f;        // floats require trailing f
+bit flag = 1b;             // 0b or 1b only
+char c = 'x';              // no escape sequences
+string msg = "hello";     // double-quoted, raw characters
+qubit q;                   // allocates |0>
+bit[2] pair = {0b, 1b};    // arrays have fixed size
+```
+
+## Functions and `@quantum`
 ```bloch
 @quantum
-function prepareBell(qubit a, qubit b) -> void {
-    h(a);
-    cx(a, b);
+function rotate(qubit q, float theta) -> void {
+    ry(q, theta);
 }
 
 function main() -> void {
-    @tracked qubit[2] q;
-    prepareBell(q[0], q[1]);
-    bit[2] out = {measure q[0], measure q[1]};
+    qubit q;
+    rotate(q, 0.5f);
+}
+```
+Rules mirror 1.0.x: explicit types, `@quantum` functions must return `void`/`bit`/`bit[]`, and `main` cannot be `@quantum`.
+
+## Control flow
+`if/else`, `for`, `while`, and ternary conditionals are available. `break`/`continue` are not present.
+
+## Quantum operations
+Built-ins:
+```bloch
+h(q);
+rx(q, 0.25f);
+rz(q, -1.570796f);
+cx(ctrl, tgt);
+bit b = measure q;
+reset q;
+```
+Measurement collapses the qubit and produces a `bit`; reset returns it to \(|0\rangle\).
+
+The Bell pair uses the same circuit as 1.0.x:
+$$
+\Qcircuit @C=1em @R=.7em {
+  \lstick{|0\rangle} & \gate{H} & \ctrl{1} & \meter \\
+  \lstick{|0\rangle} & \qw      & \targ   & \meter \\
+}
+$$
+
+## Classes
+Classes encapsulate state and methods with visibility and inheritance.
+```bloch
+class Accumulator {
+    private int total = 0;
+
+    public constructor() -> Accumulator = default;
+
+    public function add(int v) -> void {
+        total = total + v;
+    }
+
+    public function value() -> int {
+        return total;
+    }
+}
+
+function main() -> void {
+    Accumulator acc = new Accumulator();
+    acc.add(2);
+    echo(acc.value());
+}
+```
+
+### Constructors and destructors
+- `constructor(...) -> ClassName { ... }` runs on `new ClassName(...)`.
+- `= default` constructors map parameters to non-qubit, non-static fields of the same name and type.
+- A class may declare at most one `destructor() -> void` (or `= default`). Call it early with `destroy obj;`; otherwise it runs when the object is collected.
+
+### Visibility and modifiers
+- Members default to `private` in instance classes and `public` in `static class`.
+- Use `public` / `private` / `protected` on fields and methods.
+- `static` members belong to the type; `static class` forbids constructors and instance fields.
+- `virtual` marks a method as overridable; `override` enforces signature match against the base.
+
+### Inheritance and dispatch
+```bloch
+abstract class Layer {
+    virtual function apply(qubit q) -> void;
+}
+
+class HadamardLayer extends Layer {
+    public override function apply(qubit q) -> void { h(q); }
+}
+```
+- Single inheritance via `extends Base`.
+- `super` is only valid inside constructors to chain into a base constructor.
+- `this` refers to the current instance; instance members are inaccessible from static contexts.
+
+### Quantum methods
+Methods may be annotated `@quantum` and follow the same return restrictions as functions. They participate in dispatch normally (virtual/override allowed) and must respect static-context rules.
+
+### Object lifecycle
+- `destroy obj;` runs the destructor immediately and marks the object as destroyed.
+- Tracked qubit fields retain tracking data across shots; non-tracked fields are cleaned up automatically.
+
+## Tracking and shots
+- Annotate qubits or qubit fields with `@tracked` to gather histograms.
+- Use `@shots(N)` on `main` for multi-shot runs. CLI `--shots` remains for compatibility but defers to the annotation when both are present (and warns if they differ).
+- Echo output defaults to the final shot; use `--echo=all` to print per shot.
+
+## Modules and imports
+```bloch
+// lib/angles.bloch
+function rzpi(qubit q) -> void { rz(q, 3.141592f); }
+
+// app.bloch
+import lib.angles;
+
+function main() -> void {
+    qubit q;
+    rzpi(q);
+}
+```
+Resolution order: importing file’s directory, configured search paths, then current working directory. Only one `main` may exist across all imported modules.
+
+## Putting it together: class-based GHZ
+```bloch
+class GhzBuilder {
+    public constructor() -> GhzBuilder = default;
+
+    @quantum
+    public function build(qubit[] q) -> void {
+        h(q[0]);
+        for (int i = 1; i < 3; i++) { cx(q[i-1], q[i]); }
+    }
+}
+
+@shots(1024)
+function main() -> void {
+    @tracked qubit[3] q;
+    GhzBuilder gb = new GhzBuilder();
+    gb.build(q);
+    bit[3] out = {measure q[0], measure q[1], measure q[2]};
     echo(out);
 }
 ```
-
-## Types and declarations
-- Scalars: `int`, `float`, `bit`, `char`, `string`, `qubit`.
-- Arrays: sized or dynamic (`int[4]`, `float[]`, `bit[2]`, `qubit[2]`). Size expressions are validated at runtime when dynamic.
-- Constants: `final` makes a binding immutable after initialisation (`final int shots = 1024;`).
-- Multiple qubit declarations are supported: `qubit a, b, c;` (no initialisers allowed in a multi-declaration).
-- Strings use double quotes; chars use single quotes. Concatenate with `+` when either operand is a string: `"shots: " + shots`.
-
-## Annotations
-- `@quantum` on functions isolates quantum logic (future placement/analysis uses this).
-- `@tracked` on `qubit`/`qubit[]` aggregates measurements at scope exit and prints results on multi-shot runs.
-
-## Control flow and expressions
-```bloch
-function parity(bit[4] bits) -> bit {
-    int acc = 0;
-    for (int i = 0; i < 4; i = i + 1) {
-        acc = acc + bits[i];
-    }
-    return acc % 2;
-}
-```
-- Conditionals: `if/else`, ternary (`cond ? stmt1 : stmt2`).
-- Loops: `for (init; cond; update) { ... }`, `while (cond) { ... }`.
-- Operators: arithmetic (`+ - * / %`), comparisons, logical (`&& || !`), bitwise (`& | ^ ~`). `bit[]` supports elementwise bitwise ops with size checks.
-- Assignment targets can be variables, array indices, or struct members (when class runtime support lands).
-- Common numeric patterns:
-```bloch
-function abs(int x) -> int {
-    return (x < 0) ? -x : x;
-}
-
-function clamp(float v, float lo, float hi) -> float {
-    if (v < lo) return lo;
-    if (v > hi) return hi;
-    return v;
-}
-```
-
-## Quantum operations
-- Gates: `h`, `x`, `y`, `z`, `rx(qubit, theta)`, `ry(qubit, theta)`, `rz(qubit, theta)`, `cx(control, target)`.
-- Measurement: expression form `bit b = measure q;` or inside literals `{measure q0, measure q1}`. Re-measuring a qubit without reset raises an error.
-- Reset: `reset q;` returns a qubit to `|0⟩` and clears its measured marker.
-- Lifetime: leaving scope with unmeasured qubits triggers warnings (suppressed on intermediate shots when `--shots` > 1).
-- Classical control around quantum operations:
-```bloch
-function main() -> void {
-    @tracked qubit q;
-    int flips = 3;
-    if (flips % 2 == 1) {
-        x(q);
-    }
-    bit b = measure q;
-    echo(b);
-}
-```
-
-## Arrays and literals
-```bloch
-function sum(int[] xs) -> int {
-    int total = 0;
-    for (int i = 0; i < 4; i = i + 1) {
-        total = total + xs[i];
-    }
-    return total;
-}
-
-function main() -> void {
-    int[4] values = {1, 1, 2, 3};
-    echo(sum(values)); // 7
-}
-```
-- Classical array literals validate element types at runtime.
-- `qubit[]` must be declared, not initialised via literals.
-- Indexing is bounds-checked; negative indices are rejected at parse time.
-- Dynamic sizing example:
-```bloch
-function fill(int n) -> int[] {
-    int[] out;
-    // runtime-sized array via literal; size is validated when used
-    out = {0, 0, 0};
-    return out;
-}
-```
-
-## Strings, chars, and concatenation
-- Strings use double quotes; chars use single quotes.
-- Concatenate with `+` when either operand is a string: `"shots: " + shots`.
-- `echo` accepts any classical value; qubits must be measured first.
-
-## Error handling and diagnostics
-- Parse errors: syntax problems (line/column included).
-- Semantic errors: type/lifetime violations (e.g., re-measuring, type mismatch, invalid assignment).
-- Runtime errors: division by zero, out-of-bounds, invalid measurement target.
-- Warnings: unmeasured qubits on scope exit (unless suppressed during multi-shot aggregation).
-
-## Multi-shot execution and tracking
-- `--shots=N` repeats the program N times.
-- `@tracked` variables aggregate counts/probabilities; output prints after the final shot.
-- Echo suppression: automatically disabled when many shots are taken unless you set `--echo=all`.
-
-## Pattern: measurement feedback and reuse
-```bloch
-function main() -> void {
-    @tracked qubit q;
-    h(q);
-    bit result = measure q;
-    if (result == 1) {
-        z(q);           // correct phase if desired
-    }
-    reset q;            // clear measured marker for reuse
-}
-```
-
-## Classes and objects
-```bloch
-class Counter {
-    private int value;
-
-    constructor(int start) -> Counter {
-        value = start;
-        return this;
-    }
-
-    function inc() -> void {
-        value = value + 1;
-    }
-
-    function get() -> int {
-        return value;
-    }
-}
-
-class QuantumBox extends Counter {
-    @quantum
-    function apply(qubit q) -> void {
-        h(q);
-    }
-
-    override function inc() -> void {
-        super.inc();
-        // could log or adjust
-    }
-}
-
-function main() -> void {
-    Counter c = new Counter(0);
-    c.inc();
-    echo(c.get()); // 1
-
-    @tracked qubit q;
-    QuantumBox qb = new QuantumBox(0);
-    qb.apply(q);
-    bit b = measure q;
-    echo(b);
-}
-```
-- Single inheritance via `extends`.
-- `constructor` must return the class type; `destructor -> void` (not shown) has no parameters.
-- Visibility defaults to `public`; use `private`/`protected` for encapsulation.
-- Static fields/methods are accessed via the class name: `ClassName.member`.
-
-## Preview: imports and classes (1.1.x)
-- Syntax exists for `import`, classes, visibility (`public/private/protected`), `static`, `virtual`, `override`, constructors/destructors.
-- Parsing and type-checking are present; runtime execution for classes will land during the 1.1.x series. Use functional style in production until then.
-
-## Putting it together: Grover on 2 qubits
-```bloch
-@quantum
-function oracle11(qubit[2] q) -> void {
-    h(q[1]);
-    cx(q[0], q[1]);
-    h(q[1]);
-}
-
-@quantum
-function diffusion(qubit[2] q) -> void {
-    h(q[0]); h(q[1]);
-    x(q[0]); x(q[1]);
-    // conditional phase flip
-    h(q[1]); cx(q[0], q[1]); h(q[1]);
-    x(q[0]); x(q[1]);
-    h(q[0]); h(q[1]);
-}
-
-function main() -> void {
-    @tracked qubit[2] data;
-    h(data[0]); h(data[1]);
-    oracle11(data);
-    diffusion(data);
-    bit[2] out = {measure data[0], measure data[1]};
-    echo(out); // ~100% "11" over many shots
-}
-```
-
-See the `examples/` directory for more patterns (Hadamard, Bell, Deutsch–Jozsa, Grover) and best practices for tracked registers and multi-shot runs.

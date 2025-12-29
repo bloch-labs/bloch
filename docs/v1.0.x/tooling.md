@@ -1,31 +1,37 @@
 ---
-title: Tooling & CLI
+title: Tooling
 ---
 
-Command-line switches and debugging tips for 1.0.x.
+Operate Bloch 1.0.x with the CLI and a handful of guardrails for reproducible runs.
 
-## CLI usage
+## CLI essentials
 ```bash
-bloch [options] <file.bloch>
+bloch program.bloch              # single-shot execution
+bloch program.bloch --shots=512  # multi-shot; aggregates @tracked counts
+bloch program.bloch --emit-qasm  # write program.qasm next to the source
+bloch program.bloch --echo=all   # print echo output on every shot
+bloch program.bloch --echo=none  # suppress echo entirely
 ```
-Common options:
-- `--shots=N` — repeat execution N times and aggregate `@tracked` outcomes.
-- `--emit-qasm` — print generated OpenQASM (also writes `<file>.qasm`).
-- `--echo=all|none` — override automatic echo suppression during multi-shot runs.
-- `--update`, `--version`, `--help`.
+`--shots` is the only way to request multiple runs in 1.0.x. Use `@tracked` on qubits to populate the aggregated table. Echo output defaults to the last shot when multiple shots are requested.
 
-## Run and inspect examples
+## Working with examples
 ```bash
-bloch examples/02_bell_state.bloch --shots=512
+bloch examples/02_bell_state.bloch --shots=1024
 bloch examples/03_deutsch_jozsa.bloch --emit-qasm
 ```
+The `examples/README.md` describes each sample and expected outcomes.
 
-## Outputs and files
-- `<file>.qasm` is written alongside your source after each run.
-- `--emit-qasm` also prints the QASM log to stdout.
-- Tracked summaries show counts and probabilities when `--shots` > 1; warnings about unmeasured qubits appear before echoes.
+## QASM artifacts
+- Outputs are written as `<source>.qasm` in the same directory as the `.bloch` file.
+- The OpenQASM log includes every gate and measurement in program order.
 
 ## Debugging tips
-- Keep `@tracked` on qubits you want to observe; it only changes reporting.
-- For per-shot debugging plus aggregates, use `--shots=N --echo=all`.
-- Reset before reusing qubits: `reset q;`.
+- Use `echo` to print intermediate classical values (array contents included).
+- Add `@tracked` to qubit registers you need histograms for; leave scratch qubits untracked to reduce noise.
+- If a variable must never change, mark it `final` to catch accidental mutation.
+
+## Environment checks
+```bash
+bloch --version   # verify install
+bloch --help      # view flags and behavior notes
+```
