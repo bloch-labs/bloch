@@ -183,6 +183,36 @@ TEST(SemanticTest, CallBeforeDeclaration) {
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
+TEST(SemanticTest, CastToCharIsRejectedWithMessage) {
+    const char* src = "function main() -> void { int x = 1; int y = (char) x; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    bool threw = false;
+    try {
+        analyser.analyse(*program);
+    } catch (const BlochError& err) {
+        threw = true;
+        std::string msg = err.what();
+        EXPECT_NE(msg.find("Cannot explicitally cast from int to char"), std::string::npos);
+    }
+    EXPECT_TRUE(threw);
+}
+
+TEST(SemanticTest, CastFromCharIsRejectedWithMessage) {
+    const char* src = "function main() -> void { char c = 'a'; int y = (int) c; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    bool threw = false;
+    try {
+        analyser.analyse(*program);
+    } catch (const BlochError& err) {
+        threw = true;
+        std::string msg = err.what();
+        EXPECT_NE(msg.find("Cannot explicitally cast from char to int"), std::string::npos);
+    }
+    EXPECT_TRUE(threw);
+}
+
 TEST(SemanticTest, CallUndefinedFunctionFails) {
     const char* src = "bit b = foo();";
     auto program = parseProgram(src);

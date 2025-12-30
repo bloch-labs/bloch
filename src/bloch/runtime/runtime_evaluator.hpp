@@ -43,6 +43,7 @@ namespace bloch::runtime {
     using core::BinaryExpression;
     using core::BlockStatement;
     using core::CallExpression;
+    using core::CastExpression;
     using core::ConstructorDeclaration;
     using core::DestroyStatement;
     using core::DestructorDeclaration;
