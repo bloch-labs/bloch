@@ -805,6 +805,8 @@ namespace bloch::core {
                     }
                 }
             }
+            // Validate initializer expression first so cast errors surface before type checks.
+            node.initializer->accept(*this);
             if (auto primType = tinfo.value; primType != ValueType::Unknown) {
                 ValueType initT = inferTypeInfo(node.initializer.get()).value;
                 if (initT != ValueType::Unknown && initT != primType) {
@@ -836,7 +838,6 @@ namespace bloch::core {
                         "initializer for '" + node.name + "' expected '" + tinfo.className + "'");
                 }
             }
-            node.initializer->accept(*this);
         }
         if (node.isFinal) {
             if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {

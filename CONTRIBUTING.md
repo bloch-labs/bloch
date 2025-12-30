@@ -29,7 +29,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Need debug symbols? Re-run the configure step with `-DCMAKE_BUILD_TYPE=Debug`. The `bloch` binary lives in `build/bin/`; you can execute examples directly with `./build/bin/bloch examples/02_bell_state.bloch`.
+Need debug symbols? Re-run the configure step with `-DCMAKE_BUILD_TYPE=Debug`. The `bloch` binary lives in `build/bin/`; you can execute examples directly with `./build/bin/bloch ./examples/02_bell_state.bloch`.
 
 #### Windows (Visual Studio)
 ```powershell
