@@ -941,9 +941,11 @@ namespace bloch::core {
         if (node.qubit)
             node.qubit->accept(*this);
         auto tinfo = inferTypeInfo(node.qubit.get());
-        if (tinfo.value != ValueType::Unknown && tinfo.value != ValueType::Qubit) {
+        bool isQubitArray = (!tinfo.className.empty() && tinfo.className == "qubit[]");
+        bool isQubit = tinfo.value == ValueType::Qubit;
+        if (tinfo.value != ValueType::Unknown && !isQubit && !isQubitArray) {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "measure target must be a 'qubit'");
+                             "measure target must be a 'qubit' or 'qubit[]'");
         }
     }
 

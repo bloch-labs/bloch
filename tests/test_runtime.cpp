@@ -326,6 +326,16 @@ TEST(RuntimeTest, MeasuredTrackedQubit) {
     ASSERT_EQ(counts.at("qubit q").at("1"), 1);
 }
 
+TEST(RuntimeTest, MeasureQubitArrayMarksAllMeasured) {
+    const char* src =
+        "function main() -> void { qubit[2] q; measure q; h(q[0]); h(q[1]); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
 TEST(RuntimeTest, GateAfterMeasurementThrows) {
     const char* src = "function main() -> void { qubit q; measure q; h(q); }";
     auto program = parseProgram(src);
