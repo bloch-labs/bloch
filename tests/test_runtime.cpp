@@ -327,8 +327,7 @@ TEST(RuntimeTest, MeasuredTrackedQubit) {
 }
 
 TEST(RuntimeTest, MeasureQubitArrayMarksAllMeasured) {
-    const char* src =
-        "function main() -> void { qubit[2] q; measure q; h(q[0]); h(q[1]); }";
+    const char* src = "function main() -> void { qubit[2] q; measure q; h(q[0]); h(q[1]); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
