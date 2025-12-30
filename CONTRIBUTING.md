@@ -24,9 +24,7 @@ Thanks for helping shape Bloch! This guide keeps the contribution process simple
 ```bash
 git clone https://github.com/bloch-labs/bloch.git
 cd bloch
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
+scripts/build_and_test.sh
 ```
 
 Need debug symbols? Re-run the configure step with `-DCMAKE_BUILD_TYPE=Debug`. The `bloch` binary lives in `build/bin/`; you can execute examples directly with `./build/bin/bloch ./examples/02_bell_state.bloch`.
