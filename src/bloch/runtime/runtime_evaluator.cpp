@@ -1132,11 +1132,22 @@ namespace bloch::runtime {
             unmarkMeasured(q.qubit);
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
             Value q = eval(meas->qubit.get());
-            ensureQubitActive(q.qubit, meas->line, meas->column);
-            int bit = m_sim.measure(q.qubit);
-            markMeasured(q.qubit);
-            if (q.qubit >= 0 && q.qubit < static_cast<int>(m_lastMeasurement.size()))
-                m_lastMeasurement[q.qubit] = bit;
+            if (q.type == Value::Type::QubitArray) {
+                for (int idx = 0; idx < static_cast<int>(q.qubitArray.size()); ++idx) {
+                    int qid = q.qubitArray[idx];
+                    ensureQubitActive(qid, meas->line, meas->column);
+                    int bit = m_sim.measure(qid);
+                    markMeasured(qid);
+                    if (qid >= 0 && qid < static_cast<int>(m_lastMeasurement.size()))
+                        m_lastMeasurement[qid] = bit;
+                }
+            } else {
+                ensureQubitActive(q.qubit, meas->line, meas->column);
+                int bit = m_sim.measure(q.qubit);
+                markMeasured(q.qubit);
+                if (q.qubit >= 0 && q.qubit < static_cast<int>(m_lastMeasurement.size()))
+                    m_lastMeasurement[q.qubit] = bit;
+            }
         } else if (auto destroy = dynamic_cast<DestroyStatement*>(s)) {
             if (auto var = dynamic_cast<VariableExpression*>(destroy->target.get())) {
                 assign(var->name, {});

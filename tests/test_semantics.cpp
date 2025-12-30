@@ -398,6 +398,13 @@ TEST(SemanticTest, MeasureTargetMustBeQubitFails) {
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
+TEST(SemanticTest, MeasureQubitArrayPasses) {
+    const char* src = "function main() -> void { qubit[2] q; measure q; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
 TEST(SemanticTest, ResetTargetMustBeQubitFails) {
     const char* src = "int x; reset x;";
     auto program = parseProgram(src);
