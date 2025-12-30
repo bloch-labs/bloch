@@ -543,6 +543,8 @@ namespace bloch::core {
             return combine(ValueType::Unknown, m_currentClass);
         if (auto par = dynamic_cast<ParenthesizedExpression*>(expr))
             return inferTypeInfo(par->expression.get());
+        if (auto cast = dynamic_cast<CastExpression*>(expr))
+            return typeFromAst(cast->targetType.get());
         if (dynamic_cast<MeasureExpression*>(expr))
             return combine(ValueType::Bit, "");
         if (dynamic_cast<SuperExpression*>(expr)) {
@@ -587,10 +589,20 @@ namespace bloch::core {
                 return combine(ValueType::Bit, "");
             if (bin->op == "+" && (lt.value == ValueType::String || rt.value == ValueType::String))
                 return combine(ValueType::String, "");
-            if (bin->op == "+" || bin->op == "-" || bin->op == "*" || bin->op == "/" ||
-                bin->op == "%") {
+            if (bin->op == "+") {
                 if (lt.value == ValueType::Float || rt.value == ValueType::Float)
                     return combine(ValueType::Float, "");
+                return combine(ValueType::Int, "");
+            }
+            if (bin->op == "-" || bin->op == "*") {
+                if (lt.value == ValueType::Float || rt.value == ValueType::Float)
+                    return combine(ValueType::Float, "");
+                return combine(ValueType::Int, "");
+            }
+            if (bin->op == "/") {
+                return combine(ValueType::Float, "");
+            }
+            if (bin->op == "%") {
                 return combine(ValueType::Int, "");
             }
             if (bin->op == "&" || bin->op == "|" || bin->op == "^") {
@@ -672,6 +684,12 @@ namespace bloch::core {
                 if (val)
                     return -*val;
             }
+            return std::nullopt;
+        }
+        if (auto cast = dynamic_cast<CastExpression*>(expr)) {
+            auto target = typeFromAst(cast->targetType.get());
+            if (target.value == ValueType::Int)
+                return evaluateConstInt(cast->expression.get());
             return std::nullopt;
         }
         if (auto bin = dynamic_cast<BinaryExpression*>(expr)) {
@@ -787,6 +805,8 @@ namespace bloch::core {
                     }
                 }
             }
+            // Validate initializer expression first so cast errors surface before type checks.
+            node.initializer->accept(*this);
             if (auto primType = tinfo.value; primType != ValueType::Unknown) {
                 ValueType initT = inferTypeInfo(node.initializer.get()).value;
                 if (initT != ValueType::Unknown && initT != primType) {
@@ -818,7 +838,6 @@ namespace bloch::core {
                         "initializer for '" + node.name + "' expected '" + tinfo.className + "'");
                 }
             }
-            node.initializer->accept(*this);
         }
         if (node.isFinal) {
             if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {
@@ -990,6 +1009,35 @@ namespace bloch::core {
     void SemanticAnalyser::visit(UnaryExpression& node) {
         if (node.right)
             node.right->accept(*this);
+    }
+
+    void SemanticAnalyser::visit(CastExpression& node) {
+        TypeInfo target = typeFromAst(node.targetType.get());
+        auto source = inferTypeInfo(node.expression.get());
+        auto isNumericNonChar = [](ValueType v) {
+            return v == ValueType::Int || v == ValueType::Float || v == ValueType::Bit;
+        };
+        auto typeLabel = [](const TypeInfo& t) {
+            if (!t.className.empty())
+                return t.className;
+            return typeToString(t.value);
+        };
+        auto reject = [&](const TypeInfo& from, const TypeInfo& to) {
+            throw BlochError(
+                ErrorCategory::Semantic, node.line, node.column,
+                "Cannot explicitally cast from " + typeLabel(from) + " to " + typeLabel(to));
+        };
+        if (target.value == ValueType::Void || !target.className.empty() ||
+            !isNumericNonChar(target.value)) {
+            reject(source, target);
+        }
+        if (source.value != ValueType::Unknown) {
+            if (!isNumericNonChar(source.value) || !source.className.empty()) {
+                reject(source, target);
+            }
+        }
+        if (node.expression)
+            node.expression->accept(*this);
     }
 
     void SemanticAnalyser::visit(PostfixExpression& node) {

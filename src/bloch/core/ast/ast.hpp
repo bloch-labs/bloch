@@ -192,6 +192,17 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    // Cast Expression
+    // (type)expr style casts following imperative language conventions.
+    struct CastExpression : public Expression {
+        std::unique_ptr<Type> targetType;
+        std::unique_ptr<Expression> expression;
+
+        CastExpression(std::unique_ptr<Type> target, std::unique_ptr<Expression> expr)
+            : targetType(std::move(target)), expression(std::move(expr)) {}
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Postfix Expression
     // Support for i++ and i--
     struct PostfixExpression : public Expression {
@@ -518,6 +529,7 @@ namespace bloch::core {
 
         virtual void visit(BinaryExpression& node) = 0;
         virtual void visit(UnaryExpression& node) = 0;
+        virtual void visit(CastExpression& node) = 0;
         virtual void visit(PostfixExpression& node) = 0;
         virtual void visit(LiteralExpression& node) = 0;
         virtual void visit(VariableExpression& node) = 0;
@@ -567,6 +579,7 @@ namespace bloch::core {
     inline void AssignmentStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void BinaryExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void UnaryExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void CastExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void PostfixExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void LiteralExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VariableExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }

@@ -206,6 +206,19 @@ TEST(RuntimeTest, EchoFloatPrintsWithDecimal) {
     EXPECT_EQ("3.0\n", output.str());
 }
 
+TEST(RuntimeTest, IntDivisionPromotesToFloat) {
+    const char* src = "function main() -> void { echo(1/2); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("0.5\n", output.str());
+}
+
 TEST(RuntimeTest, TernaryExecutesCorrectBranch) {
     const char* src =
         "function main() -> void { int x = 0; x ? echo(\"true\"); : echo(\"false\"); }";
