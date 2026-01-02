@@ -35,5 +35,5 @@ dist/
 examples/*.qasm
 
 # JOSS
-jats/
-paper.pdf
+paper/jats/
+paper/paper.pdf
