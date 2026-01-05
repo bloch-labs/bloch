@@ -103,7 +103,8 @@ Figure 1 illustrates the runtime interaction between a Bloch program and the
 ideal statevector simulator for a single kernel, showing gate application,
 measurement, classical result return, and qubit reset:
 
-![Figure 1: Program-simulator message flow for a Bloch kernel](figures/bloch_execution.svg)
+![Figure 1: Program-simulator message flow for a Bloch kernel](figures/bloch_execution.svg){ width=85% }
+
 
 
 The project distributes an installable binary and is validated on
