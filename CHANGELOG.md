@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.1.0](https://github.com/bloch-labs/bloch/compare/v1.0.2...v1.1.0) (2026-01-13)
+
+
+### Features
+
+* add [@shots](https://github.com/shots) annotation ([#212](https://github.com/bloch-labs/bloch/issues/212)) ([7bb0d77](https://github.com/bloch-labs/bloch/commit/7bb0d77e8d426d612c3b37c9756042c817c039be))
+* add class system keywords ([0ef9016](https://github.com/bloch-labs/bloch/commit/0ef9016ffa2d45751fbd6f0193e0b6ab2c04c34a))
+* add parser logic for class system ([#198](https://github.com/bloch-labs/bloch/issues/198)) ([654a851](https://github.com/bloch-labs/bloch/commit/654a851c0ef6c75716721a06e978fa4937199234))
+* add semantic analysis for class system ([#200](https://github.com/bloch-labs/bloch/issues/200)) ([1b85c1d](https://github.com/bloch-labs/bloch/commit/1b85c1d6bf312a52f4ce16c112a13d1deb4c93c2))
+* added runtime support for class system ([#209](https://github.com/bloch-labs/bloch/issues/209)) ([33a7b9c](https://github.com/bloch-labs/bloch/commit/33a7b9c46811eee2e19990ca9e081f46ed5cf7ed))
+* explicit casting for numeric values ([#214](https://github.com/bloch-labs/bloch/issues/214)) ([3a199a9](https://github.com/bloch-labs/bloch/commit/3a199a941a9dfc2ff998f6f801130691ae757326))
+* import system for class logic ([#210](https://github.com/bloch-labs/bloch/issues/210)) ([7acf8db](https://github.com/bloch-labs/bloch/commit/7acf8db689a7787ae053becb17ad8400c00a598f))
+* measure qubit arrays ([#215](https://github.com/bloch-labs/bloch/issues/215)) ([905ee98](https://github.com/bloch-labs/bloch/commit/905ee98b56a9be468de232e5cc7d1211674016bd))
+
+
+### Build System
+
+* reorg app arch ([#195](https://github.com/bloch-labs/bloch/issues/195)) ([4237004](https://github.com/bloch-labs/bloch/commit/42370042eeef5397c4fadd74898546d8d0b2875f))
+
+
+### CI/CD
+
+* hotfix packager ([#191](https://github.com/bloch-labs/bloch/issues/191)) ([7ff2058](https://github.com/bloch-labs/bloch/commit/7ff205839de3b1d2e6b8e9aa1e603ca88e7a1975))
+* hotfix packager ([#192](https://github.com/bloch-labs/bloch/issues/192)) ([352378c](https://github.com/bloch-labs/bloch/commit/352378cac83b39336908fa112a6c407037d802b7))
+
 ## [1.0.2](https://github.com/bloch-labs/bloch/compare/v1.0.1...v1.0.2) (2025-12-11)
 
 
