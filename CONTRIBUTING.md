@@ -5,7 +5,7 @@ Thanks for helping shape Bloch! This guide keeps the contribution process simple
 ---
 
 ## Before You Start
-- We work from the `develop` branch; create feature branches from there and target it for pull requests.
+- We work from the `develop` branch; create feature branches from there and target it for pull requests. `main` is release-only and always matches the latest tag—no direct commits.
 - Please open or reference a GitHub issue so we keep discussion and tracking in one place.
 - CI enforces formatting, testing, and Conventional Commit messages, so local checks save time.
 
@@ -75,7 +75,14 @@ Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR t
 ---
 
 ## Releases
-The automated release pipeline is paused while we rebuild it based on new architecture (ADR-009). v1.0.0 is cut manually using a short checklist. Use the **Manual Packager** workflow (Actions → “Manual Packager”) with the branch and tag you want to publish to produce Linux, macOS, and Windows artifacts plus per-platform checksums, then follow the Release Checklist on the GitHub Wiki.
+- `main` holds only tagged releases; the default branch is `develop`.
+- Release flow:
+  1. Merge feature PRs into `develop` (squash with Conventional Commit titles).
+  2. release-please auto-opens/updates a release PR from `develop` → `main`.
+  3. Review and merge the release PR; release-please tags and creates the GitHub Release on `main`.
+  4. Run the **Manual Packager** workflow (Actions → “Manual Packager”) with the new tag to publish artifacts.
+  5. Fast-forward `develop` with `main` (`git checkout develop && git merge --ff-only origin/main`) so version bumps stay in sync.
+- Hotfixes: branch from `main`, apply the fix, PR back into `main`, merge and tag, then cherry-pick the fix + release commit into `develop` to keep parity.
 
 ---
 

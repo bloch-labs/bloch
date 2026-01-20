@@ -1,7 +1,9 @@
 name: release-please
 on:
   push:
-    branches: master
+    branches:
+      - develop
+      - main
   workflow_dispatch:
 
 permissions:
@@ -12,23 +14,10 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - name: release-please
+      - name: Create or update release PR / tag
         uses: googleapis/release-please-action@v4
         with:
-          release-type: simple
-          package-name: bloch
-          default-branch: master
-          target-branch: master
-          changelog-types: >
-            [{"type":"feat","section":"Features","hidden":false},
-             {"type":"fix","section":"Bug Fixes","hidden":false},
-             {"type":"perf","section":"Performance","hidden":false},
-             {"type":"refactor","section":"Refactoring","hidden":false},
-             {"type":"revert","section":"Reverts","hidden":false},
-             {"type":"docs","section":"Docs","hidden":false},
-             {"type":"test","section":"Tests","hidden":false},
-             {"type":"build","section":"Build System","hidden":false},
-             {"type":"ci","section":"CI/CD","hidden":false},
-             {"type":"chore","section":"Chores","hidden":false}]
-          bump-minor-pre-major: true
-          bump-patch-for-minor-pre-major: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: main

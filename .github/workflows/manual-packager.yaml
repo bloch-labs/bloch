@@ -3,12 +3,8 @@ name: Manual Packager
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: Branch/ref to build from
-        required: true
-        default: develop
       tag:
-        description: Version tag to embed in artifacts (e.g., v1.0.0-rc1 or v1.0.0)
+        description: Release tag to package (must exist on main)
         required: true
 
 env:
@@ -46,10 +42,19 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - name: Checkout
+      - name: Checkout release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch }}
+          ref: refs/tags/${{ inputs.tag }}
+
+      - name: Verify tag is on main
+        shell: bash
+        run: |
+          git fetch --depth=1 origin main
+          if ! git merge-base --is-ancestor "${{ inputs.tag }}" origin/main; then
+            echo "Tag ${{ inputs.tag }} is not reachable from origin/main." >&2
+            exit 1
+          fi
 
       - name: Ensure CMake 3.31.10 (Windows)
         if: matrix.runner == 'windows-latest'
