@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/bloch-labs/bloch/compare/v1.0.2...v1.0.3) (2026-01-21)
+
+
+### CI/CD
+
+* new branching strategy ([48a8ade](https://github.com/bloch-labs/bloch/commit/48a8aded6983147f3fa8ecfccbbc93ba5b6ce80e))
+
 ## [1.0.2](https://github.com/bloch-labs/bloch/compare/v1.0.1...v1.0.2) (2025-12-11)
 
 
