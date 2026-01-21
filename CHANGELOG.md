@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.3](https://github.com/bloch-labs/bloch/compare/v1.0.2...v1.0.3) (2026-01-21)
+
+
+### CI/CD
+
+* allow hotfix in PR title ([2e24b57](https://github.com/bloch-labs/bloch/commit/2e24b575e90550ae21c9b99c41208738189aa111))
+* auto-ff main in packager and clarify release flow ([b05f59e](https://github.com/bloch-labs/bloch/commit/b05f59e7774eeb00399465d332db1c0c0a657e41))
+* new branching strategy ([48a8ade](https://github.com/bloch-labs/bloch/commit/48a8aded6983147f3fa8ecfccbbc93ba5b6ce80e))
+
 ## [1.0.2](https://github.com/bloch-labs/bloch/compare/v1.0.1...v1.0.2) (2025-12-11)
 
 
