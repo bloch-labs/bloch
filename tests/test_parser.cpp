@@ -120,6 +120,24 @@ TEST(ParserTest, ParseInitialisedFloatVariableDeclaration) {
     EXPECT_EQ(lit->literalType, "float");
 }
 
+TEST(ParserTest, ParseArrayWithIdentifierSize) {
+    const char* src = "final int n = 2; qubit[n] qs;";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 2u);
+    auto* var = dynamic_cast<VariableDeclaration*>(program->statements[1].get());
+    ASSERT_NE(var, nullptr);
+    auto* arrType = dynamic_cast<ArrayType*>(var->varType.get());
+    ASSERT_NE(arrType, nullptr);
+    EXPECT_EQ(arrType->size, -1);
+    auto* sizeVar = dynamic_cast<VariableExpression*>(arrType->sizeExpression.get());
+    ASSERT_NE(sizeVar, nullptr);
+    EXPECT_EQ(sizeVar->name, "n");
+}
+
 TEST(ParserTest, StateAnnotationIsRejected) {
     const char* src = "@state(\"+\") qubit q;";
     Lexer lexer(src);

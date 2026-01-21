@@ -5,7 +5,7 @@ Thanks for helping shape Bloch! This guide keeps the contribution process simple
 ---
 
 ## Before You Start
-- We work from the `develop` branch; create feature branches from there and target it for pull requests.
+- We work from the `develop` branch; create feature branches from there and target it for pull requests. `main` is release-only and always matches the latest tag—no direct commits.
 - Please open or reference a GitHub issue so we keep discussion and tracking in one place.
 - CI enforces formatting, testing, and Conventional Commit messages, so local checks save time.
 
@@ -75,7 +75,21 @@ Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR t
 ---
 
 ## Releases
-The automated release pipeline is paused while we rebuild it based on new architecture (ADR-009). v1.0.0 is cut manually using a short checklist. Use the **Manual Packager** workflow (Actions → “Manual Packager”) with the branch and tag you want to publish to produce Linux, macOS, and Windows artifacts plus per-platform checksums, then follow the Release Checklist on the GitHub Wiki.
+- `main` holds only tagged releases; the default branch is `develop`.
+- Release flow:
+  1. Merge feature PRs into `develop` (squash with Conventional Commit titles).
+  2. release-please runs on `develop`, opens a release PR, and when merged tags + creates the GitHub Release on `develop`.
+  3. Fast-forward `main` to the new tag so it stays release-only:
+     - `git fetch origin`
+     - `git checkout main`
+     - `git merge --ff-only <new-tag>`
+     - `git push origin main`
+  4. Run the **Manual Packager** workflow (Actions → “Manual Packager”) with that tag to publish artifacts.
+  5. Fast-forward `develop` with `main` (`git checkout develop && git merge --ff-only origin/main`) if any hotfixes landed directly on `main`.
+- Hotfixes:
+  1. Branch from `main`, make the fix, and open a PR back to `main`.
+  2. After merge, release-please (on `main`) tags and creates the GitHub Release for the patch.
+  3. Cherry-pick or fast-forward the hotfix and release commit into `develop` to keep branches aligned.
 
 ---
 

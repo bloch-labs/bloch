@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -30,6 +31,7 @@ namespace bloch {
     struct SymbolInfo {
         bool isFinal = false;
         ValueType type = ValueType::Unknown;
+        std::optional<int> constInt;
     };
 
     // Nested-scope symbol table (stack of hash maps).
@@ -41,6 +43,8 @@ namespace bloch {
         bool isDeclared(const std::string& name) const;
         bool isFinal(const std::string& name) const;
         ValueType getType(const std::string& name) const;
+        std::optional<int> getConstInt(const std::string& name) const;
+        void setConstInt(const std::string& name, int value);
 
        private:
         std::vector<std::unordered_map<std::string, SymbolInfo>> m_scopes;

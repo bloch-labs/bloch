@@ -96,7 +96,21 @@ namespace bloch {
     }
 
     void RuntimeEvaluator::execute(Program& program) {
+        if (m_executed) {
+            throw BlochError(ErrorCategory::Runtime, 0, 0,
+                             "RuntimeEvaluator is single-use; construct a new instance per run");
+        }
+        m_executed = true;
+        m_functions.clear();
+        m_env.clear();
+        m_measurements.clear();
+        m_trackedCounts.clear();
         m_echoBuffer.clear();
+        m_qubits.clear();
+        m_lastMeasurement.clear();
+        m_returnValue = {};
+        m_hasReturn = false;
+        m_sim = QasmSimulator{m_collectQasmLog};
         for (auto& fn : program.functions) {
             m_functions[fn->name] = fn.get();
         }
@@ -186,6 +200,18 @@ namespace bloch {
                         v.type = Value::Type::CharArray;
                     else if (elem->name == "qubit")
                         v.type = Value::Type::QubitArray;
+                }
+                if (arr->size < 0 && arr->sizeExpression) {
+                    Value sizeVal = eval(arr->sizeExpression.get());
+                    if (sizeVal.type != Value::Type::Int) {
+                        throw BlochError(ErrorCategory::Runtime, var->line, var->column,
+                                         "array size must evaluate to an int");
+                    }
+                    arr->size = sizeVal.intValue;
+                    if (arr->size < 0) {
+                        throw BlochError(ErrorCategory::Runtime, var->line, var->column,
+                                         "array size must be non-negative");
+                    }
                 }
                 // Handle fixed-size allocation (without initializer)
                 if (arr->size >= 0 && !var->initializer) {
@@ -371,7 +397,7 @@ namespace bloch {
                 m_echoBuffer.push_back(valueToString(v));
         } else if (auto reset = dynamic_cast<ResetStatement*>(s)) {
             Value q = eval(reset->target.get());
-            ensureQubitActive(q.qubit, reset->line, reset->column);
+            ensureQubitExists(q.qubit, reset->line, reset->column);
             m_sim.reset(q.qubit);
             unmarkMeasured(q.qubit);
         } else if (auto meas = dynamic_cast<MeasureStatement*>(s)) {
@@ -415,6 +441,8 @@ namespace bloch {
                 v.intValue = std::stoi(lit->value);
             }
             return v;
+        } else if (auto paren = dynamic_cast<ParenthesizedExpression*>(e)) {
+            return eval(paren->expression.get());
         } else if (auto var = dynamic_cast<VariableExpression*>(e)) {
             return lookup(var->name);
         } else if (auto arr = dynamic_cast<ArrayLiteralExpression*>(e)) {
@@ -967,9 +995,13 @@ namespace bloch {
             m_qubits[index].measured = true;
     }
 
-    void RuntimeEvaluator::ensureQubitActive(int index, int line, int column) {
+    void RuntimeEvaluator::ensureQubitExists(int index, int line, int column) {
         if (index < 0 || index >= static_cast<int>(m_qubits.size()))
             throw BlochError(ErrorCategory::Runtime, line, column, "invalid qubit reference");
+    }
+
+    void RuntimeEvaluator::ensureQubitActive(int index, int line, int column) {
+        ensureQubitExists(index, line, column);
         if (m_qubits[index].measured) {
             std::string label = m_qubits[index].name.empty()
                                     ? std::string("q[") + std::to_string(index) + "]"

@@ -273,6 +273,37 @@ TEST(SemanticTest, QubitArrayCannotBeInitialised) {
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
+TEST(SemanticTest, ArraySizeFromFinalIdentifierPasses) {
+    const char* src = "final int nq = 6; @tracked qubit[nq] qs;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+    auto* var = dynamic_cast<VariableDeclaration*>(program->statements[1].get());
+    ASSERT_NE(var, nullptr);
+    auto* arr = dynamic_cast<ArrayType*>(var->varType.get());
+    ASSERT_NE(arr, nullptr);
+    EXPECT_EQ(arr->size, 6);
+}
+
+TEST(SemanticTest, ArraySizeFromConstExpressionPasses) {
+    const char* src = "final int a = 2; final int b = 3; int[a + b - 1] values;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+    auto* var = dynamic_cast<VariableDeclaration*>(program->statements[2].get());
+    ASSERT_NE(var, nullptr);
+    auto* arr = dynamic_cast<ArrayType*>(var->varType.get());
+    ASSERT_NE(arr, nullptr);
+    EXPECT_EQ(arr->size, 4);
+}
+
+TEST(SemanticTest, ArraySizeRequiresFinalIntIdentifier) {
+    const char* src = "int nq = 6; qubit[nq] qs;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
 TEST(SemanticTest, AssignToFinalVariableFails) {
     const char* src = "final int x = 1; x = 2;";
     auto program = parseProgram(src);

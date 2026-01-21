@@ -17,6 +17,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "../ast/ast.hpp"
@@ -56,6 +57,17 @@ namespace bloch {
         std::vector<std::string> stringArray;
         std::vector<char> charArray;
         std::vector<int> qubitArray;
+
+        Value() = default;
+        explicit Value(Type t) : type(t) {}
+        Value(Type t, int intVal, double floatVal = 0.0, int bitVal = 0, std::string strVal = "",
+              char charVal = '\0')
+            : type(t),
+              intValue(intVal),
+              floatValue(floatVal),
+              bitValue(bitVal),
+              stringValue(std::move(strVal)),
+              charValue(charVal) {}
     };
 
     // Interpreter that walks the AST and simulates quantum bits via
@@ -63,6 +75,7 @@ namespace bloch {
     // until warnings have been printed.
     class RuntimeEvaluator {
        public:
+        explicit RuntimeEvaluator(bool collectQasmLog = true) : m_collectQasmLog(collectQasmLog) {}
         void execute(Program& program);
         const std::unordered_map<const Expression*, std::vector<int>>& measurements() const {
             return m_measurements;
@@ -71,6 +84,7 @@ namespace bloch {
 
        private:
         QasmSimulator m_sim;
+        bool m_collectQasmLog = true;
         std::unordered_map<std::string, FunctionDeclaration*> m_functions;
         struct VarEntry {
             Value value;
@@ -84,6 +98,7 @@ namespace bloch {
         std::unordered_map<std::string, std::unordered_map<std::string, int>> m_trackedCounts;
         bool m_echoEnabled = true;
         bool m_warnOnExit = true;
+        bool m_executed = false;  // single-use guard
         // Buffer for echo outputs so logs (INFO/WARNING/ERROR)
         // can be displayed first before normal program output.
         std::vector<std::string> m_echoBuffer;
@@ -107,6 +122,7 @@ namespace bloch {
         void markMeasured(int index);
         void unmarkMeasured(int index);
         void ensureQubitActive(int index, int line, int column);
+        void ensureQubitExists(int index, int line, int column);
         void warnUnmeasured() const;
 
         // Scope & output helpers

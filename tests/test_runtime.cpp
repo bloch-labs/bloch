@@ -15,6 +15,7 @@
 #include <sstream>
 #include "bloch/lexer/lexer.hpp"
 #include "bloch/parser/parser.hpp"
+#include "bloch/runtime/qasm_simulator.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
 #include "bloch/semantics/semantic_analyser.hpp"
 #include "test_framework.hpp"
@@ -26,6 +27,75 @@ static std::unique_ptr<Program> parseProgram(const char* src) {
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
     return parser.parse();
+}
+
+TEST(QasmSimulatorTest, AllocatesPowersOfTwoStateSize) {
+    QasmSimulator sim;
+    EXPECT_EQ(sim.stateSize(), 1u);
+    int q0 = sim.allocateQubit();
+    EXPECT_EQ(q0, 0);
+    EXPECT_EQ(sim.stateSize(), 2u);
+    int q1 = sim.allocateQubit();
+    EXPECT_EQ(q1, 1);
+    EXPECT_EQ(sim.stateSize(), 4u);
+}
+
+TEST(QasmSimulatorTest, LoggingCanBeSuppressedPerInstance) {
+    QasmSimulator sim(false);
+    sim.allocateQubit();
+    sim.h(0);
+    std::string qasm = sim.getQasm();
+    EXPECT_NE(qasm.find("qreg q[1]"), std::string::npos);
+    EXPECT_EQ(qasm.find("h q[0]"), std::string::npos);
+
+    QasmSimulator sim2(true);
+    sim2.allocateQubit();
+    sim2.x(0);
+    qasm = sim2.getQasm();
+    EXPECT_NE(qasm.find("x q[0]"), std::string::npos);
+}
+
+TEST(QasmSimulatorTest, CxOnlyActsWhenControlIsOne) {
+    {
+        QasmSimulator sim;
+        int c = sim.allocateQubit();
+        int t = sim.allocateQubit();
+        sim.cx(c, t);  // control remains |0>
+        EXPECT_EQ(sim.measure(t), 0);
+    }
+    {
+        QasmSimulator sim;
+        int c = sim.allocateQubit();
+        int t = sim.allocateQubit();
+        sim.x(c);      // prepare |10>
+        sim.cx(c, t);  // should flip target to 1
+        EXPECT_EQ(sim.measure(t), 1);
+        EXPECT_EQ(sim.measure(c), 1);
+    }
+    {
+        QasmSimulator sim;
+        int q0 = sim.allocateQubit();
+        int q1 = sim.allocateQubit();
+        sim.x(q0);
+        sim.x(q1);       // prepare |11>
+        sim.cx(q1, q0);  // should flip q0 to 0
+        EXPECT_EQ(sim.measure(q0), 0);
+        EXPECT_EQ(sim.measure(q1), 1);
+    }
+}
+
+TEST(RuntimeTest, ParenthesisedExpressionsEvaluate) {
+    const char* src =
+        "function main() -> void { for (int i = 0; i < 6; i = i + 1) { echo((i + 1) % 6); } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("1\n2\n3\n4\n5\n0\n", output.str());
 }
 
 TEST(RuntimeTest, GeneratesQasm) {
@@ -168,6 +238,16 @@ TEST(RuntimeTest, TracksVariableMultipleShots) {
     ASSERT_EQ(agg["qubit q"]["?"], 5);
 }
 
+TEST(RuntimeTest, ExecuteIsSingleUse) {
+    const char* src = "function main() -> void { qubit q; x(q); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
 TEST(RuntimeTest, EchoModes) {
     const char* src = "function main() -> void { echo(1); }";
     auto program = parseProgram(src);
@@ -242,13 +322,16 @@ TEST(RuntimeTest, GateAfterMeasurementReportsLocation) {
     EXPECT_TRUE(caught);
 }
 
-TEST(RuntimeTest, ResetAfterMeasurementThrows) {
-    const char* src = "function main() -> void { qubit q; measure q; reset q; }";
+TEST(RuntimeTest, ResetAfterMeasurementUnblocksQubit) {
+    const char* src = "function main() -> void { qubit q; measure q; reset q; x(q); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
     RuntimeEvaluator eval;
-    EXPECT_THROW(eval.execute(*program), BlochError);
+    EXPECT_NO_THROW(eval.execute(*program));
+    std::string qasm = eval.getQasm();
+    EXPECT_NE(qasm.find("reset q[0]"), std::string::npos);
+    EXPECT_NE(qasm.find("x q[0]"), std::string::npos);
 }
 
 TEST(RuntimeTest, MeasureExpressionAfterMeasurementThrows) {
