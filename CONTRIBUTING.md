@@ -78,11 +78,18 @@ Examples: `feat: add runtime cache`, `fix(parser): handle trailing commas`. PR t
 - `main` holds only tagged releases; the default branch is `develop`.
 - Release flow:
   1. Merge feature PRs into `develop` (squash with Conventional Commit titles).
-  2. release-please auto-opens/updates a release PR from `develop` → `main`.
-  3. Review and merge the release PR; release-please tags and creates the GitHub Release on `main`.
-  4. Run the **Manual Packager** workflow (Actions → “Manual Packager”) with the new tag to publish artifacts.
-  5. Fast-forward `develop` with `main` (`git checkout develop && git merge --ff-only origin/main`) so version bumps stay in sync.
-- Hotfixes: branch from `main`, apply the fix, PR back into `main`, merge and tag, then cherry-pick the fix + release commit into `develop` to keep parity.
+  2. release-please runs on `develop`, opens a release PR, and when merged tags + creates the GitHub Release on `develop`.
+  3. Fast-forward `main` to the new tag so it stays release-only:
+     - `git fetch origin`
+     - `git checkout main`
+     - `git merge --ff-only <new-tag>`
+     - `git push origin main`
+  4. Run the **Manual Packager** workflow (Actions → “Manual Packager”) with that tag to publish artifacts.
+  5. Fast-forward `develop` with `main` (`git checkout develop && git merge --ff-only origin/main`) if any hotfixes landed directly on `main`.
+- Hotfixes:
+  1. Branch from `main`, make the fix, and open a PR back to `main`.
+  2. After merge, release-please (on `main`) tags and creates the GitHub Release for the patch.
+  3. Cherry-pick or fast-forward the hotfix and release commit into `develop` to keep branches aligned.
 
 ---
 
