@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,8 @@ namespace bloch::runtime {
     using support::BlochError;
     using support::blochWarning;
     using support::ErrorCategory;
+
+    static constexpr bool kTraceConstructors = false;
 
     static std::pair<RuntimeField*, RuntimeClass*> findStaticFieldWithOwner(
         RuntimeClass* cls, const std::string& name) {
@@ -468,6 +470,12 @@ namespace bloch::runtime {
             RuntimeClass* rc = findClass(clsNode->name);
             if (!rc)
                 continue;
+            if (rc->base) {
+                // Refresh inherited layout now that base metadata is populated.
+                rc->instanceFields = rc->base->instanceFields;
+                rc->instanceFieldIndex = rc->base->instanceFieldIndex;
+                rc->vtable = rc->base->vtable;
+            }
             for (auto& member : clsNode->members) {
                 if (auto field = dynamic_cast<FieldDeclaration*>(member.get())) {
                     RuntimeField f;
@@ -731,7 +739,11 @@ namespace bloch::runtime {
                                                 const std::shared_ptr<Object>& obj) {
         if (!cls)
             return;
-        for (auto& field : cls->instanceFields) {
+        size_t startIdx = cls->base ? cls->base->instanceFields.size() : 0;
+        if (startIdx > cls->instanceFields.size())
+            startIdx = cls->instanceFields.size();
+        for (size_t i = startIdx; i < cls->instanceFields.size(); ++i) {
+            auto& field = cls->instanceFields[i];
             if (field.isStatic)
                 continue;
             auto& slot = obj->fields[field.offset];
@@ -757,37 +769,47 @@ namespace bloch::runtime {
         }
     }
 
+    namespace {
+        bool argumentsMatchCtor(const std::vector<Value>& args,
+                                const RuntimeConstructor& candidate) {
+            if (candidate.params.size() != args.size())
+                return false;
+            for (size_t i = 0; i < args.size(); ++i) {
+                const auto& expected = candidate.params[i];
+                const auto& actual = args[i];
+                if (expected.kind == Value::Type::Object) {
+                    if (actual.type != Value::Type::Object)
+                        return false;
+                    if (!expected.className.empty() && actual.className != expected.className)
+                        return false;
+                } else if (expected.kind == Value::Type::ObjectArray) {
+                    if (actual.type != Value::Type::ObjectArray)
+                        return false;
+                    if (!expected.className.empty() && actual.className != expected.className)
+                        return false;
+                } else if (expected.kind != actual.type) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }  // namespace
+
     void RuntimeEvaluator::runConstructorChain(RuntimeClass* cls,
                                                const std::shared_ptr<Object>& obj,
                                                ConstructorDeclaration* ctor,
                                                const std::vector<Value>& args) {
         if (!cls)
             return;
+
+        if (kTraceConstructors) {
+            std::cerr << "[ctor] " << cls->name << " args=" << args.size() << std::endl;
+        }
+
         bool savedReturn = m_hasReturn;
         m_hasReturn = false;
-        if (cls->base) {
-            ConstructorDeclaration* baseCtor = nullptr;
-            for (auto& c : cls->base->constructors) {
-                if (c.params.empty()) {
-                    baseCtor = c.decl;
-                    break;
-                }
-            }
-            runConstructorChain(cls->base, obj, baseCtor, {});
-        }
-        runFieldInitialisers(cls, obj);
-        if (ctor && ctor->isDefault) {
-            // Default constructor: bind parameters to matching fields.
-            for (size_t i = 0; i < ctor->params.size() && i < args.size(); ++i) {
-                const auto& param = ctor->params[i];
-                auto fieldMeta = findInstanceField(cls, param->name);
-                if (fieldMeta && fieldMeta->offset < obj->fields.size()) {
-                    obj->fields[fieldMeta->offset] = args[i];
-                }
-            }
-        }
-        if (!ctor)
-            return;
+
+        // Prepare context for this constructor (needed to evaluate explicit super(...) args).
         auto prevClass = m_currentClassCtx;
         bool prevStatic = m_inStaticContext;
         bool prevCtor = m_inConstructor;
@@ -802,16 +824,89 @@ namespace bloch::runtime {
         thisVal.objectValue = obj;
         thisVal.className = cls->name;
         m_env.back()["this"] = {thisVal, false, true};
-        for (size_t i = 0; i < ctor->params.size() && i < args.size(); ++i) {
+        for (size_t i = 0; ctor && i < ctor->params.size() && i < args.size(); ++i) {
             m_env.back()[ctor->params[i]->name] = {args[i], false, true};
         }
-        if (ctor->body) {
-            for (auto& stmt : ctor->body->statements) {
-                exec(stmt.get());
+
+        // Detect an explicit super(...) call as the first statement.
+        std::vector<Value> superArgs;
+        ConstructorDeclaration* superCtorDecl = nullptr;
+        bool hasExplicitSuper = false;
+        if (ctor && ctor->body && !ctor->body->statements.empty()) {
+            if (auto exprStmt =
+                    dynamic_cast<ExpressionStatement*>(ctor->body->statements[0].get())) {
+                if (auto call = dynamic_cast<CallExpression*>(exprStmt->expression.get())) {
+                    if (dynamic_cast<SuperExpression*>(call->callee.get())) {
+                        hasExplicitSuper = true;
+                        for (auto& a : call->arguments) superArgs.push_back(eval(a.get()));
+                    }
+                }
+            }
+        }
+
+        // Dispatch to base constructor (explicit or default).
+        if (cls->base) {
+            if (hasExplicitSuper) {
+                for (auto& c : cls->base->constructors) {
+                    if (argumentsMatchCtor(superArgs, c)) {
+                        superCtorDecl = c.decl;
+                        break;
+                    }
+                }
+                if (!superCtorDecl) {
+                    throw BlochError(ErrorCategory::Runtime, ctor ? ctor->line : 0,
+                                     ctor ? ctor->column : 0,
+                                     "no matching base constructor for 'super(...)'");
+                }
+            } else {
+                // Implicit default base constructor
+                for (auto& c : cls->base->constructors) {
+                    if (c.params.empty()) {
+                        superCtorDecl = c.decl;
+                        break;
+                    }
+                }
+            }
+            if (kTraceConstructors) {
+                std::cerr << "[ctor] " << cls->name << " -> base " << cls->base->name
+                          << " args=" << superArgs.size() << std::endl;
+            }
+            runConstructorChain(cls->base, obj, superCtorDecl, superArgs);
+        }
+
+        // Initialise fields before running the body.
+        if (kTraceConstructors) {
+            std::cerr << "[ctor] " << cls->name << " init fields" << std::endl;
+        }
+        runFieldInitialisers(cls, obj);
+
+        if (ctor && ctor->isDefault) {
+            // Default constructor: bind parameters to matching fields.
+            for (size_t i = 0; i < ctor->params.size() && i < args.size(); ++i) {
+                const auto& param = ctor->params[i];
+                auto fieldMeta = findInstanceField(cls, param->name);
+                if (fieldMeta && fieldMeta->offset < obj->fields.size()) {
+                    obj->fields[fieldMeta->offset] = args[i];
+                }
+            }
+        }
+
+        if (ctor && ctor->body) {
+            size_t startIdx = hasExplicitSuper ? 1 : 0;  // already handled
+            if (kTraceConstructors) {
+                std::cerr << "[ctor] " << cls->name << " execute body (skip=" << startIdx << ")"
+                          << std::endl;
+            }
+            for (size_t i = startIdx; i < ctor->body->statements.size(); ++i) {
+                exec(ctor->body->statements[i].get());
                 if (m_hasReturn)
                     break;
             }
         }
+        if (kTraceConstructors) {
+            std::cerr << "[ctor] " << cls->name << " done" << std::endl;
+        }
+
         endScope();
         m_currentClassCtx = prevClass;
         m_inStaticContext = prevStatic;
@@ -1398,10 +1493,18 @@ namespace bloch::runtime {
             for (auto& a : newExpr->arguments) args.push_back(eval(a.get()));
             ConstructorDeclaration* ctorDecl = nullptr;
             for (auto& c : cls->constructors) {
-                if (c.params.size() == args.size()) {
+                if (argumentsMatchCtor(args, c)) {
                     ctorDecl = c.decl;
                     break;
                 }
+            }
+            if (!ctorDecl) {
+                throw BlochError(ErrorCategory::Runtime, newExpr->line, newExpr->column,
+                                 "no constructor matches provided arguments");
+            }
+            if (kTraceConstructors) {
+                std::cerr << "[new] " << cls->name << " selected ctor params=" << args.size()
+                          << std::endl;
             }
             runConstructorChain(cls, obj, ctorDecl, args);
             Value v;
