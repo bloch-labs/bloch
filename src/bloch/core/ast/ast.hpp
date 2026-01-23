@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -188,6 +189,17 @@ namespace bloch::core {
 
         UnaryExpression(const std::string& op, std::unique_ptr<Expression> right)
             : op(op), right(std::move(right)) {}
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    // Cast Expression
+    // (type)expr style casts following imperative language conventions.
+    struct CastExpression : public Expression {
+        std::unique_ptr<Type> targetType;
+        std::unique_ptr<Expression> expression;
+
+        CastExpression(std::unique_ptr<Type> target, std::unique_ptr<Expression> expr)
+            : targetType(std::move(target)), expression(std::move(expr)) {}
         void accept(ASTVisitor& visitor) override;
     };
 
@@ -386,11 +398,12 @@ namespace bloch::core {
     // Annotation
     struct AnnotationNode : public ASTNode {
         std::string name;
-        std::string value;
+        std::string value = std::string{""};
+        bool isFunctionAnnotation = false;
+        bool isVariableAnnotation = false;
 
         AnnotationNode() = default;
-        AnnotationNode(const std::string& name, const std::string& value)
-            : name(name), value(value) {}
+        AnnotationNode(std::string& name, std::string& value) : name(name), value(value) {}
         void accept(ASTVisitor& visitor) override;
     };
 
@@ -476,6 +489,7 @@ namespace bloch::core {
         std::unique_ptr<BlockStatement> body;
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
         bool hasQuantumAnnotation = false;
+        bool hasShotsAnnotation = false;
 
         FunctionDeclaration() = default;
         void accept(ASTVisitor& visitor) override;
@@ -487,6 +501,7 @@ namespace bloch::core {
         std::vector<std::unique_ptr<ClassDeclaration>> classes;
         std::vector<std::unique_ptr<FunctionDeclaration>> functions;
         std::vector<std::unique_ptr<Statement>> statements;
+        std::pair<bool, int> shots;
 
         Program() = default;
 
@@ -514,6 +529,7 @@ namespace bloch::core {
 
         virtual void visit(BinaryExpression& node) = 0;
         virtual void visit(UnaryExpression& node) = 0;
+        virtual void visit(CastExpression& node) = 0;
         virtual void visit(PostfixExpression& node) = 0;
         virtual void visit(LiteralExpression& node) = 0;
         virtual void visit(VariableExpression& node) = 0;
@@ -563,6 +579,7 @@ namespace bloch::core {
     inline void AssignmentStatement::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void BinaryExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void UnaryExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void CastExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void PostfixExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void LiteralExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VariableExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }

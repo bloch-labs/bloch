@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - develop
-      - master
+      - main
 
 permissions:
   contents: read
@@ -27,6 +27,7 @@ jobs:
           types: |
             feat
             fix
+            hotfix
             perf
             refactor
             revert

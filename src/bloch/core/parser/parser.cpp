@@ -66,7 +66,7 @@ namespace bloch::core {
     bool Parser::checkFunctionAnnotation() const {
         if (!check(TokenType::At))
             return false;
-        if (!checkNext(TokenType::Quantum))
+        if (!checkNext(TokenType::Quantum) && !checkNext(TokenType::Shots))
             return false;
         return true;
     }
@@ -204,19 +204,17 @@ namespace bloch::core {
 
         // Parse annotations
         while (check(TokenType::At)) {
-            (void)advance();
-            if (match(TokenType::Quantum)) {
-                std::string name = previous().value;
-                std::string value = "";
-                func->annotations.push_back(
-                    std::make_unique<AnnotationNode>(AnnotationNode{name, value}));
+            (void)previous();
+            std::unique_ptr<AnnotationNode> annotation = parseFunctionAnnotation();
+            // TODO: Refactor this to a switch statement
+            if (annotation->name == "quantum") {
                 func->hasQuantumAnnotation = true;
+            } else if (annotation->name == "shots") {
+                func->hasShotsAnnotation = true;
             } else {
-                const Token& invalid = peek();
-                std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
-                reportError(std::string("\"") + "@" + invalidName +
-                            "\" is not a valid Bloch annotation");
+                reportError("Invalid annotation name");
             }
+            func->annotations.push_back(std::move(annotation));
         }
 
         (void)expect(TokenType::Function, "Expected 'function' keyword");
@@ -575,19 +573,44 @@ namespace bloch::core {
         return var;
     }
 
-    // @quantum, @tracked
-    std::unique_ptr<AnnotationNode> Parser::parseAnnotation() {
+    // @tracked
+    std::unique_ptr<AnnotationNode> Parser::parseVariableAnnotation() {
         (void)expect(TokenType::At, "Expected '@' to begin annotation");
 
-        if (!check(TokenType::Quantum) && !check(TokenType::Tracked)) {
+        if (!check(TokenType::Tracked)) {
             const Token& invalid = peek();
             std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
             reportError(std::string("\"") + "@" + invalidName +
-                        "\" is not a valid Bloch annotation");
+                        "\" is not a valid Bloch variable annotation");
         }
-        Token nameToken = advance();
+        Token annotationToken = advance();
         std::unique_ptr<AnnotationNode> annotation = std::make_unique<AnnotationNode>();
-        annotation->name = nameToken.value;
+        annotation->name = annotationToken.value;
+        annotation->isVariableAnnotation = true;
+        return annotation;
+    }
+
+    //@quantum, @shots(N)
+    std::unique_ptr<AnnotationNode> Parser::parseFunctionAnnotation() {
+        (void)expect(TokenType::At, "Expected '@' to begin annotation");
+
+        if (!check(TokenType::Quantum) && !check(TokenType::Shots)) {
+            const Token& invalid = peek();
+            std::string invalidName = invalid.value.empty() ? std::string("") : invalid.value;
+            reportError(std::string("\"") + "@" + invalidName +
+                        "\" is not a valid Bloch function/method annotation");
+        }
+        Token annotationToken = advance();
+        Token numberOfShots;
+        if (annotationToken.type == TokenType::Shots) {
+            (void)expect(TokenType::LParen, "Expected opening bracket '('");
+            numberOfShots = expect(TokenType::IntegerLiteral, "Number of shots must be an integer");
+            (void)expect(TokenType::RParen, "Expected closing bracket ')'");
+        }
+        std::unique_ptr<AnnotationNode> annotation = std::make_unique<AnnotationNode>();
+        annotation->name = annotationToken.value;
+        annotation->value = numberOfShots.value.empty() ? std::string{""} : numberOfShots.value;
+        annotation->isFunctionAnnotation = true;
         return annotation;
     }
 
@@ -595,7 +618,13 @@ namespace bloch::core {
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
 
         while (check(TokenType::At)) {
-            annotations.push_back(parseAnnotation());
+            // TODO: refactor this, currently if invalid variable annotation is used, it will be
+            // caught rather than thrown this is a rather hacky solution.
+            try {
+                annotations.push_back(parseVariableAnnotation());
+            } catch (BlochError error) {
+                annotations.push_back(parseFunctionAnnotation());
+            }
         }
 
         return annotations;
@@ -1186,10 +1215,24 @@ namespace bloch::core {
         }
 
         if (match(TokenType::LParen)) {
+            const Token& lparen = previous();
+            if (isTypeAhead()) {
+                std::unique_ptr<Type> targetType = parseType();
+                (void)expect(TokenType::RParen, "Expected ')' after type in cast expression");
+                std::unique_ptr<Expression> operand = parseUnary();
+                std::unique_ptr<CastExpression> cast =
+                    std::make_unique<CastExpression>(std::move(targetType), std::move(operand));
+                cast->line = lparen.line;
+                cast->column = lparen.column;
+                return cast;
+            }
             std::unique_ptr<Expression> expr = parseExpression();
             (void)expect(TokenType::RParen, "Expected ')' after expression");
-            return std::make_unique<ParenthesizedExpression>(
-                ParenthesizedExpression{std::move(expr)});
+            auto paren =
+                std::make_unique<ParenthesizedExpression>(ParenthesizedExpression{std::move(expr)});
+            paren->line = lparen.line;
+            paren->column = lparen.column;
+            return paren;
         }
 
         reportError("Expected expression");
@@ -1359,6 +1402,17 @@ namespace bloch::core {
                 std::make_unique<UnaryExpression>(un->op, std::move(right));
             clone->line = un->line;
             clone->column = un->column;
+            return clone;
+        }
+        if (auto cast = dynamic_cast<const CastExpression*>(&expr)) {
+            std::unique_ptr<Type> target;
+            if (cast->targetType)
+                target = cloneType(*cast->targetType);
+            std::unique_ptr<Expression> inner = cloneExpression(*cast->expression);
+            std::unique_ptr<CastExpression> clone =
+                std::make_unique<CastExpression>(std::move(target), std::move(inner));
+            clone->line = cast->line;
+            clone->column = cast->column;
             return clone;
         }
         if (auto post = dynamic_cast<const PostfixExpression*>(&expr)) {

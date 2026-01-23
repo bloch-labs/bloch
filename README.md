@@ -1,6 +1,6 @@
-# Bloch - A Modern Strongly Typed, Hybrid Quantum Programming
+# Bloch - A Strongly Typed, Hybrid Quantum Programming
 
-Bloch is a strongly typed, interpreted, hybrid quantum programming language from [Bloch Labs](https://bloch-labs.com). The language is designed to feel familiar to systems developers while staying hardware-agnostic, so you can move from research sketches to production-grade circuits without switching stacks.
+Bloch is an open-source, strongly typed hybrid quantum programming language. The language is designed to be hardware-agnostic, so you can move from research sketches to production-grade circuits without switching stacks.
 
 ## Highlights
 - Seamless classical/quantum integration with clear type boundaries.
@@ -31,7 +31,7 @@ function main() -> void {
 ```
 
 ## Get Started
-Bloch is available as source plus manually produced release archives until the automated pipeline lands. The instructions below cover installing pre-built artifacts as well as building from source (the developer workflow described in [CONTRIBUTING.md](CONTRIBUTING.md)).
+Bloch is available as source plus manually produced release archives until the automated pipeline lands. The instructions below cover installing pre-built artifacts as well as building from source.
 
 ### Install a release build
 
@@ -82,16 +82,9 @@ Additional generator options (Ninja, CLion toolchains, etc.) are covered in [CON
 - `bloch::runtime` (`src/bloch/runtime/*`): runtime evaluator plus the OpenQASM/statevector simulator.
 - `bloch::support` (`src/bloch/support/*`): errors, feature flags, and lightweight helpers shared across layers.
 - `bloch::update` (`src/bloch/update/*`): self-update plumbing used by the CLI.
-Includes now follow this structure (e.g., `#include "bloch/core/parser/parser.hpp"`), and new components should live in the matching namespace.
 
 ## User Documentation
 [docs.bloch-labs.com/bloch/overview](https://docs.bloch-labs.com/bloch/overview)
-
-## Developer Documenation
-[Wiki](https://github.com/bloch-labs/bloch/wiki/)
-
-## Releases
-v1.0.0 will ship manually while we build the release pipeline. Run the **Manual Packager** workflow (Actions → “Manual Packager”) against the desired branch/tag to produce Linux, macOS, and Windows archives plus checksums; the GitHub Wiki documents the end-to-end checklist.
 
 ## VS Code Extension
 [bloch-labs/bloch-vscode](https://github.com/bloch-labs/bloch-vscode)
@@ -103,8 +96,9 @@ Contributions are welcome! [CONTRIBUTING.md](CONTRIBUTING.md) covers the develop
 - If you use Bloch in research, cite it via the repository’s [`CITATION.cff`](CITATION.cff) file (GitHub exposes a “Cite this repository” button) or copy the metadata directly into your BibTeX database. The entry tracks the software release and the forthcoming JOSS article so reviewers can attribute the correct artifact.
 
 ## Community
-- Website & blog: [bloch-labs.com](https://bloch-labs.com)
-- X/Twitter: [@blochlabs](https://x.com/blochlabs) · [@bloch_akshay](https://x.com/bloch_akshay)
+- Website: [bloch-labs.com](https://bloch-labs.com)
+- Substack: [blochlabs.substack.com](https://blochlabs.substack.com/subscribe)
+- X/Twitter: [@blochlabs](https://x.com/blochlabs)
 - Contact: [hello@bloch-labs.com](mailto:hello@bloch-labs.com)
 
 ## Acknowledgements

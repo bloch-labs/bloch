@@ -3,19 +3,57 @@ name: Manual Packager
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: Branch/ref to build from
-        required: true
-        default: develop
       tag:
-        description: Version tag to embed in artifacts (e.g., v1.0.0-rc1 or v1.0.0)
+        description: Release tag to package (must exist on main)
         required: true
+
+permissions:
+  contents: write
 
 env:
   BLOCH_VERSION: ${{ inputs.tag }}
 
 jobs:
+  ff-main:
+    name: Fast-forward main to tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Ensure tag exists and fast-forward main
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch origin main develop --tags
+
+          if ! git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG not found." >&2
+            exit 1
+          fi
+
+          if git merge-base --is-ancestor "refs/tags/$TAG" origin/main; then
+            echo "Tag $TAG is already reachable from origin/main."
+            exit 0
+          fi
+
+          if git merge-base --is-ancestor "refs/tags/$TAG" origin/develop; then
+            echo "Fast-forwarding main to $TAG"
+            git checkout main
+            git merge --ff-only "refs/tags/$TAG"
+            git push origin main
+            exit 0
+          fi
+
+          echo "Tag $TAG is not reachable from origin/main or origin/develop." >&2
+          exit 1
+
   package:
+    needs: ff-main
     env:
       VCPKG_ROOT: ${{ github.workspace }}/.vcpkg
       VCPKG_FORCE_SYSTEM_BINARIES: 1
@@ -47,10 +85,19 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - name: Checkout
+      - name: Checkout release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch }}
+          ref: refs/tags/${{ inputs.tag }}
+
+      - name: Verify tag is on main
+        shell: bash
+        run: |
+          git fetch --depth=1 origin main
+          if ! git merge-base --is-ancestor "${{ inputs.tag }}" origin/main; then
+            echo "Tag ${{ inputs.tag }} is not reachable from origin/main." >&2
+            exit 1
+          fi
 
       - name: Restore vcpkg caches (Windows)
         if: matrix.runner == 'windows-latest'

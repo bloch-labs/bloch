@@ -1,7 +1,9 @@
 name: release-please
 on:
   push:
-    branches: [ master ]
+    branches:
+      - develop
+      - main
   workflow_dispatch:
 
 permissions:
@@ -12,8 +14,10 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - name: Create or update Release PR
+      - name: Create or update release PR / tag
         uses: googleapis/release-please-action@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          target-branch: ${{ github.ref_name }}
