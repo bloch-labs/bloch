@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -530,6 +530,64 @@ function main() -> void {
     std::cout.rdbuf(oldBuf);
     EXPECT_EQ("Base::ctor\nDerived::ctor\nDerived\nBaseOnly\n1\nDerived::dtor\nBase::dtor\n",
               output.str());
+}
+
+TEST(RuntimeTest, ConstructorChainCallsExplicitSuperWithArgs) {
+    const char* src = R"(
+class Base {
+    public int a = 1;
+    public constructor(int v) -> Base { this.a = v; }
+}
+
+class Mid extends Base {
+    public int m = 2;
+    public constructor(int v) -> Mid { super(v + 1); this.m = this.a + 1; }
+}
+
+class Derived extends Mid {
+    public int d = 3;
+    public constructor() -> Derived { super(4); this.d = this.m + 1; }
+    public function dump() -> void { echo(this.a); echo(this.m); echo(this.d); }
+}
+
+function main() -> void {
+    Derived x = new Derived();
+    x.dump();
+}
+)";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("5\n6\n7\n", output.str());
+}
+
+TEST(RuntimeTest, SelectsConstructorByArgumentTypes) {
+    const char* src = R"(
+class Example {
+    public int which = 0;
+    public constructor(int _) -> Example { this.which = 1; }
+    public constructor(string _) -> Example { this.which = 2; }
+}
+
+function main() -> void {
+    Example e = new Example("hi");
+    echo(e.which);
+}
+)";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("2\n", output.str());
 }
 
 TEST(RuntimeTest, CycleCollectorReclaimsClassicalCycle) {

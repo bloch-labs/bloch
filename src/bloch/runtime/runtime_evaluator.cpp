@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -739,7 +739,11 @@ namespace bloch::runtime {
                                                 const std::shared_ptr<Object>& obj) {
         if (!cls)
             return;
-        for (auto& field : cls->instanceFields) {
+        size_t startIdx = cls->base ? cls->base->instanceFields.size() : 0;
+        if (startIdx > cls->instanceFields.size())
+            startIdx = cls->instanceFields.size();
+        for (size_t i = startIdx; i < cls->instanceFields.size(); ++i) {
+            auto& field = cls->instanceFields[i];
             if (field.isStatic)
                 continue;
             auto& slot = obj->fields[field.offset];
