@@ -76,10 +76,12 @@ namespace {
         const char* exe = "bloch";
 #endif
         std::vector<fs::path> candidates = {
-            base / exe,          base.parent_path() / exe, base / ".." / exe, fs::current_path() /
-                                                                                   "bin" / exe,
-            fs::current_path() / "bin" / "Release" / exe, fs::current_path().parent_path() / "bin" /
-                                                               exe,
+            base / exe,
+            base.parent_path() / exe,
+            base / ".." / exe,
+            fs::current_path() / "bin" / exe,
+            fs::current_path() / "bin" / "Release" / exe,
+            fs::current_path().parent_path() / "bin" / exe,
             fs::current_path().parent_path() / "bin" / "Release" / exe,
         };
         for (auto& p : candidates) {
