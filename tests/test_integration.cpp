@@ -67,65 +67,34 @@ namespace {
 #endif
     }
 
-    std::string runBloch(const std::string& source, const std::string& name,
-                         const std::string& options = "") {
+    std::filesystem::path findBlochBinary() {
         namespace fs = std::filesystem;
-        fs::path cwd = fs::current_path();
-        fs::path blochFile = cwd / name;
-        std::ofstream ofs(blochFile);
-        ofs << source;
-        ofs.close();
-
-        auto findBinary = [&]() -> fs::path {
-            fs::path base = executableDir();
+        fs::path base = executableDir();
 #if defined(_WIN32)
-            const char* exe = "bloch.exe";
+        const char* exe = "bloch.exe";
 #else
-            const char* exe = "bloch";
+        const char* exe = "bloch";
 #endif
-            std::vector<fs::path> candidates = {
-                base / exe,
-                base.parent_path() / exe,
-                base / ".." / exe,
-                cwd / "bin" / exe,
-                cwd / "bin" / "Release" / exe,
-                cwd.parent_path() / "bin" / exe,
-                cwd.parent_path() / "bin" / "Release" / exe,
-            };
-            for (auto& p : candidates) {
-                std::error_code ec;
-                if (fs::exists(p, ec))
-                    return fs::weakly_canonical(p, ec);
-            }
-            return exe;
+        std::vector<fs::path> candidates = {
+            base / exe,
+            base.parent_path() / exe,
+            base / ".." / exe,
+            fs::current_path() / "bin" / exe,
+            fs::current_path() / "bin" / "Release" / exe,
+            fs::current_path().parent_path() / "bin" / exe,
+            fs::current_path().parent_path() / "bin" / "Release" / exe,
         };
-
-        fs::path blochBin = findBinary();
-
-        std::string cmd = std::string("\"") + blochBin.string() + "\"";
-        if (!options.empty())
-            cmd += " " + options;
-        cmd += std::string(" \"") + fs::absolute(blochFile).string() + "\" 2>&1";
-        std::string result;
-        // Redirect stdout/stderr to a file and read it back (more portable than popen on Windows)
-        fs::path stem = blochFile.stem();
-        fs::path outPath = cwd / (stem.string() + ".out");
-        std::string redirCmd = cmd + std::string(" > \"") + outPath.string() + "\" 2>&1";
-        (void)std::system(redirCmd.c_str());
-        {
-            std::ifstream in(outPath);
-            if (in) {
-                result.assign((std::istreambuf_iterator<char>(in)),
-                              std::istreambuf_iterator<char>());
-                in.close();
-            }
+        for (auto& p : candidates) {
+            std::error_code ec;
+            if (fs::exists(p, ec))
+                return fs::weakly_canonical(p, ec);
         }
+        return exe;
+    }
 
-        // Normalize output for cross-platform comparisons:
-        // - Convert CRLF/CR to LF
-        // - Strip ANSI escape sequences (e.g., color codes)
+    std::string normalizeOutput(std::string result) {
+        // Newlines
         {
-            // Newlines
             std::string tmp;
             tmp.reserve(result.size());
             for (size_t i = 0; i < result.size(); ++i) {
@@ -138,8 +107,8 @@ namespace {
             }
             result.swap(tmp);
         }
+        // ANSI escape sequences: \x1B[ ... letter
         {
-            // ANSI escape sequences: \x1B[ ... letter
             std::string tmp;
             tmp.reserve(result.size());
             for (size_t i = 0; i < result.size();) {
@@ -159,11 +128,67 @@ namespace {
             }
             result.swap(tmp);
         }
+        return result;
+    }
+
+    std::string runBloch(const std::string& source, const std::string& name,
+                         const std::string& options = "") {
+        namespace fs = std::filesystem;
+        fs::path cwd = fs::current_path();
+        fs::path blochFile = cwd / name;
+        std::ofstream ofs(blochFile);
+        ofs << source;
+        ofs.close();
+
+        fs::path blochBin = findBlochBinary();
+
+        std::string cmd = std::string("\"") + blochBin.string() + "\"";
+        if (!options.empty())
+            cmd += " " + options;
+        cmd += std::string(" \"") + fs::absolute(blochFile).string() + "\" 2>&1";
+        std::string result;
+        // Redirect stdout/stderr to a file and read it back (more portable than popen on Windows)
+        fs::path stem = blochFile.stem();
+        fs::path outPath = cwd / (stem.string() + ".out");
+        std::string redirCmd = cmd + std::string(" > \"") + outPath.string() + "\" 2>&1";
+        [[maybe_unused]] int rc = std::system(redirCmd.c_str());
+        {
+            std::ifstream in(outPath);
+            if (in) {
+                result.assign((std::istreambuf_iterator<char>(in)),
+                              std::istreambuf_iterator<char>());
+                in.close();
+            }
+        }
+
+        result = normalizeOutput(std::move(result));
 
         fs::remove(blochFile);
         fs::remove(cwd / (stem.string() + ".qasm"));
         fs::remove(cwd / (stem.string() + ".out"));
         return result;
+    }
+
+    std::string runBlochCommand(const std::string& options) {
+        namespace fs = std::filesystem;
+        fs::path cwd = fs::current_path();
+        fs::path blochBin = findBlochBinary();
+        fs::path outPath = cwd / "bloch_cli.out";
+        std::string cmd = std::string("\"") + blochBin.string() + "\"";
+        if (!options.empty())
+            cmd += " " + options;
+        cmd += std::string(" > \"") + outPath.string() + "\" 2>&1";
+        [[maybe_unused]] int rc = std::system(cmd.c_str());
+        std::string result;
+        {
+            std::ifstream in(outPath);
+            if (in) {
+                result.assign((std::istreambuf_iterator<char>(in)),
+                              std::istreambuf_iterator<char>());
+            }
+        }
+        fs::remove(outPath);
+        return normalizeOutput(std::move(result));
     }
 }
 
@@ -178,6 +203,16 @@ function main() -> void {
 )";
     std::string output = runBloch(src, "quantum_test.bloch");
     EXPECT_EQ("1\n", output);
+}
+
+TEST(IntegrationTest, HelpListsAllCliOptions) {
+    std::string output = runBlochCommand("--help");
+    EXPECT_NE(output.find("--help"), std::string::npos);
+    EXPECT_NE(output.find("--version"), std::string::npos);
+    EXPECT_NE(output.find("--emit-qasm"), std::string::npos);
+    EXPECT_NE(output.find("--shots"), std::string::npos);
+    EXPECT_NE(output.find("--echo=auto|all|none"), std::string::npos);
+    EXPECT_NE(output.find("--update"), std::string::npos);
 }
 
 #endif  // BLOCH_SKIP_INTEGRATION_TESTS
