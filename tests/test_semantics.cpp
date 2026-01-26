@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -109,6 +109,24 @@ TEST(SemanticTest, NullNotEqualsAllowedForClassReference) {
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, MethodOverloadingAllowedForDifferentParams) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; public function bar(int a) -> void { } "
+        "public function bar(float a) -> void { } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, DuplicateMethodSignatureRejected) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; public function bar(int a) -> void { } "
+        "public function bar(int b) -> void { } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, OuterVariableVisibleInsideBlock) {

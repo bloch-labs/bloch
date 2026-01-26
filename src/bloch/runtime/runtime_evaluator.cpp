@@ -440,12 +440,122 @@ namespace bloch::runtime {
         return nullptr;
     }
 
-    RuntimeMethod* RuntimeEvaluator::findMethod(RuntimeClass* cls, const std::string& name) {
+    static std::string runtimeSignatureLabel(const std::string& name,
+                                             const std::vector<RuntimeTypeInfo>& params) {
+        std::ostringstream oss;
+        oss << name << "(";
+        for (size_t i = 0; i < params.size(); ++i) {
+            if (i)
+                oss << ",";
+            if (!params[i].className.empty())
+                oss << params[i].className;
+            else {
+                switch (params[i].kind) {
+                    case Value::Type::Int:
+                        oss << "int";
+                        break;
+                    case Value::Type::Float:
+                        oss << "float";
+                        break;
+                    case Value::Type::Bit:
+                        oss << "bit";
+                        break;
+                    case Value::Type::String:
+                        oss << "string";
+                        break;
+                    case Value::Type::Char:
+                        oss << "char";
+                        break;
+                    case Value::Type::Qubit:
+                        oss << "qubit";
+                        break;
+                    case Value::Type::Object:
+                        oss << "object";
+                        break;
+                    case Value::Type::ObjectArray:
+                        oss << "object[]";
+                        break;
+                    default:
+                        oss << "unknown";
+                        break;
+                }
+            }
+        }
+        oss << ")";
+        return oss.str();
+    }
+
+    RuntimeMethod* RuntimeEvaluator::findMethod(RuntimeClass* cls, const std::string& name,
+                                                const std::vector<Value>* args) {
+        auto matches = [&](const RuntimeMethod& cand, const std::vector<Value>& actuals) {
+            if (cand.params.size() != actuals.size())
+                return false;
+            for (size_t i = 0; i < cand.params.size(); ++i) {
+                const auto& exp = cand.params[i];
+                const auto& act = actuals[i];
+                switch (exp.kind) {
+                    case Value::Type::Int:
+                        if (act.type != Value::Type::Int)
+                            return false;
+                        break;
+                    case Value::Type::Float:
+                        if (act.type != Value::Type::Float)
+                            return false;
+                        break;
+                    case Value::Type::Bit:
+                        if (act.type != Value::Type::Bit)
+                            return false;
+                        break;
+                    case Value::Type::String:
+                        if (act.type != Value::Type::String)
+                            return false;
+                        break;
+                    case Value::Type::Char:
+                        if (act.type != Value::Type::Char)
+                            return false;
+                        break;
+                    case Value::Type::Qubit:
+                        if (act.type != Value::Type::Qubit)
+                            return false;
+                        break;
+                    case Value::Type::Object:
+                        if (isNullReference(act))
+                            break;
+                        if (act.type != Value::Type::Object)
+                            return false;
+                        if (!exp.className.empty() && act.className != exp.className)
+                            return false;
+                        break;
+                    case Value::Type::ObjectArray:
+                        if (act.type != Value::Type::ObjectArray)
+                            return false;
+                        if (!exp.className.empty() && act.className != exp.className)
+                            return false;
+                        break;
+                    default:
+                        return false;
+                }
+            }
+            return true;
+        };
+
         RuntimeClass* cur = cls;
         while (cur) {
             auto mit = cur->methods.find(name);
-            if (mit != cur->methods.end())
-                return &mit->second;
+            if (mit != cur->methods.end()) {
+                if (!args)
+                    return mit->second.empty() ? nullptr : &mit->second.front();
+                RuntimeMethod* found = nullptr;
+                for (auto& cand : mit->second) {
+                    if (matches(cand, *args)) {
+                        if (found)
+                            return nullptr;  // ambiguous
+                        found = &cand;
+                    }
+                }
+                if (found)
+                    return found;
+            }
             cur = cur->base;
         }
         return nullptr;
@@ -523,26 +633,29 @@ namespace bloch::runtime {
                     m.isVirtual = method->isVirtual;
                     m.isOverride = method->isOverride;
                     m.owner = rc;
-                    rc->methods[method->name] = m;
-                    RuntimeMethod* stored = &rc->methods[method->name];
+                    for (auto& p : method->params)
+                        m.params.push_back(typeInfoFromAst(p->type.get()));
+                    m.signature = runtimeSignatureLabel(method->name, m.params);
+                    auto& bucket = rc->methods[method->name];
+                    bucket.push_back(m);
+                    RuntimeMethod* stored = &bucket.back();
                     if (stored->isVirtual || stored->isOverride) {
-                        size_t idx = rc->vtable.size();
                         RuntimeMethod* baseMethod = nullptr;
                         if (rc->base) {
                             auto it = rc->base->methods.find(method->name);
-                            if (it != rc->base->methods.end() && it->second.isVirtual)
-                                baseMethod = &it->second;
+                            if (it != rc->base->methods.end()) {
+                                for (auto& cand : it->second) {
+                                    if (cand.signature == stored->signature) {
+                                        baseMethod = &cand;
+                                        break;
+                                    }
+                                }
+                            }
                         }
+                        rc->vtable[stored->signature] = stored;
                         if (baseMethod) {
-                            idx = baseMethod->vtableIndex;
-                        } else {
-                            rc->vtable.push_back(nullptr);
-                            idx = rc->vtable.size() - 1;
+                            rc->vtable[stored->signature] = stored;
                         }
-                        stored->vtableIndex = idx;
-                        if (idx >= rc->vtable.size())
-                            rc->vtable.resize(idx + 1, nullptr);
-                        rc->vtable[idx] = stored;
                     }
                 } else if (auto ctor = dynamic_cast<ConstructorDeclaration*>(member.get())) {
                     RuntimeConstructor c;
@@ -1885,7 +1998,7 @@ namespace bloch::runtime {
                 RuntimeMethod* method = nullptr;
                 RuntimeClass* staticCls = m_currentClassCtx;
                 if (staticCls)
-                    method = findMethod(staticCls, name);
+                    method = findMethod(staticCls, name, &args);
                 if (method) {
                     std::shared_ptr<Object> receiver;
                     if (!method->isStatic) {
@@ -1916,19 +2029,19 @@ namespace bloch::runtime {
                     staticCls = !target.className.empty() ? findClass(target.className) : nullptr;
                     if (!staticCls)
                         staticCls = receiver->cls;
-                    method = findMethod(staticCls, member->member);
-                    if (method && method->isVirtual && receiver->cls &&
-                        method->vtableIndex < receiver->cls->vtable.size() &&
-                        receiver->cls->vtable[method->vtableIndex]) {
-                        method = receiver->cls->vtable[method->vtableIndex];
+                    method = findMethod(staticCls, member->member, &args);
+                    if (method && method->isVirtual && receiver->cls) {
+                        auto it = receiver->cls->vtable.find(method->signature);
+                        if (it != receiver->cls->vtable.end())
+                            method = it->second;
                     }
                     if (viaSuper && staticCls && staticCls->base) {
-                        method = findMethod(staticCls->base, member->member);
+                        method = findMethod(staticCls->base, member->member, &args);
                         staticCls = staticCls->base;
                     }
                 } else if (target.type == Value::Type::ClassRef && target.classRef) {
                     staticCls = target.classRef;
-                    method = findMethod(staticCls, member->member);
+                    method = findMethod(staticCls, member->member, &args);
                 }
                 if (method) {
                     return callMethod(method, staticCls, receiver, args);

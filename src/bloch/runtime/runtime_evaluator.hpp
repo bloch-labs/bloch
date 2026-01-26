@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -165,7 +165,8 @@ namespace bloch::runtime {
         bool isStatic = false;
         bool isVirtual = false;
         bool isOverride = false;
-        size_t vtableIndex = 0;
+        std::vector<RuntimeTypeInfo> params;
+        std::string signature;
         RuntimeClass* owner = nullptr;
     };
 
@@ -182,8 +183,8 @@ namespace bloch::runtime {
         std::vector<Value> staticStorage;
         std::unordered_map<std::string, size_t> instanceFieldIndex;
         std::unordered_map<std::string, size_t> staticFieldIndex;
-        std::unordered_map<std::string, RuntimeMethod> methods;
-        std::vector<RuntimeMethod*> vtable;
+        std::unordered_map<std::string, std::vector<RuntimeMethod>> methods;
+        std::unordered_map<std::string, RuntimeMethod*> vtable;
         std::vector<RuntimeConstructor> constructors;
     };
 
@@ -274,7 +275,8 @@ namespace bloch::runtime {
         Value defaultValueForField(const RuntimeField& field, const std::string& ownerLabel);
         void buildClassTable(Program& program);
         RuntimeClass* findClass(const std::string& name) const;
-        RuntimeMethod* findMethod(RuntimeClass* cls, const std::string& name);
+        RuntimeMethod* findMethod(RuntimeClass* cls, const std::string& name,
+                                  const std::vector<Value>* args = nullptr);
         RuntimeField* findInstanceField(RuntimeClass* cls, const std::string& name);
         RuntimeField* findStaticField(RuntimeClass* cls, const std::string& name);
         void initStaticFields(RuntimeClass* cls);
