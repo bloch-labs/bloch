@@ -378,14 +378,14 @@ namespace bloch::runtime {
                 if (field && field->offset < thisObj->fields.size()) {
                     Value newVal = v;
                     const Value& existing = thisObj->fields[field->offset];
-                if (existing.type == Value::Type::Object &&
-                    newVal.type == Value::Type::Object && newVal.objectValue &&
-                    !existing.className.empty()) {
-                    newVal.className = existing.className;
+                    if (existing.type == Value::Type::Object &&
+                        newVal.type == Value::Type::Object && newVal.objectValue &&
+                        !existing.className.empty()) {
+                        newVal.className = existing.className;
+                    }
+                    thisObj->fields[field->offset] = newVal;
+                    return;
                 }
-                thisObj->fields[field->offset] = newVal;
-                return;
-            }
             }
             auto [field, owner] = findStaticFieldWithOwner(m_currentClassCtx, name);
             if (field && owner && field->offset < owner->staticStorage.size()) {

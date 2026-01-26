@@ -1395,7 +1395,8 @@ namespace bloch::core {
             return clone;
         }
         if (auto nullLit = dynamic_cast<const NullLiteralExpression*>(&expr)) {
-            std::unique_ptr<NullLiteralExpression> clone = std::make_unique<NullLiteralExpression>();
+            std::unique_ptr<NullLiteralExpression> clone =
+                std::make_unique<NullLiteralExpression>();
             clone->line = nullLit->line;
             clone->column = nullLit->column;
             return clone;

@@ -1037,8 +1037,8 @@ namespace bloch::core {
             node.right->accept(*this);
         auto lt = inferTypeInfo(node.left.get());
         auto rt = inferTypeInfo(node.right.get());
-        if ((lt.value == ValueType::Null || rt.value == ValueType::Null) &&
-            node.op != "==" && node.op != "!=") {
+        if ((lt.value == ValueType::Null || rt.value == ValueType::Null) && node.op != "==" &&
+            node.op != "!=") {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                              "null can only be used in equality comparisons");
         }
@@ -1304,7 +1304,8 @@ namespace bloch::core {
                             break;
                         }
                         if (!expected.className.empty()) {
-                            if (!actual.className.empty() && actual.className != expected.className) {
+                            if (!actual.className.empty() &&
+                                actual.className != expected.className) {
                                 sigOk = false;
                                 break;
                             }
