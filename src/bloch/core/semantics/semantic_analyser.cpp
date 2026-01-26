@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,66 @@ namespace bloch::core {
         return t;
     }
 
+    namespace {
+        std::string methodSignatureLabel(const std::string& name,
+                                         const std::vector<SemanticAnalyser::TypeInfo>& params) {
+            std::ostringstream oss;
+            oss << name << "(";
+            for (size_t i = 0; i < params.size(); ++i) {
+                if (i)
+                    oss << ",";
+                if (!params[i].className.empty())
+                    oss << params[i].className;
+                else
+                    oss << typeToString(params[i].value);
+            }
+            oss << ")";
+            return oss.str();
+        }
+
+        bool paramTypesEqual(const std::vector<SemanticAnalyser::TypeInfo>& a,
+                             const std::vector<SemanticAnalyser::TypeInfo>& b) {
+            if (a.size() != b.size())
+                return false;
+            for (size_t i = 0; i < a.size(); ++i) {
+                if (a[i].className != b[i].className || a[i].value != b[i].value)
+                    return false;
+            }
+            return true;
+        }
+
+        bool paramsMatchCall(const std::vector<SemanticAnalyser::TypeInfo>& expected,
+                             const std::vector<SemanticAnalyser::TypeInfo>& actual) {
+            if (expected.size() != actual.size())
+                return false;
+            for (size_t i = 0; i < expected.size(); ++i) {
+                const auto& exp = expected[i];
+                const auto& act = actual[i];
+                bool actIsArray =
+                    act.className.size() >= 2 &&
+                    act.className.rfind("[]") == act.className.size() - 2;
+                if (!exp.className.empty()) {
+                    if (act.value == ValueType::Null)
+                        continue;  // nullable class
+                    if (act.value != ValueType::Unknown && act.className.empty())
+                        return false;
+                    if (!act.className.empty() && act.className != exp.className)
+                        return false;
+                } else if (exp.value != ValueType::Unknown) {
+                    if (act.value == ValueType::Unknown)
+                        continue;
+                    if (act.value == ValueType::Null)
+                        return false;
+                    if (act.value != exp.value)
+                        return false;
+                } else if (!exp.className.empty() && actIsArray) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }  // namespace
+
     SemanticAnalyser::TypeInfo SemanticAnalyser::typeFromAst(Type* typeNode) const {
         if (!typeNode)
             return combine(ValueType::Unknown, "");
@@ -60,17 +120,30 @@ namespace bloch::core {
     }
 
     SemanticAnalyser::MethodInfo* SemanticAnalyser::findMethodInHierarchy(
-        const std::string& className, const std::string& method) const {
+        const std::string& className, const std::string& method,
+        const std::vector<TypeInfo>* params) const {
         const ClassInfo* cur = findClass(className);
+        std::vector<MethodInfo*> matches;
         while (cur) {
             auto mit = cur->methods.find(method);
-            if (mit != cur->methods.end())
-                return const_cast<MethodInfo*>(&mit->second);
+            if (mit != cur->methods.end()) {
+                if (!params) {
+                    return const_cast<MethodInfo*>(&mit->second.front());
+                }
+                for (auto& cand : mit->second) {
+                    if (paramsMatchCall(cand.paramTypes, *params))
+                        matches.push_back(const_cast<MethodInfo*>(&cand));
+                }
+                if (!matches.empty())
+                    break;
+            }
             if (cur->base.empty())
                 break;
             cur = findClass(cur->base);
         }
-        return nullptr;
+        if (matches.size() == 1)
+            return matches.front();
+        return matches.empty() ? nullptr : nullptr;
     }
 
     SemanticAnalyser::FieldInfo* SemanticAnalyser::findFieldInHierarchy(
@@ -122,59 +195,55 @@ namespace bloch::core {
     void SemanticAnalyser::validateOverrides(ClassInfo& info) {
         if (info.base.empty()) {
             for (auto& kv : info.methods) {
-                auto& m = kv.second;
-                if (m.isOverride) {
-                    throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                     "'" + kv.first + "' marked override but class has no base");
-                }
-                if (m.isStatic && m.isVirtual) {
-                    throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                     "static method '" + kv.first + "' cannot be virtual");
+                for (auto& m : kv.second) {
+                    if (m.isOverride) {
+                        throw BlochError(ErrorCategory::Semantic, m.line, m.column,
+                                         "'" + m.name + "' marked override but class has no base");
+                    }
+                    if (m.isStatic && m.isVirtual) {
+                        throw BlochError(ErrorCategory::Semantic, m.line, m.column,
+                                         "static method '" + m.name + "' cannot be virtual");
+                    }
                 }
             }
             return;
         }
         for (auto& kv : info.methods) {
-            auto& name = kv.first;
-            auto& m = kv.second;
-            if (m.isStatic && (m.isVirtual || m.isOverride)) {
-                throw BlochError(
-                    ErrorCategory::Semantic, m.line, m.column,
-                    "static method '" + name + "' cannot be declared virtual or override");
-            }
-            const MethodInfo* baseMethod = findMethodInHierarchy(info.base, name);
-            if (m.isOverride) {
-                if (!baseMethod) {
-                    throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                     "'" + name + "' marked override but base method not found");
+            for (auto& m : kv.second) {
+                if (m.isStatic && (m.isVirtual || m.isOverride)) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, m.line, m.column,
+                        "static method '" + m.name + "' cannot be declared virtual or override");
                 }
-                if (!baseMethod->isVirtual) {
-                    throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                     "'" + name + "' overrides a non-virtual base method");
-                }
-                if (baseMethod->isStatic) {
-                    throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                     "'" + name + "' cannot override a static base method");
-                }
-                if (baseMethod->paramTypes.size() != m.paramTypes.size())
-                    throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                     "parameter count mismatch overriding '" + name + "'");
-                for (size_t i = 0; i < m.paramTypes.size(); ++i) {
-                    if (baseMethod->paramTypes[i].className != m.paramTypes[i].className ||
-                        baseMethod->paramTypes[i].value != m.paramTypes[i].value) {
+                const MethodInfo* baseMethod =
+                    findMethodInHierarchy(info.base, m.name, &m.paramTypes);
+                if (m.isOverride) {
+                    if (!baseMethod) {
                         throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                         "parameter mismatch overriding '" + name + "'");
+                                         "'" + m.name + "' marked override but base method not found");
+                    }
+                    if (!baseMethod->isVirtual) {
+                        throw BlochError(ErrorCategory::Semantic, m.line, m.column,
+                                         "'" + m.name + "' overrides a non-virtual base method");
+                    }
+                    if (baseMethod->isStatic) {
+                        throw BlochError(ErrorCategory::Semantic, m.line, m.column,
+                                         "'" + m.name + "' cannot override a static base method");
+                    }
+                    if (!paramTypesEqual(baseMethod->paramTypes, m.paramTypes)) {
+                        throw BlochError(ErrorCategory::Semantic, m.line, m.column,
+                                         "parameter mismatch overriding '" + m.name + "'");
+                    }
+                    if (baseMethod->returnType.className != m.returnType.className ||
+                        baseMethod->returnType.value != m.returnType.value) {
+                        throw BlochError(ErrorCategory::Semantic, m.line, m.column,
+                                         "return type mismatch overriding '" + m.name + "'");
                     }
                 }
-                if (baseMethod->returnType.className != m.returnType.className ||
-                    baseMethod->returnType.value != m.returnType.value) {
+                if (m.isVirtual && m.isStatic) {
                     throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                     "return type mismatch overriding '" + name + "'");
+                                     "static method '" + m.name + "' cannot be virtual");
                 }
-            }
-            if (m.isVirtual && m.isStatic) {
-                throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                 "static method '" + name + "' cannot be virtual");
             }
         }
     }
@@ -188,38 +257,31 @@ namespace bloch::core {
                                 base->abstractMethods.end());
         }
         for (auto& kv : info.methods) {
-            auto& name = kv.first;
-            auto& m = kv.second;
-            if (m.isVirtual && !m.hasBody) {
-                required.push_back(name);
-            }
-            if (m.hasBody) {
-                auto it = std::find(required.begin(), required.end(), name);
-                if (it != required.end()) {
-                    const MethodInfo* baseMethod = findMethodInHierarchy(info.base, name);
-                    if (baseMethod) {
-                        if (m.isStatic) {
-                            throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                             "static method '" + name +
-                                                 "' cannot implement abstract base method");
-                        }
-                        if (baseMethod->paramTypes.size() != m.paramTypes.size() ||
-                            baseMethod->returnType.className != m.returnType.className ||
-                            baseMethod->returnType.value != m.returnType.value) {
-                            throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                             "implementation of abstract method '" + name +
-                                                 "' has incompatible signature");
-                        }
-                        for (size_t i = 0; i < m.paramTypes.size(); ++i) {
-                            if (m.paramTypes[i].className != baseMethod->paramTypes[i].className ||
-                                m.paramTypes[i].value != baseMethod->paramTypes[i].value) {
+            for (auto& m : kv.second) {
+                if (m.isVirtual && !m.hasBody) {
+                    required.push_back(m.signature);
+                }
+                if (m.hasBody) {
+                    auto it = std::find(required.begin(), required.end(), m.signature);
+                    if (it != required.end()) {
+                        const MethodInfo* baseMethod =
+                            findMethodInHierarchy(info.base, m.name, &m.paramTypes);
+                        if (baseMethod) {
+                            if (m.isStatic) {
                                 throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                                 "implementation of abstract method '" + name +
+                                                 "static method '" + m.name +
+                                                     "' cannot implement abstract base method");
+                            }
+                            if (!paramTypesEqual(m.paramTypes, baseMethod->paramTypes) ||
+                                baseMethod->returnType.className != m.returnType.className ||
+                                baseMethod->returnType.value != m.returnType.value) {
+                                throw BlochError(ErrorCategory::Semantic, m.line, m.column,
+                                                 "implementation of abstract method '" + m.name +
                                                      "' has incompatible signature");
                             }
                         }
+                        required.erase(it);
                     }
-                    required.erase(it);
                 }
             }
         }
@@ -310,17 +372,13 @@ namespace bloch::core {
                     f.column = field->column;
                     info.fields[field->name] = f;
                 } else if (auto method = dynamic_cast<MethodDeclaration*>(member.get())) {
-                    if (info.methods.count(method->name)) {
-                        throw BlochError(
-                            ErrorCategory::Semantic, method->line, method->column,
-                            "duplicate method '" + method->name + "' in class '" + info.name + "'");
-                    }
-                    if (info.isStatic && !method->isStatic) {
-                        throw BlochError(
-                            ErrorCategory::Semantic, method->line, method->column,
-                            "static class '" + info.name + "' cannot declare instance methods");
-                    }
+                if (info.isStatic && !method->isStatic) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, method->line, method->column,
+                        "static class '" + info.name + "' cannot declare instance methods");
+                }
                     MethodInfo m;
+                    m.name = method->name;
                     m.visibility = method->visibility;
                     m.isStatic = method->isStatic;
                     m.isVirtual = method->isVirtual;
@@ -332,14 +390,21 @@ namespace bloch::core {
                     m.column = method->column;
                     for (auto& p : method->params)
                         m.paramTypes.push_back(typeFromAst(p->type.get()));
+                    m.signature = methodSignatureLabel(method->name, m.paramTypes);
+                    if (info.methodSignatures.count(m.signature)) {
+                        throw BlochError(ErrorCategory::Semantic, method->line, method->column,
+                                         "duplicate method '" + m.signature + "' in class '" +
+                                             info.name + "'");
+                    }
+                    info.methodSignatures.insert(m.signature);
                     if (m.isStatic && (m.isVirtual || m.isOverride)) {
                         throw BlochError(
                             ErrorCategory::Semantic, method->line, method->column,
                             "static method '" + method->name + "' cannot be virtual or override");
                     }
-                    info.methods[method->name] = m;
+                    info.methods[method->name].push_back(m);
                     if (method->isVirtual && !m.hasBody)
-                        info.abstractMethods.push_back(method->name);
+                        info.abstractMethods.push_back(m.signature);
                 } else if (auto ctor = dynamic_cast<ConstructorDeclaration*>(member.get())) {
                     if (info.isStatic) {
                         throw BlochError(
@@ -556,6 +621,8 @@ namespace bloch::core {
             return combine(ValueType::Unknown, "");
         }
         if (auto call = dynamic_cast<CallExpression*>(expr)) {
+            std::vector<TypeInfo> argTypes;
+            for (auto& a : call->arguments) argTypes.push_back(inferTypeInfo(a.get()));
             if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
                 auto it = m_functionInfo.find(callee->name);
                 if (it != m_functionInfo.end())
@@ -564,7 +631,7 @@ namespace bloch::core {
                 if (bi != builtInGates.end())
                     return combine(bi->second.returnType, "");
                 if (!m_currentClass.empty()) {
-                    auto* method = findMethodInHierarchy(m_currentClass, callee->name);
+                    auto* method = findMethodInHierarchy(m_currentClass, callee->name, &argTypes);
                     if (method) {
                         if (!method->isStatic && m_inStaticContext)
                             return combine(ValueType::Unknown, "");
@@ -576,7 +643,7 @@ namespace bloch::core {
             } else if (auto mem = dynamic_cast<MemberAccessExpression*>(call->callee.get())) {
                 auto obj = inferTypeInfo(mem->object.get());
                 if (!obj.className.empty()) {
-                    auto* method = findMethodInHierarchy(obj.className, mem->member);
+                    auto* method = findMethodInHierarchy(obj.className, mem->member, &argTypes);
                     if (method)
                         return method->returnType;
                 }
@@ -1151,6 +1218,10 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(CallExpression& node) {
+        std::vector<TypeInfo> actualTypes;
+        actualTypes.reserve(node.arguments.size());
+        for (auto& arg : node.arguments) actualTypes.push_back(inferTypeInfo(arg.get()));
+
         auto checkArgs = [&](const std::vector<TypeInfo>& params, const std::string& name, int line,
                              int column) {
             if (params.size() != node.arguments.size()) {
@@ -1161,7 +1232,7 @@ namespace bloch::core {
             for (size_t i = 0; i < node.arguments.size(); ++i) {
                 auto expected = params[i];
                 auto& arg = node.arguments[i];
-                auto actual = inferTypeInfo(arg.get());
+                auto actual = actualTypes[i];
                 bool expectedIsArray =
                     expected.className.size() >= 2 &&
                     expected.className.rfind("[]") == expected.className.size() - 2;
@@ -1189,7 +1260,7 @@ namespace bloch::core {
             MethodInfo* methodInfo = nullptr;
             if (!isDeclared(var->name) && !isFunctionDeclared(var->name)) {
                 if (!m_currentClass.empty())
-                    methodInfo = findMethodInHierarchy(m_currentClass, var->name);
+                    methodInfo = findMethodInHierarchy(m_currentClass, var->name, &actualTypes);
                 if (methodInfo) {
                     if (!isAccessible(methodInfo->visibility, methodInfo->owner, m_currentClass)) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -1234,7 +1305,8 @@ namespace bloch::core {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "class '" + objType.className + "' not found");
             }
-            MethodInfo* method = findMethodInHierarchy(objType.className, member->member);
+            MethodInfo* method =
+                findMethodInHierarchy(objType.className, member->member, &actualTypes);
             if (!method) {
                 if (findFieldInHierarchy(objType.className, member->member)) {
                     throw BlochError(ErrorCategory::Semantic, node.line, node.column,
