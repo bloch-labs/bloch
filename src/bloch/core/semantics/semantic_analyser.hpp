@@ -175,8 +175,7 @@ namespace bloch::core {
         TypeInfo inferTypeInfo(Expression* expr) const;
         void buildClassRegistry(Program& program);
         const ClassInfo* findClass(const std::string& name) const;
-        MethodInfo* findMethodInHierarchy(const std::string& className,
-                                          const std::string& method,
+        MethodInfo* findMethodInHierarchy(const std::string& className, const std::string& method,
                                           const std::vector<TypeInfo>* params = nullptr) const;
         FieldInfo* findFieldInHierarchy(const std::string& className,
                                         const std::string& field) const;

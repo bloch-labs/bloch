@@ -67,9 +67,8 @@ namespace bloch::core {
             for (size_t i = 0; i < expected.size(); ++i) {
                 const auto& exp = expected[i];
                 const auto& act = actual[i];
-                bool actIsArray =
-                    act.className.size() >= 2 &&
-                    act.className.rfind("[]") == act.className.size() - 2;
+                bool actIsArray = act.className.size() >= 2 &&
+                                  act.className.rfind("[]") == act.className.size() - 2;
                 if (!exp.className.empty()) {
                     if (act.value == ValueType::Null)
                         continue;  // nullable class
@@ -219,8 +218,9 @@ namespace bloch::core {
                     findMethodInHierarchy(info.base, m.name, &m.paramTypes);
                 if (m.isOverride) {
                     if (!baseMethod) {
-                        throw BlochError(ErrorCategory::Semantic, m.line, m.column,
-                                         "'" + m.name + "' marked override but base method not found");
+                        throw BlochError(
+                            ErrorCategory::Semantic, m.line, m.column,
+                            "'" + m.name + "' marked override but base method not found");
                     }
                     if (!baseMethod->isVirtual) {
                         throw BlochError(ErrorCategory::Semantic, m.line, m.column,
@@ -372,11 +372,11 @@ namespace bloch::core {
                     f.column = field->column;
                     info.fields[field->name] = f;
                 } else if (auto method = dynamic_cast<MethodDeclaration*>(member.get())) {
-                if (info.isStatic && !method->isStatic) {
-                    throw BlochError(
-                        ErrorCategory::Semantic, method->line, method->column,
-                        "static class '" + info.name + "' cannot declare instance methods");
-                }
+                    if (info.isStatic && !method->isStatic) {
+                        throw BlochError(
+                            ErrorCategory::Semantic, method->line, method->column,
+                            "static class '" + info.name + "' cannot declare instance methods");
+                    }
                     MethodInfo m;
                     m.name = method->name;
                     m.visibility = method->visibility;
@@ -392,9 +392,9 @@ namespace bloch::core {
                         m.paramTypes.push_back(typeFromAst(p->type.get()));
                     m.signature = methodSignatureLabel(method->name, m.paramTypes);
                     if (info.methodSignatures.count(m.signature)) {
-                        throw BlochError(ErrorCategory::Semantic, method->line, method->column,
-                                         "duplicate method '" + m.signature + "' in class '" +
-                                             info.name + "'");
+                        throw BlochError(
+                            ErrorCategory::Semantic, method->line, method->column,
+                            "duplicate method '" + m.signature + "' in class '" + info.name + "'");
                     }
                     info.methodSignatures.insert(m.signature);
                     if (m.isStatic && (m.isVirtual || m.isOverride)) {
