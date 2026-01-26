@@ -1157,6 +1157,14 @@ namespace bloch::core {
             return std::make_unique<LiteralExpression>(LiteralExpression{tok.value, litType});
         }
 
+        if (match(TokenType::Null)) {
+            const Token& tok = previous();
+            std::unique_ptr<NullLiteralExpression> expr = std::make_unique<NullLiteralExpression>();
+            expr->line = tok.line;
+            expr->column = tok.column;
+            return expr;
+        }
+
         if (match(TokenType::Measure)) {
             const Token& measureTok = previous();
             std::unique_ptr<Expression> target = parseExpression();
@@ -1266,6 +1274,12 @@ namespace bloch::core {
             case TokenType::StringLiteral:
                 return std::make_unique<LiteralExpression>(
                     LiteralExpression{token.value, "string"});
+            case TokenType::Null: {
+                auto expr = std::make_unique<NullLiteralExpression>();
+                expr->line = token.line;
+                expr->column = token.column;
+                return expr;
+            }
             default:
                 reportError("Expected a literal value.");
                 return nullptr;
@@ -1378,6 +1392,13 @@ namespace bloch::core {
                 std::make_unique<LiteralExpression>(lit->value, lit->literalType);
             clone->line = lit->line;
             clone->column = lit->column;
+            return clone;
+        }
+        if (auto nullLit = dynamic_cast<const NullLiteralExpression*>(&expr)) {
+            std::unique_ptr<NullLiteralExpression> clone =
+                std::make_unique<NullLiteralExpression>();
+            clone->line = nullLit->line;
+            clone->column = nullLit->column;
             return clone;
         }
         if (auto var = dynamic_cast<const VariableExpression*>(&expr)) {

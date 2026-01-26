@@ -59,6 +59,25 @@ TEST(ParserTest, ParseInitialisedVariableDeclaration) {
     EXPECT_EQ(lit->literalType, "int");
 }
 
+TEST(ParserTest, ParseNullLiteralAssignment) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; } function main() -> void { Foo f = "
+        "null; }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->functions.size(), 1u);
+    auto* func = program->functions[0].get();
+    ASSERT_NE(func->body, nullptr);
+    ASSERT_EQ(func->body->statements.size(), 1u);
+    auto* var = dynamic_cast<VariableDeclaration*>(func->body->statements[0].get());
+    ASSERT_NE(var, nullptr);
+    auto* nullLit = dynamic_cast<NullLiteralExpression*>(var->initializer.get());
+    ASSERT_NE(nullLit, nullptr);
+}
+
 TEST(ParserTest, ParseFinalVariableDeclaration) {
     Lexer lexer("final int x;");
     auto tokens = lexer.tokenize();

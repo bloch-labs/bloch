@@ -22,7 +22,7 @@
 namespace bloch::core {
 
     // A compact type universe for semantic checks and runtime hints.
-    enum class ValueType { Int, Float, String, Char, Qubit, Bit, Void, Unknown };
+    enum class ValueType { Int, Float, String, Char, Qubit, Bit, Null, Void, Unknown };
 
     ValueType typeFromString(const std::string& name);
     std::string typeToString(ValueType type);
