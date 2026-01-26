@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -37,6 +38,31 @@
 #define BLOCH_COMMIT_HASH "unknown"
 #endif
 
+struct CliOption {
+    std::string_view flag;
+    std::string_view arg;
+    std::string_view description;
+};
+
+static constexpr std::string_view kFlagHelp = "--help";
+static constexpr std::string_view kFlagVersion = "--version";
+static constexpr std::string_view kFlagEmitQasm = "--emit-qasm";
+static constexpr std::string_view kFlagShotsPrefix = "--shots=";
+static constexpr std::string_view kFlagEchoPrefix = "--echo=";
+static constexpr std::string_view kFlagUpdate = "--update";
+
+static constexpr std::array<CliOption, 6> kCliOptions = {
+    CliOption{kFlagHelp, "", "Show this help and exit"},
+    CliOption{kFlagVersion, "", "Print version and exit (checks for newer releases)"},
+    CliOption{kFlagEmitQasm, "", "Print emitted QASM to stdout"},
+    CliOption{"--shots", "=N",
+              "Run the program N times and aggregate @tracked counts (deprecated in v2.0.0; prefer "
+              "@shots(N))"},
+    CliOption{"--echo", "=auto|all|none",
+              "Control echo statements (default: auto; suppress when taking many shots)"},
+    CliOption{kFlagUpdate, "", "Download and install the latest release"},
+};
+
 static std::string formattedVersion() {
     constexpr std::string_view unknown = "unknown";
     const std::string_view hash = BLOCH_COMMIT_HASH;
@@ -47,16 +73,20 @@ static std::string formattedVersion() {
 }
 
 static void printHelp() {
+    size_t width = 0;
+    for (const auto& opt : kCliOptions) {
+        width = std::max(width, opt.flag.size() + opt.arg.size());
+    }
     std::cout << "Bloch " << formattedVersion() << "\n"
               << "Usage: bloch [options] <file.bloch>\n\n"
-              << "Options:\n"
-              << "  --help          Show this help and exit\n"
-              << "  --version       Print version and exit (checks for newer releases)\n"
-              << "  --emit-qasm     Print emitted QASM to stdout\n"
-              << "  --shots=N       Run the program N times and aggregate @tracked counts\n"
-              << "  --echo=all|none Control echo statements (default: auto)\n"
-              << "  --update        Download and install the latest release\n\n"
-              << "Behavior:\n"
+              << "Options:\n";
+    for (const auto& opt : kCliOptions) {
+        std::ostringstream line;
+        line << "  " << opt.flag << opt.arg;
+        std::cout << std::left << std::setw(static_cast<int>(width + 4)) << line.str()
+                  << opt.description << "\n";
+    }
+    std::cout << "\nBehavior:\n"
               << "  - Writes <file>.qasm alongside the input file.\n"
               << "  - When --shots is used, prints an aggregate table of tracked values.\n"
               << std::endl;
@@ -70,12 +100,12 @@ int main(int argc, char** argv) {
         return 1;
     }
     // Flags:
-    //  --emit-qasm  prints the QASM log after execution
-    //  --shots=N    runs the program N times and aggregates @tracked counts
-    //  --echo=all   echo statements are printed per shot
-    //  --echo=none  no echo statements are printed
-    //  --version    prints the build/version string and exits
-    //  --help       prints usage information and exits
+    //  --emit-qasm      prints the QASM log after execution
+    //  --shots=N        runs the program N times and aggregates @tracked counts
+    //  --echo=auto|...  controls echo behaviour (auto=default, all, none)
+    //  --version        prints the build/version string and exits
+    //  --help           prints usage information and exits
+    //  --update         downloads and installs the latest release
     // TODO: Add a --json flag
     bool emitQasm = false;
     int shots = 1;
@@ -87,26 +117,26 @@ int main(int argc, char** argv) {
     std::string file;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "--help") {
+        if (arg == kFlagHelp) {
             printHelp();
             return 0;
-        } else if (arg == "--version") {
+        } else if (arg == kFlagVersion) {
             printVersion();
             bloch::update::checkForUpdatesIfDue(BLOCH_VERSION);
             return 0;
-        } else if (arg == "--update") {
+        } else if (arg == kFlagUpdate) {
             return bloch::update::performSelfUpdate(BLOCH_VERSION, argv[0]) ? 0 : 1;
-        } else if (arg == "--emit-qasm") {
+        } else if (arg == kFlagEmitQasm) {
             emitQasm = true;
-        } else if (arg.rfind("--shots=", 0) == 0) {
+        } else if (arg.rfind(kFlagShotsPrefix, 0) == 0) {
             isCliShots = true;
-            cliShots = std::stoi(arg.substr(8));
+            cliShots = std::stoi(arg.substr(kFlagShotsPrefix.size()));
             if (cliShots <= 0) {
                 std::cerr << "--shots must be positive\n";
                 return 1;
             }
-        } else if (arg.rfind("--echo=", 0) == 0) {
-            echoOpt = arg.substr(7);
+        } else if (arg.rfind(kFlagEchoPrefix, 0) == 0) {
+            echoOpt = arg.substr(kFlagEchoPrefix.size());
         } else {
             file = arg;
         }
