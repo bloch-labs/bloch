@@ -11,6 +11,9 @@ curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/insta
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.ps1 -UseBasicParsing -OutFile $env:TEMP\\bloch-install.ps1; & $env:TEMP\\bloch-install.ps1 -Version latest"
 ```
+
+You can self-update later with `bloch --update`; major version jumps prompt for confirmation and show the changelog link.
+
 - From source: See `CONTRIBUTING.md`
 
 ## 💻 VS Code Extension 
