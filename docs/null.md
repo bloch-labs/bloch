@@ -29,5 +29,3 @@ function main() -> void {
     }
 }
 ```
-
-See `examples/null_demo.bloch` for a runnable sample.
