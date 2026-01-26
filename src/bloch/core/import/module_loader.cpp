@@ -15,9 +15,9 @@
 #include "bloch/core/import/module_loader.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <map>
 #include <sstream>
 
 #include "bloch/core/lexer/lexer.hpp"
@@ -31,7 +31,21 @@ namespace bloch::core {
     namespace fs = std::filesystem;
 
     ModuleLoader::ModuleLoader(std::vector<std::string> searchPaths)
-        : m_searchPaths(std::move(searchPaths)) {}
+        : m_searchPaths(std::move(searchPaths)) {
+        auto blochPath = splitPathListEnv("BLOCH_PATH");
+        m_searchPaths.insert(m_searchPaths.end(), blochPath.begin(), blochPath.end());
+
+        auto stdlibOverride = splitPathListEnv("BLOCH_STDLIB_PATH");
+        m_stdlibSearchPaths.insert(m_stdlibSearchPaths.end(), stdlibOverride.begin(),
+                                   stdlibOverride.end());
+
+        if (auto source = sourceStdlibPath(); !source.empty())
+            m_stdlibSearchPaths.push_back(source);
+        if (auto install = installStdlibPath(); !install.empty())
+            m_stdlibSearchPaths.push_back(install);
+        auto dataPaths = dataStdlibPaths();
+        m_stdlibSearchPaths.insert(m_stdlibSearchPaths.end(), dataPaths.begin(), dataPaths.end());
+    }
 
     std::string ModuleLoader::joinQualified(const std::vector<std::string>& parts) {
         std::ostringstream oss;
@@ -73,11 +87,16 @@ namespace bloch::core {
         for (const auto& p : parts) relative /= p;
         relative += ".bloch";
 
-        // Search order: importing file's directory, provided search paths, current working dir.
+        // Search order:
+        // 1) importing file's directory
+        // 2) user-specified paths (ctor + BLOCH_PATH)
+        // 3) current working directory
+        // 4) stdlib paths (BLOCH_STDLIB_PATH, source tree, install tree, data dirs)
         std::vector<fs::path> bases;
         bases.push_back(fromDir);
-        for (const auto& p : m_searchPaths) bases.emplace_back(p);
         bases.push_back(fs::current_path());
+        for (const auto& p : m_searchPaths) bases.emplace_back(p);
+        for (const auto& p : m_stdlibSearchPaths) bases.emplace_back(p);
 
         for (const auto& base : bases) {
             std::error_code ec;
@@ -88,6 +107,69 @@ namespace bloch::core {
                 return candidate.string();
         }
         return "";
+    }
+
+    std::vector<std::string> ModuleLoader::splitPathListEnv(const char* envVar) {
+        std::vector<std::string> paths;
+        const char* raw = std::getenv(envVar);
+        if (!raw || *raw == '\0')
+            return paths;
+
+#ifdef _WIN32
+        const char delimiter = ';';
+#else
+        const char delimiter = ':';
+#endif
+        std::stringstream ss(raw);
+        std::string item;
+        while (std::getline(ss, item, delimiter)) {
+            if (!item.empty())
+                paths.push_back(item);
+        }
+        return paths;
+    }
+
+    std::vector<std::string> ModuleLoader::dataStdlibPaths() {
+        std::vector<std::string> paths;
+        const char* xdg = std::getenv("XDG_DATA_HOME");
+        if (xdg && *xdg) {
+            paths.emplace_back(std::string(xdg) + "/bloch/library");
+        } else {
+            const char* home = std::getenv("HOME");
+            if (home && *home)
+                paths.emplace_back(std::string(home) + "/.local/share/bloch/library");
+        }
+        paths.emplace_back("/usr/local/share/bloch/library");
+        paths.emplace_back("/usr/share/bloch/library");
+        return paths;
+    }
+
+    std::string ModuleLoader::installStdlibPath() {
+#ifdef BLOCH_STDLIB_INSTALL_DIR
+        return std::string(BLOCH_STDLIB_INSTALL_DIR);
+#else
+        return "";
+#endif
+    }
+
+    std::string ModuleLoader::sourceStdlibPath() {
+#ifdef BLOCH_STDLIB_SOURCE_DIR
+        return std::string(BLOCH_STDLIB_SOURCE_DIR);
+#else
+        return "";
+#endif
+    }
+
+    void ModuleLoader::processImports(Program& program, const std::string& fromDir) {
+        for (auto& imp : program.imports) {
+            std::string target = resolveImportPath(imp->path, fromDir);
+            if (target.empty()) {
+                throw BlochError(ErrorCategory::Semantic, imp->line, imp->column,
+                                 "import '" + joinQualified(imp->path) + "' not found");
+            }
+            loadModule(target);
+        }
+        program.imports.clear();
     }
 
     void ModuleLoader::loadModule(const std::string& path) {
@@ -107,16 +189,7 @@ namespace bloch::core {
         std::unique_ptr<Program> program = parseFile(canon);
 
         fs::path parent = fs::path(canon).parent_path();
-        for (auto& imp : program->imports) {
-            std::string target = resolveImportPath(imp->path, parent.string());
-            if (target.empty()) {
-                throw BlochError(ErrorCategory::Semantic, imp->line, imp->column,
-                                 "import '" + joinQualified(imp->path) + "' not found");
-            }
-            loadModule(target);
-        }
-
-        program->imports.clear();
+        processImports(*program, parent.string());
         m_cache[canon] = std::move(program);
         m_loadOrder.push_back(canon);
         m_stack.pop_back();

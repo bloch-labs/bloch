@@ -153,6 +153,8 @@ choose_dest() {
 
 DEST=$(choose_dest)
 mkdir -p "$DEST"
+DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
+STDLIB_DEST="$DATA_HOME/bloch/library"
 
 TMPDIR=$(mktemp -d)
 cleanup() { rm -rf "$TMPDIR"; }
@@ -233,6 +235,18 @@ install -m 0755 "$BLOCH_BIN" "$DEST/bloch"
 
 success "Installed: $DEST/bloch"
 note "You can verify with: bloch --version"
+
+# Install stdlib (Bloch sources) to a shared data directory
+STDLIB_SRC=$(find "$TMPDIR" -maxdepth 5 -type d -name 'library' | head -n1)
+if [[ -n "${STDLIB_SRC// }" ]]; then
+  step "Installing stdlib to $STDLIB_DEST"
+  mkdir -p "$STDLIB_DEST"
+  cp -R "$STDLIB_SRC"/. "$STDLIB_DEST"/
+  success "Stdlib installed to $STDLIB_DEST"
+else
+  warn "No stdlib directory found in archive. Imports like 'bloch.lang.Integer' may fail."
+  warn "You can set BLOCH_STDLIB_PATH to point to a local stdlib copy."
+fi
 
 # Offer to add DEST to PATH if not already there
 path_has_dest=0

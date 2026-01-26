@@ -1,0 +1,251 @@
+// Basic math helpers implemented in Bloch; all members are static.
+static class Math {
+
+    public static final float PI = 3.141592653589793f;
+    public static final float TAU = 6.283185307179586f;
+    public static final float E = 2.718281828459045f;
+    public static final float HALF_PI = PI / 2.0f;
+    public static final float QUARTER_PI = PI / 4.0f;
+    public static final float SQRT2 = 1.4142135623730951f;
+    public static final float INV_SQRT2 = 0.7071067811865475f;
+    public static final float LN2 = 0.6931471805599453f;
+    public static final float LN10 = 2.302585092994046f;
+    public static final float EPSILON = 0.000001f;
+    public static final float RAD_TO_DEG = 180.0f / PI;
+    public static final float DEG_TO_RAD = PI / 180.0f;
+
+    public static function abs(int x) -> int {
+        if (x < 0) {return -x;}
+        return x;
+    }
+
+    public static function abs(float x) -> float {
+        if (x < 0.0f) {return -x;}
+        return x;
+    }
+
+    public static function min(int a, int b) -> int {
+        if (a < b) {return a;}
+        return b;
+    }
+
+    public static function min(float a, float b) -> float {
+        if (a < b) {return a;}
+        return b;
+    }
+
+    public static function min(int a, int b, int c) -> int {
+        return min(min(a, b), c);
+    }
+
+    public static function min(float a, float b, float c) -> float {
+        return min(min(a, b), c);
+    }
+
+    public static function max(int a, int b) -> int {
+        if (a > b) {return a;}
+        return b;
+    }
+
+    public static function max(float a, float b) -> float {
+        if (a > b) {return a;}
+        return b;
+    }
+
+    public static function max(int a, int b, int c) -> int {
+        return max(max(a, b), c);
+    }
+
+    public static function max(float a, float b, float c) -> float {
+        return max(max(a, b), c);
+    }
+
+    public static function clamp(int v, int lo, int hi) -> int {
+        if (v < lo) {return lo;}
+        if (v > hi) {return hi;}
+        return v;
+    }
+
+    public static function clamp(float v, float lo, float hi) -> float {
+        if (v < lo) {return lo;}
+        if (v > hi) {return hi;}
+        return v;
+    }
+
+    public static function clamp01(float v) -> float {
+        return clamp(v, 0.0f, 1.0f);
+    }
+
+    public static function sign(int x) -> int {
+        if (x > 0) {return 1;}
+        if (x < 0) {return -1;}
+        return 0;
+    }
+
+    public static function sign(float x) -> int {
+        if (x > 0.0f) {return 1;}
+        if (x < 0.0f) {return -1;}
+        return 0;
+    }
+
+    public static function isEven(int x) -> bit {
+        return (x % 2) == 0;
+    }
+
+    public static function isOdd(int x) -> bit {
+        return (x % 2) != 0;
+    }
+
+    public static function distance(int a, int b) -> int {
+        return abs(a - b);
+    }
+
+    public static function distance(float a, float b) -> float {
+        return abs(a - b);
+    }
+
+    public static function truncate(float x) -> int {
+        return (int)x;
+    }
+
+    public static function floor(float x) -> int {
+        int t = (int)x;
+        if (x < 0.0f && (float)t != x) {return t - 1;}
+        return t;
+    }
+
+    public static function ceil(float x) -> int {
+        int t = (int)x;
+        if (x > (float)t) {return t + 1;}
+        return t;
+    }
+
+    public static function round(float x) -> int {
+        if (x >= 0.0f) {return floor(x + 0.5f);}
+        return ceil(x - 0.5f);
+    }
+
+    public static function frac(float x) -> float {
+        return x - (float)truncate(x);
+    }
+
+    public static function fmod(float value, float modulus) -> float {
+        if (modulus == 0.0f) {return 0.0f;}
+        float q = (float)truncate(value / modulus);
+        return value - q * modulus;
+    }
+
+    public static function sqrt(float x) -> float {
+        if (x <= 0.0f) {return 0.0f;}
+        float guess;
+
+        if (x < 1.0f) {
+            guess = 1.0f;
+        } else {
+            guess = x;
+        }
+
+        int i = 0;
+        while (i < 12) {
+            guess = 0.5f * (guess + x / guess);
+            i = i + 1;
+        }
+        return guess;
+    }
+
+    public static function sqrt(int x) -> float {
+        if (x <= 0) {return 0.0f;}
+        return sqrt((float)x);
+    }
+
+    public static function cbrt(float x) -> float {
+        if (x == 0.0f) {return 0.0f;}
+        float guess = x;
+        int i = 0;
+        while (i < 20) {
+            guess = (2.0f * guess + x / (guess * guess)) / 3.0f;
+            i = i + 1;
+        }
+        return guess;
+    }
+
+    public static function pow(float base, int exp) -> float {
+        float result = 1.0f;
+        float b = base;
+        int e = exp;
+        if (e < 0) {
+            e = -e;
+            b = 1.0f / b;
+        }
+        while (e > 0) {
+            if ((e % 2) == 1) {result = result * b;}
+            b = b * b;
+            e = e / 2;
+        }
+        return result;
+    }
+
+    public static function pow(int base, int exp) -> int {
+        int result = 1;
+        int b = base;
+        int e = exp;
+        if (e < 0) {return 0;}
+        while (e > 0) {
+            if ((e % 2) == 1) {result = result * b;}
+            b = b * b;
+            e = e / 2;
+        }
+        return result;
+    }
+
+    public static function gcd(int a, int b) -> int {
+        int x = abs(a);
+        int y = abs(b);
+        while (y != 0) {
+            int r = x % y;
+            x = y;
+            y = r;
+        }
+        return x;
+    }
+
+    public static function lcm(int a, int b) -> int {
+        if (a == 0 || b == 0) {return 0;}
+        return abs(a / gcd(a, b) * b);
+    }
+
+    public static function hypot(float a, float b) -> float {
+        return sqrt(a * a + b * b);
+    }
+
+    public static function hypot(int a, int b) -> float {
+        return hypot((float)a, (float)b);
+    }
+
+    public static function lerp(float a, float b, float t) -> float {
+        return a + (b - a) * t;
+    }
+
+    public static function mix(float a, float b, float t) -> float {
+        return lerp(a, b, t);
+    }
+
+    public static function normalizeAngleTau(float radians) -> float {
+        float wrapped = fmod(radians, TAU);
+        if (wrapped < 0.0f) {wrapped = wrapped + TAU;}
+        return wrapped;
+    }
+
+    public static function normalizeAnglePi(float radians) -> float {
+        float wrapped = normalizeAngleTau(radians + PI);
+        return wrapped - PI;
+    }
+
+    public static function degToRad(float degrees) -> float {
+        return degrees * DEG_TO_RAD;
+    }
+
+    public static function radToDeg(float radians) -> float {
+        return radians * RAD_TO_DEG;
+    }
+}

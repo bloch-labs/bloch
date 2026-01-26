@@ -37,14 +37,20 @@ namespace bloch::core {
 
        private:
         std::vector<std::string> m_searchPaths;
+        std::vector<std::string> m_stdlibSearchPaths;
         std::unordered_map<std::string, std::unique_ptr<Program>> m_cache;
         std::vector<std::string> m_loadOrder;
         std::vector<std::string> m_stack;
 
         std::unique_ptr<Program> parseFile(const std::string& path) const;
         void loadModule(const std::string& path);
+        void processImports(Program& program, const std::string& fromDir);
         std::string resolveImportPath(const std::vector<std::string>& parts,
                                       const std::string& fromDir) const;
+        static std::vector<std::string> splitPathListEnv(const char* envVar);
+        static std::vector<std::string> dataStdlibPaths();
+        static std::string installStdlibPath();
+        static std::string sourceStdlibPath();
         std::string canonicalize(const std::string& path) const;
         static std::string joinQualified(const std::vector<std::string>& parts);
     };

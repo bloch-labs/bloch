@@ -31,6 +31,9 @@ if(NOT OpenSSL_FOUND)
     find_package(OpenSSL REQUIRED)
 endif()
 
+file(TO_CMAKE_PATH "${CMAKE_INSTALL_PREFIX}/share/bloch/library" _BLOCH_STDLIB_INSTALL_DIR)
+file(TO_CMAKE_PATH "${CMAKE_SOURCE_DIR}/library" _BLOCH_STDLIB_SOURCE_DIR)
+
 add_library(bloch_lib ${BLOCH_SOURCES})
 
 target_include_directories(bloch_lib PUBLIC
@@ -39,6 +42,8 @@ target_include_directories(bloch_lib PUBLIC
 
 target_compile_definitions(bloch_lib PUBLIC
     CPPHTTPLIB_OPENSSL_SUPPORT
+    BLOCH_STDLIB_INSTALL_DIR="${_BLOCH_STDLIB_INSTALL_DIR}"
+    BLOCH_STDLIB_SOURCE_DIR="${_BLOCH_STDLIB_SOURCE_DIR}"
 )
 
 target_link_libraries(bloch_lib
@@ -74,3 +79,4 @@ target_compile_definitions(bloch PRIVATE
 
 # Install target for local development installs
 install(TARGETS bloch RUNTIME DESTINATION bin)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/library/ DESTINATION share/bloch/library)

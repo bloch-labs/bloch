@@ -1,0 +1,26 @@
+import bloch.util.Math;
+
+function main() -> void {
+    echo(Math.PI);
+    echo(Math.TAU);
+    echo(Math.HBAR);
+
+    float s = Math.sqrt(2.0f);
+    float si = Math.sqrt(9);
+    echo(s);
+    echo(si);
+
+    int g = Math.gcd(54, 24);
+    int l = Math.lcm(6, 8);
+    echo(g);
+    echo(l);
+
+    float h = Math.hypot(3.0f, 4.0f);
+    echo(h);
+
+    float wrapped = Math.normalizeAngleTau(-Math.PI / 2.0f);
+    echo(wrapped);
+
+    float deg = Math.radToDeg(Math.HALF_PI);
+    echo(deg);
+}
