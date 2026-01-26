@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -121,6 +121,8 @@ namespace bloch::core {
             bool isOverride = false;
             bool hasBody = false;
             bool isDefault = false;  // used for constructors
+            std::string name;
+            std::string signature;
             TypeInfo returnType;
             std::vector<TypeInfo> paramTypes;
             std::string owner;
@@ -137,7 +139,8 @@ namespace bloch::core {
             bool hasUserDestructor = false;  // true if explicitly declared
             std::vector<std::string> abstractMethods;
             std::unordered_map<std::string, FieldInfo> fields;
-            std::unordered_map<std::string, MethodInfo> methods;
+            std::unordered_map<std::string, std::vector<MethodInfo>> methods;
+            std::unordered_set<std::string> methodSignatures;
             std::vector<MethodInfo> constructors;
             std::vector<ConstructorDeclaration*> ctorDecls;  // raw pointers owned by AST
             int line = 0;
@@ -172,8 +175,8 @@ namespace bloch::core {
         TypeInfo inferTypeInfo(Expression* expr) const;
         void buildClassRegistry(Program& program);
         const ClassInfo* findClass(const std::string& name) const;
-        MethodInfo* findMethodInHierarchy(const std::string& className,
-                                          const std::string& method) const;
+        MethodInfo* findMethodInHierarchy(const std::string& className, const std::string& method,
+                                          const std::vector<TypeInfo>* params = nullptr) const;
         FieldInfo* findFieldInHierarchy(const std::string& className,
                                         const std::string& field) const;
         const FieldInfo* resolveField(const std::string& name, int line, int column) const;

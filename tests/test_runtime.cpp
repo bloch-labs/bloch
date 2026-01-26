@@ -236,6 +236,22 @@ TEST(RuntimeTest, NullInequalityChecksObjectPresence) {
     EXPECT_EQ("0\n1\n", output.str());
 }
 
+TEST(RuntimeTest, MethodOverloadDispatchesByParameterTypes) {
+    const char* src =
+        "class Foo { public function val(int x) -> int { return 1; } public function val(float x) "
+        "-> int { return 2; } public constructor() -> Foo = default; } "
+        "function main() -> void { Foo f = new Foo(); echo(f.val(1)); echo(f.val(1f)); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("1\n2\n", output.str());
+}
+
 TEST(RuntimeTest, MemberAccessOnNullThrows) {
     const char* src =
         "class Foo { public int x; public constructor() -> Foo = default; } function main() -> "
