@@ -235,6 +235,7 @@ namespace bloch::runtime {
         bool m_inDestructor = false;
         std::atomic<bool> m_gcRequested{false};
         std::atomic<bool> m_stopGc{false};
+        bool m_gcThreadStarted = false;
         std::thread m_gcThread;
         std::condition_variable m_gcCv;
         std::mutex m_gcMutex;
@@ -300,6 +301,8 @@ namespace bloch::runtime {
         void setEcho(bool enabled) { m_echoEnabled = enabled; }
         void setWarnOnExit(bool enabled) { m_warnOnExit = enabled; }
         const auto& trackedCounts() const { return m_trackedCounts; }
+        // Test helper to observe whether the GC worker was started for this run.
+        bool gcThreadStartedForTest() const { return m_gcThreadStarted; }
     };
 
 }  // namespace bloch::runtime

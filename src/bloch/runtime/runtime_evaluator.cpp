@@ -285,11 +285,15 @@ namespace bloch::runtime {
         m_inDestructor = false;
         m_stopGc = false;
         m_gcRequested = false;
+        m_gcThreadStarted = false;
         m_allocSinceGc = 0;
         m_sim = QasmSimulator{m_collectQasmLog};
-        buildClassTable(program);
-        for (auto& kv : m_classTable) initStaticFields(kv.second.get());
-        ensureGcThread();
+        bool hasClasses = !program.classes.empty();
+        if (hasClasses) {
+            buildClassTable(program);
+            for (auto& kv : m_classTable) initStaticFields(kv.second.get());
+            ensureGcThread();
+        }
         for (auto& fn : program.functions) {
             m_functions[fn->name] = fn.get();
         }
@@ -297,11 +301,13 @@ namespace bloch::runtime {
         if (it != m_functions.end()) {
             call(it->second, {});
         }
-        m_stopGc = true;
-        m_gcRequested = true;
-        m_gcCv.notify_all();
-        if (m_gcThread.joinable())
-            m_gcThread.join();
+        if (m_gcThreadStarted) {
+            m_stopGc = true;
+            m_gcRequested = true;
+            m_gcCv.notify_all();
+            if (m_gcThread.joinable())
+                m_gcThread.join();
+        }
         runCycleCollector();
         // Ensure warnings appear before any normal echo output
         if (m_warnOnExit)
@@ -572,6 +578,7 @@ namespace bloch::runtime {
             return;
         m_stopGc = false;
         m_gcRequested = false;
+        m_gcThreadStarted = true;
         m_gcThread = std::thread([this]() {
             std::unique_lock<std::mutex> lock(m_gcMutex);
             while (!m_stopGc.load()) {

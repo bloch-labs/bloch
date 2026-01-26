@@ -206,6 +206,28 @@ TEST(RuntimeTest, EchoFloatPrintsWithDecimal) {
     EXPECT_EQ("3.0\n", output.str());
 }
 
+TEST(RuntimeTest, SkipsGcThreadWhenProgramHasNoClasses) {
+    const char* src = "function main() -> void { bit b = 0b; echo(b); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    EXPECT_FALSE(eval.gcThreadStartedForTest());
+}
+
+TEST(RuntimeTest, StartsGcThreadWhenClassesExist) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; } function main() -> void { Foo f = "
+        "new Foo(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    eval.execute(*program);
+    EXPECT_TRUE(eval.gcThreadStartedForTest());
+}
+
 TEST(RuntimeTest, IntDivisionPromotesToFloat) {
     const char* src = "function main() -> void { echo(1/2); }";
     auto program = parseProgram(src);
