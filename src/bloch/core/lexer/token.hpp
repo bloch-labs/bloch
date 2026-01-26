@@ -29,6 +29,7 @@ namespace bloch::core {
         CharLiteral,
 
         // Keywords
+        Null,
         Int,
         Float,
         String,

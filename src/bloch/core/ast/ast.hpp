@@ -224,6 +224,11 @@ namespace bloch::core {
         void accept(ASTVisitor& visitor) override;
     };
 
+    struct NullLiteralExpression : public Expression {
+        NullLiteralExpression() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
     // Variable Expression
     struct VariableExpression : public Expression {
         std::string name;
@@ -532,6 +537,7 @@ namespace bloch::core {
         virtual void visit(CastExpression& node) = 0;
         virtual void visit(PostfixExpression& node) = 0;
         virtual void visit(LiteralExpression& node) = 0;
+        virtual void visit(NullLiteralExpression& node) = 0;
         virtual void visit(VariableExpression& node) = 0;
         virtual void visit(CallExpression& node) = 0;
         virtual void visit(MemberAccessExpression& node) = 0;
@@ -582,6 +588,7 @@ namespace bloch::core {
     inline void CastExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void PostfixExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void LiteralExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void NullLiteralExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VariableExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void CallExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MemberAccessExpression::accept(ASTVisitor& visitor) { visitor.visit(*this); }

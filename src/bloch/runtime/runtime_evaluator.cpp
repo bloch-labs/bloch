@@ -47,6 +47,10 @@ namespace bloch::runtime {
         return {nullptr, nullptr};
     }
 
+    static bool isNullReference(const Value& v) {
+        return v.type == Value::Type::Object && !v.objectValue;
+    }
+
     static std::string valueToString(const Value& v) {
         // Pretty-print a runtime value for echo and tracked summaries.
         std::ostringstream oss;
@@ -117,6 +121,8 @@ namespace bloch::runtime {
                 oss << "}";
                 return oss.str();
             case Value::Type::Object:
+                if (isNullReference(v))
+                    return "null";
                 if (v.objectValue && v.objectValue->cls)
                     return "<" + v.objectValue->cls->name + " object>";
                 return "<object>";
@@ -129,7 +135,7 @@ namespace bloch::runtime {
                     if (obj && obj->cls)
                         oss << "<" << obj->cls->name << ">";
                     else
-                        oss << "<object>";
+                        oss << "null";
                 }
                 oss << "}";
                 return oss.str();
@@ -356,7 +362,8 @@ namespace bloch::runtime {
             if (fit != it->end()) {
                 Value newVal = v;
                 if (fit->second.value.type == Value::Type::Object &&
-                    newVal.type == Value::Type::Object && !fit->second.value.className.empty()) {
+                    newVal.type == Value::Type::Object && newVal.objectValue &&
+                    !fit->second.value.className.empty()) {
                     newVal.className = fit->second.value.className;
                 }
                 fit->second.value = newVal;
@@ -372,7 +379,8 @@ namespace bloch::runtime {
                     Value newVal = v;
                     const Value& existing = thisObj->fields[field->offset];
                     if (existing.type == Value::Type::Object &&
-                        newVal.type == Value::Type::Object && !existing.className.empty()) {
+                        newVal.type == Value::Type::Object && newVal.objectValue &&
+                        !existing.className.empty()) {
                         newVal.className = existing.className;
                     }
                     thisObj->fields[field->offset] = newVal;
@@ -384,7 +392,7 @@ namespace bloch::runtime {
                 Value newVal = v;
                 const Value& existing = owner->staticStorage[field->offset];
                 if (existing.type == Value::Type::Object && newVal.type == Value::Type::Object &&
-                    !existing.className.empty()) {
+                    newVal.objectValue && !existing.className.empty()) {
                     newVal.className = existing.className;
                 }
                 owner->staticStorage[field->offset] = newVal;
@@ -785,6 +793,8 @@ namespace bloch::runtime {
                 const auto& expected = candidate.params[i];
                 const auto& actual = args[i];
                 if (expected.kind == Value::Type::Object) {
+                    if (isNullReference(actual))
+                        continue;
                     if (actual.type != Value::Type::Object)
                         return false;
                     if (!expected.className.empty() && actual.className != expected.className)
@@ -1056,10 +1066,8 @@ namespace bloch::runtime {
                             v.qubitArray[i] = allocateTrackedQubit(var->name);
                     }
                 }
-            } else if (auto named = dynamic_cast<NamedType*>(var->varType.get())) {
+            } else if (dynamic_cast<NamedType*>(var->varType.get())) {
                 v.type = Value::Type::Object;
-                if (!named->nameParts.empty())
-                    v.className = named->nameParts.back();
             }
             bool initialized = false;
             if (var->initializer) {
@@ -1161,10 +1169,6 @@ namespace bloch::runtime {
                     v = eval(var->initializer.get());
                     initialized = true;
                 }
-            }
-            if (auto named = dynamic_cast<NamedType*>(var->varType.get())) {
-                if (!named->nameParts.empty())
-                    v.className = named->nameParts.back();
             }
             m_env.back()[var->name] = {v, var->isTracked, initialized};
         } else if (auto block = dynamic_cast<BlockStatement*>(s)) {
@@ -1278,6 +1282,13 @@ namespace bloch::runtime {
     Value RuntimeEvaluator::eval(Expression* e) {
         if (!e)
             return {};
+        if (dynamic_cast<NullLiteralExpression*>(e)) {
+            Value v;
+            v.type = Value::Type::Object;
+            v.objectValue = nullptr;
+            v.className = "";
+            return v;
+        }
         if (auto lit = dynamic_cast<LiteralExpression*>(e)) {
             Value v;
             if (lit->literalType == "bit") {
@@ -1524,6 +1535,10 @@ namespace bloch::runtime {
             return v;
         } else if (auto memAcc = dynamic_cast<MemberAccessExpression*>(e)) {
             Value obj = eval(memAcc->object.get());
+            if (isNullReference(obj)) {
+                throw BlochError(ErrorCategory::Runtime, memAcc->line, memAcc->column,
+                                 "null reference");
+            }
             if (obj.type == Value::Type::ClassRef && obj.classRef) {
                 auto [field, owner] = findStaticFieldWithOwner(obj.classRef, memAcc->member);
                 RuntimeMethod* method = findMethod(obj.classRef, memAcc->member);
@@ -1561,6 +1576,27 @@ namespace bloch::runtime {
         } else if (auto bin = dynamic_cast<BinaryExpression*>(e)) {
             Value l = eval(bin->left.get());
             Value r = eval(bin->right.get());
+            auto isObjectLike = [](const Value& v) {
+                return v.type == Value::Type::Object || v.type == Value::Type::ClassRef;
+            };
+
+            if (bin->op == "==" || bin->op == "!=") {
+                if (isObjectLike(l) || isObjectLike(r)) {
+                    if (l.type == Value::Type::Object && r.type == Value::Type::Object) {
+                        bool eq = l.objectValue == r.objectValue;
+                        bool res = (bin->op == "==") ? eq : !eq;
+                        return {Value::Type::Bit, 0, 0.0, res ? 1 : 0};
+                    }
+                    if (l.type == Value::Type::ClassRef && r.type == Value::Type::ClassRef) {
+                        bool eq = l.classRef == r.classRef;
+                        bool res = (bin->op == "==") ? eq : !eq;
+                        return {Value::Type::Bit, 0, 0.0, res ? 1 : 0};
+                    }
+                    throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                     "equality on references requires two class references");
+                }
+            }
+
             auto lInt = l.type == Value::Type::Bit ? l.bitValue : l.intValue;
             auto rInt = r.type == Value::Type::Bit ? r.bitValue : r.intValue;
             double lNum = l.type == Value::Type::Float ? l.floatValue : static_cast<double>(lInt);
@@ -1569,10 +1605,18 @@ namespace bloch::runtime {
                 if (l.type == Value::Type::String || r.type == Value::Type::String) {
                     return {Value::Type::String, 0, 0.0, 0, valueToString(l) + valueToString(r)};
                 }
+                if (isObjectLike(l) || isObjectLike(r)) {
+                    throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                     "operator '+' not supported for class references");
+                }
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float) {
                     return {Value::Type::Float, 0, lNum + rNum};
                 }
                 return {Value::Type::Int, lInt + rInt};
+            }
+            if (isObjectLike(l) || isObjectLike(r)) {
+                throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                 "operator '" + bin->op + "' not supported for class references");
             }
             if (bin->op == "-") {
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float)
@@ -1859,6 +1903,10 @@ namespace bloch::runtime {
                 std::vector<Value> args;
                 for (auto& a : callExpr->arguments) args.push_back(eval(a.get()));
                 Value target = eval(member->object.get());
+                if (isNullReference(target)) {
+                    throw BlochError(ErrorCategory::Runtime, member->line, member->column,
+                                     "null reference");
+                }
                 RuntimeMethod* method = nullptr;
                 RuntimeClass* staticCls = nullptr;
                 std::shared_ptr<Object> receiver;
@@ -1970,6 +2018,10 @@ namespace bloch::runtime {
             return v;
         } else if (auto memAssign = dynamic_cast<MemberAssignmentExpression*>(e)) {
             Value obj = eval(memAssign->object.get());
+            if (isNullReference(obj)) {
+                throw BlochError(ErrorCategory::Runtime, memAssign->line, memAssign->column,
+                                 "null reference");
+            }
             Value rhs = eval(memAssign->value.get());
             if (obj.type == Value::Type::Object && obj.objectValue) {
                 RuntimeField* instField =

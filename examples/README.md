@@ -145,6 +145,17 @@ bloch examples/10_maxcut_c4_class.bloch --shots=1024
 Encapsulates a p=1 QAOA for the 4-node cycle. Constructor captures `(gamma, beta)`; `run` builds |+>^4, applies the cost on edges (0,1), (1,2), (2,3), (3,0), then a mixer.  
 **Expected output:** Histogram concentrated on bitstrings with alternating bits (e.g., `0101`, `1010`), which are the MaxCut optima for C4.
 
+## 07 Null demo
+
+**File** `examples/07_null_demo.bloch`
+
+**Try:**
+```bash
+bloch examples/07_null_demo.bloch
+```
+
+This example demonstrates null reference in a user created class. While primitives are non-nullable, class members can be initialised to null. 
+
 ## Multi-file import: static QuantumMath helper
 
 **Files:** `examples/multifile/QuantumMath.bloch`, `examples/multifile/main.bloch`

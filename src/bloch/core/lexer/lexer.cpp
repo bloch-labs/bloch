@@ -236,6 +236,7 @@ namespace bloch::core {
         static const std::unordered_map<std::string_view, TokenType> keywords = {
 
             // Primitives
+            {"null", TokenType::Null},
             {"int", TokenType::Int},
             {"float", TokenType::Float},
             {"string", TokenType::String},
