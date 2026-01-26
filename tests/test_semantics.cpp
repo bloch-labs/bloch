@@ -66,6 +66,51 @@ TEST(SemanticTest, InnerVariableNotVisibleOutside) {
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
+TEST(SemanticTest, NullAllowedForClassReferences) {
+    const char* src =
+        "class Node { public Node next; public constructor() -> Node { this.next = null; return "
+        "this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, NullRejectedForPrimitive) {
+    auto program = parseProgram("int x = null;");
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, NullRejectedForArrays) {
+    auto program = parseProgram("int[] xs = null;");
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, NullComparisonRequiresClassReference) {
+    auto program = parseProgram("function main() -> void { int x = 0; if (x == null) { } }");
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, NullComparisonAllowedForClassReference) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; } function main() -> void { Foo f = "
+        "null; if (f == null) { } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, NullNotEqualsAllowedForClassReference) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; } function main() -> void { Foo f = "
+        "new Foo(); if (f != null) { } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
 TEST(SemanticTest, OuterVariableVisibleInsideBlock) {
     auto program = parseProgram("int x; { x = 2; }");
     SemanticAnalyser analyser;

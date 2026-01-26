@@ -59,6 +59,7 @@ namespace bloch::core {
         void visit(CastExpression& node) override;
         void visit(PostfixExpression& node) override;
         void visit(LiteralExpression& node) override;
+        void visit(NullLiteralExpression& node) override;
         void visit(VariableExpression& node) override;
         void visit(CallExpression& node) override;
         void visit(MemberAccessExpression& node) override;

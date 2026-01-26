@@ -528,6 +528,8 @@ namespace bloch::core {
     SemanticAnalyser::TypeInfo SemanticAnalyser::inferTypeInfo(Expression* expr) const {
         if (!expr)
             return combine(ValueType::Unknown, "");
+        if (dynamic_cast<NullLiteralExpression*>(expr))
+            return combine(ValueType::Null, "");
         if (auto lit = dynamic_cast<LiteralExpression*>(expr))
             return combine(typeFromString(lit->literalType), "");
         if (auto var = dynamic_cast<VariableExpression*>(expr)) {
@@ -788,6 +790,7 @@ namespace bloch::core {
             }
         }
         if (node.initializer) {
+            TypeInfo initInfo = inferTypeInfo(node.initializer.get());
             // Disallow initialisation of qubit arrays
             if (auto arr = dynamic_cast<ArrayType*>(node.varType.get())) {
                 if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
@@ -795,6 +798,10 @@ namespace bloch::core {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                          "qubit[] cannot be initialised");
                     }
+                }
+                if (initInfo.value == ValueType::Null) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "initializer for '" + node.name + "' cannot be null");
                 }
             }
             if (auto call = dynamic_cast<CallExpression*>(node.initializer.get())) {
@@ -808,7 +815,7 @@ namespace bloch::core {
             // Validate initializer expression first so cast errors surface before type checks.
             node.initializer->accept(*this);
             if (auto primType = tinfo.value; primType != ValueType::Unknown) {
-                ValueType initT = inferTypeInfo(node.initializer.get()).value;
+                ValueType initT = initInfo.value;
                 if (initT != ValueType::Unknown && initT != primType) {
                     if (primType == ValueType::Bit) {
                         if (auto lit = dynamic_cast<LiteralExpression*>(node.initializer.get())) {
@@ -831,7 +838,7 @@ namespace bloch::core {
                                          typeToString(initT) + "'");
                 }
             } else if (!tinfo.className.empty()) {
-                auto initT = inferTypeInfo(node.initializer.get());
+                auto initT = initInfo;
                 if (!initT.className.empty() && initT.className != tinfo.className) {
                     throw BlochError(
                         ErrorCategory::Semantic, node.line, node.column,
@@ -952,7 +959,7 @@ namespace bloch::core {
     void SemanticAnalyser::visit(DestroyStatement& node) {
         if (node.target) {
             auto t = inferTypeInfo(node.target.get());
-            if (t.className.empty()) {
+            if (t.className.empty() && t.value != ValueType::Null) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "'destroy' requires a class reference");
             }
@@ -966,8 +973,21 @@ namespace bloch::core {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "Cannot assign to final variable '" + node.name + "'");
             }
-            if (node.value)
+            if (node.value) {
+                auto valType = inferTypeInfo(node.value.get());
+                if (valType.value == ValueType::Null) {
+                    TypeInfo target = getVariableType(node.name);
+                    bool targetIsArray =
+                        target.className.size() >= 2 &&
+                        target.className.rfind("[]") == target.className.size() - 2;
+                    bool targetIsClass = !target.className.empty() && !targetIsArray;
+                    if (!targetIsClass) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "cannot assign null to '" + node.name + "'");
+                    }
+                }
                 node.value->accept(*this);
+            }
             return;
         }
         if (auto field = resolveField(node.name, node.line, node.column)) {
@@ -980,7 +1000,16 @@ namespace bloch::core {
             }
             if (node.value) {
                 auto valType = inferTypeInfo(node.value.get());
-                if (!field->type.className.empty()) {
+                bool fieldIsArray =
+                    field->type.className.size() >= 2 &&
+                    field->type.className.rfind("[]") == field->type.className.size() - 2;
+                if (valType.value == ValueType::Null) {
+                    if (fieldIsArray || field->type.className.empty()) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "cannot assign null to field '" + node.name + "'");
+                    }
+                }
+                if (!field->type.className.empty() && valType.value != ValueType::Null) {
                     if (valType.className != field->type.className) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                          "assignment to field '" + node.name + "' expects '" +
@@ -1006,6 +1035,36 @@ namespace bloch::core {
             node.left->accept(*this);
         if (node.right)
             node.right->accept(*this);
+        auto lt = inferTypeInfo(node.left.get());
+        auto rt = inferTypeInfo(node.right.get());
+        if ((lt.value == ValueType::Null || rt.value == ValueType::Null) &&
+            node.op != "==" && node.op != "!=") {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "null can only be used in equality comparisons");
+        }
+        if (node.op == "==" || node.op == "!=") {
+            auto isArrayClass = [](const std::string& name) {
+                return name.size() >= 2 && name.rfind("[]") == name.size() - 2;
+            };
+            auto isClassRef = [&](const TypeInfo& t) {
+                return !t.className.empty() && !isArrayClass(t.className);
+            };
+            bool leftNull = lt.value == ValueType::Null;
+            bool rightNull = rt.value == ValueType::Null;
+            if (leftNull && rightNull)
+                return;
+            if (leftNull || rightNull) {
+                const TypeInfo& other = leftNull ? rt : lt;
+                if (!isClassRef(other)) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "null comparison requires a class reference");
+                }
+                if (isArrayClass(other.className)) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "null comparison with arrays is not allowed");
+                }
+            }
+        }
     }
 
     void SemanticAnalyser::visit(UnaryExpression& node) {
@@ -1080,6 +1139,7 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(LiteralExpression&) {}
+    void SemanticAnalyser::visit(NullLiteralExpression&) {}
 
     void SemanticAnalyser::visit(VariableExpression& node) {
         if (isDeclared(node.name) || isFunctionDeclared(node.name))
@@ -1102,6 +1162,14 @@ namespace bloch::core {
                 auto expected = params[i];
                 auto& arg = node.arguments[i];
                 auto actual = inferTypeInfo(arg.get());
+                bool expectedIsArray =
+                    expected.className.size() >= 2 &&
+                    expected.className.rfind("[]") == expected.className.size() - 2;
+                if (expectedIsArray && actual.value == ValueType::Null) {
+                    throw BlochError(ErrorCategory::Semantic, arg->line, arg->column,
+                                     "argument #" + std::to_string(i + 1) + " to '" + name +
+                                         "' expected '" + expected.className + "'");
+                }
                 if (!expected.className.empty()) {
                     if (!actual.className.empty() && actual.className != expected.className) {
                         throw BlochError(ErrorCategory::Semantic, arg->line, arg->column,
@@ -1228,8 +1296,15 @@ namespace bloch::core {
                     for (size_t i = 0; i < ctor.paramTypes.size(); ++i) {
                         auto expected = ctor.paramTypes[i];
                         auto actual = inferTypeInfo(node.arguments[i].get());
+                        bool expectedIsArray =
+                            expected.className.size() >= 2 &&
+                            expected.className.rfind("[]") == expected.className.size() - 2;
+                        if (expectedIsArray && actual.value == ValueType::Null) {
+                            sigOk = false;
+                            break;
+                        }
                         if (!expected.className.empty()) {
-                            if (actual.className != expected.className) {
+                            if (!actual.className.empty() && actual.className != expected.className) {
                                 sigOk = false;
                                 break;
                             }
@@ -1328,8 +1403,15 @@ namespace bloch::core {
                 for (size_t i = 0; i < ctor.paramTypes.size(); ++i) {
                     auto expected = ctor.paramTypes[i];
                     auto actual = inferTypeInfo(node.arguments[i].get());
+                    bool expectedIsArray =
+                        expected.className.size() >= 2 &&
+                        expected.className.rfind("[]") == expected.className.size() - 2;
+                    if (expectedIsArray && actual.value == ValueType::Null) {
+                        sigOk = false;
+                        break;
+                    }
                     if (!expected.className.empty()) {
-                        if (actual.className != expected.className) {
+                        if (!actual.className.empty() && actual.className != expected.className) {
                             sigOk = false;
                             break;
                         }
@@ -1417,8 +1499,21 @@ namespace bloch::core {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "Cannot assign to final variable '" + node.name + "'");
             }
-            if (node.value)
+            if (node.value) {
+                auto valType = inferTypeInfo(node.value.get());
+                if (valType.value == ValueType::Null) {
+                    TypeInfo target = getVariableType(node.name);
+                    bool targetIsArray =
+                        target.className.size() >= 2 &&
+                        target.className.rfind("[]") == target.className.size() - 2;
+                    bool targetIsClass = !target.className.empty() && !targetIsArray;
+                    if (!targetIsClass) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "cannot assign null to '" + node.name + "'");
+                    }
+                }
                 node.value->accept(*this);
+            }
             return;
         }
         if (auto field = resolveField(node.name, node.line, node.column)) {
@@ -1431,7 +1526,16 @@ namespace bloch::core {
             }
             if (node.value) {
                 auto valType = inferTypeInfo(node.value.get());
-                if (!field->type.className.empty()) {
+                bool fieldIsArray =
+                    field->type.className.size() >= 2 &&
+                    field->type.className.rfind("[]") == field->type.className.size() - 2;
+                if (valType.value == ValueType::Null) {
+                    if (fieldIsArray || field->type.className.empty()) {
+                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                         "cannot assign null to field '" + node.name + "'");
+                    }
+                }
+                if (!field->type.className.empty() && valType.value != ValueType::Null) {
                     if (valType.className != field->type.className) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                          "assignment to field '" + node.name + "' expects '" +
@@ -1489,7 +1593,16 @@ namespace bloch::core {
         }
         if (node.value) {
             auto valType = inferTypeInfo(node.value.get());
-            if (!field->type.className.empty()) {
+            bool fieldIsArray =
+                field->type.className.size() >= 2 &&
+                field->type.className.rfind("[]") == field->type.className.size() - 2;
+            if (valType.value == ValueType::Null) {
+                if (fieldIsArray || field->type.className.empty()) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "cannot assign null to field '" + node.member + "'");
+                }
+            }
+            if (!field->type.className.empty() && valType.value != ValueType::Null) {
                 if (valType.className != field->type.className) {
                     throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                      "assignment to field '" + node.member + "' expects '" +

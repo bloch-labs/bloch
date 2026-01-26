@@ -82,6 +82,14 @@ TEST(LexerTest, KeywordDetection) {
     EXPECT_EQ(tokens[2].type, TokenType::Return);
 }
 
+TEST(LexerTest, NullKeyword) {
+    Lexer lexer("null");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_EQ(tokens.size(), 2u);
+    EXPECT_EQ(tokens[0].type, TokenType::Null);
+}
+
 TEST(LexerTest, Operators) {
     Lexer lexer("-> + - * / == != ;");
     auto tokens = lexer.tokenize();

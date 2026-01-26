@@ -61,6 +61,7 @@ namespace bloch::runtime {
     using core::MemberAccessExpression;
     using core::MemberAssignmentExpression;
     using core::MethodDeclaration;
+    using core::NullLiteralExpression;
     using core::NamedType;
     using core::NewExpression;
     using core::Parameter;

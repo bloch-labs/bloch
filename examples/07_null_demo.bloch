@@ -1,0 +1,29 @@
+// Demonstrates using the `null` literal with class references.
+class Node {
+    public Node next;
+
+    public constructor() -> Node {
+        this.next = null;  // explicit absence of a next node
+        return this;
+    }
+}
+
+function main() -> void {
+    Node head = new Node();
+    Node current = head;
+    Node detached = null;  // nullable reference slot
+
+    if (current.next == null) {
+        echo("list is empty");
+    }
+
+    current.next = new Node();
+    if (current.next != null) {
+        echo("added a node");
+    }
+
+    // safe reassignment after a null check
+    if (detached == null) {
+        detached = current.next;
+    }
+}
