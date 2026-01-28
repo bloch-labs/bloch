@@ -137,6 +137,7 @@ namespace bloch::runtime {
     struct RuntimeTypeInfo {
         Value::Type kind = Value::Type::Void;
         std::string className;
+        std::vector<RuntimeTypeInfo> typeArgs;
     };
 
     struct RuntimeField {
@@ -186,6 +187,8 @@ namespace bloch::runtime {
         std::unordered_map<std::string, std::vector<RuntimeMethod>> methods;
         std::unordered_map<std::string, RuntimeMethod*> vtable;
         std::vector<RuntimeConstructor> constructors;
+        std::vector<RuntimeTypeInfo> typeArgs;
+        std::vector<std::string> typeParamNames;
     };
 
     struct Object {
@@ -272,9 +275,17 @@ namespace bloch::runtime {
 
         // Class runtime helpers
         RuntimeTypeInfo typeInfoFromAst(Type* type) const;
+        RuntimeTypeInfo typeInfoFromAst(
+            Type* type, const std::unordered_map<std::string, RuntimeTypeInfo>& subst) const;
         Value defaultValueForField(const RuntimeField& field, const std::string& ownerLabel);
         void buildClassTable(Program& program);
         RuntimeClass* findClass(const std::string& name) const;
+        RuntimeClass* instantiateGeneric(const NamedType* typeNode);
+        RuntimeClass* instantiateGeneric(const std::string& base,
+                                         const std::vector<RuntimeTypeInfo>& args);
+        RuntimeClass* instantiateGeneric(
+            const NamedType* typeNode,
+            const std::unordered_map<std::string, RuntimeTypeInfo>& subst);
         RuntimeMethod* findMethod(RuntimeClass* cls, const std::string& name,
                                   const std::vector<Value>* args = nullptr);
         RuntimeField* findInstanceField(RuntimeClass* cls, const std::string& name);
@@ -306,6 +317,9 @@ namespace bloch::runtime {
         const auto& trackedCounts() const { return m_trackedCounts; }
         // Test helper to observe whether the GC worker was started for this run.
         bool gcThreadStartedForTest() const { return m_gcThreadStarted; }
+
+        // Generic templates (stored by base class name without arguments)
+        std::unordered_map<std::string, core::ClassDeclaration*> m_genericTemplates;
     };
 
 }  // namespace bloch::runtime

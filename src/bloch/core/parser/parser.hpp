@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -122,6 +122,8 @@ namespace bloch::core {
         [[nodiscard]] std::unique_ptr<Type> parseArrayType(
             std::unique_ptr<Type> elementType, int size = -1,
             std::unique_ptr<Expression> sizeExpr = nullptr);
+        [[nodiscard]] std::vector<std::unique_ptr<TypeParameter>> parseTypeParameters();
+        [[nodiscard]] std::vector<std::unique_ptr<Type>> parseTypeArgumentList();
 
         // Parameters and Arguments
         [[nodiscard]] std::vector<std::unique_ptr<Parameter>> parseParameterList();
