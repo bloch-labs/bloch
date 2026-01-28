@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.1.0](https://github.com/bloch-labs/bloch/compare/v1.0.3...v1.1.0) (2026-01-28)
+
+
+### Features
+
+* add null primitive ([#225](https://github.com/bloch-labs/bloch/issues/225)) ([94f8646](https://github.com/bloch-labs/bloch/commit/94f86462dfd4166dc68c44961292eb16d45270be))
+* fix class constructor chaining ([#222](https://github.com/bloch-labs/bloch/issues/222)) ([ff9a740](https://github.com/bloch-labs/bloch/commit/ff9a740be2986eedbe4864ce7d25dd817d945419))
+* implement generics ([#230](https://github.com/bloch-labs/bloch/issues/230)) ([7e7cd2f](https://github.com/bloch-labs/bloch/commit/7e7cd2f6364ed4b53f3b60321a39e53673cc3f1e))
+* implement method overloading ([#226](https://github.com/bloch-labs/bloch/issues/226)) ([d298654](https://github.com/bloch-labs/bloch/commit/d29865474389988237d2f2b15f34f359be794409))
+
+
+### Performance
+
+* only start gc thread when there are custom classes ([b21b923](https://github.com/bloch-labs/bloch/commit/b21b923e0aa2d09b3952e99262c1fc49d880d004))
+
+
+### Documentation
+
+* refresh --help cli message ([#223](https://github.com/bloch-labs/bloch/issues/223)) ([ff1f9c9](https://github.com/bloch-labs/bloch/commit/ff1f9c91f693a90a5e5b02daae286e04c770c220))
+
 ## [1.0.3](https://github.com/bloch-labs/bloch/compare/v1.0.2...v1.0.3) (2026-01-28)
 
 
