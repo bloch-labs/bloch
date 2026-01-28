@@ -302,8 +302,8 @@ namespace bloch::runtime {
                     return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("int"), -1,
                                                        nullptr);
                 case Value::Type::FloatArray:
-                    return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("float"),
-                                                       -1, nullptr);
+                    return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("float"), -1,
+                                                       nullptr);
                 case Value::Type::BitArray:
                     return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("bit"), -1,
                                                        nullptr);
@@ -314,10 +314,10 @@ namespace bloch::runtime {
                     return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("char"), -1,
                                                        nullptr);
                 case Value::Type::ObjectArray:
-                    return std::make_unique<ArrayType>(
-                        !rt.typeArgs.empty() ? runtimeTypeToAst(rt.typeArgs.front())
-                                             : std::make_unique<PrimitiveType>("int"),
-                        -1, nullptr);
+                    return std::make_unique<ArrayType>(!rt.typeArgs.empty()
+                                                           ? runtimeTypeToAst(rt.typeArgs.front())
+                                                           : std::make_unique<PrimitiveType>("int"),
+                                                       -1, nullptr);
                 default:
                     return std::make_unique<VoidType>();
             }
@@ -850,9 +850,8 @@ namespace bloch::runtime {
         }
     }
 
-RuntimeClass* RuntimeEvaluator::instantiateGeneric(
-    const NamedType* typeNode,
-    const std::unordered_map<std::string, RuntimeTypeInfo>& subst) {
+    RuntimeClass* RuntimeEvaluator::instantiateGeneric(
+        const NamedType* typeNode, const std::unordered_map<std::string, RuntimeTypeInfo>& subst) {
         if (!typeNode || typeNode->nameParts.empty())
             return nullptr;
         std::string base = typeNode->nameParts.back();
@@ -860,7 +859,8 @@ RuntimeClass* RuntimeEvaluator::instantiateGeneric(
         if (tmplIt == m_genericTemplates.end())
             return nullptr;
         std::vector<RuntimeTypeInfo> argInfos;
-        for (auto& arg : typeNode->typeArguments) argInfos.push_back(typeInfoFromAst(arg.get(), subst));
+        for (auto& arg : typeNode->typeArguments)
+            argInfos.push_back(typeInfoFromAst(arg.get(), subst));
         RuntimeTypeInfo assembled;
         assembled.kind = Value::Type::Object;
         assembled.className = base;
@@ -979,14 +979,13 @@ RuntimeClass* RuntimeEvaluator::instantiateGeneric(
         return instantiateGeneric(typeNode, emptySubst);
     }
 
-    RuntimeClass* RuntimeEvaluator::instantiateGeneric(
-        const std::string& base, const std::vector<RuntimeTypeInfo>& args) {
+    RuntimeClass* RuntimeEvaluator::instantiateGeneric(const std::string& base,
+                                                       const std::vector<RuntimeTypeInfo>& args) {
         auto tmplIt = m_genericTemplates.find(base);
         if (tmplIt == m_genericTemplates.end())
             return nullptr;
         auto nt = std::make_unique<NamedType>(std::vector<std::string>{base});
-        for (const auto& a : args)
-            nt->typeArguments.push_back(runtimeTypeToAst(a));
+        for (const auto& a : args) nt->typeArguments.push_back(runtimeTypeToAst(a));
         std::unordered_map<std::string, RuntimeTypeInfo> subst;
         core::ClassDeclaration* tmpl = tmplIt->second;
         for (size_t i = 0; i < tmpl->typeParameters.size() && i < args.size(); ++i) {

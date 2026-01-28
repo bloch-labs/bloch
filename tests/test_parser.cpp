@@ -426,7 +426,8 @@ TEST(ParserTest, ParseLogicalAndBitwiseExpressions) {
 
 TEST(ParserTest, ParseGenericClassAndInstantiation) {
     const char* src =
-        "class Box<T> { public T v; public constructor(T v) -> Box<T> { this.v = v; return this; } }"
+        "class Box<T> { public T v; public constructor(T v) -> Box<T> { this.v = v; return this; } "
+        "}"
         "function main() -> void { Box<int> b = new Box<int>(1); }";
     Lexer lexer(src);
     auto tokens = lexer.tokenize();

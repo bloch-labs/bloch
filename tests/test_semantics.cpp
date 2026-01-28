@@ -762,7 +762,8 @@ TEST(SemanticTest, GenericBoundSatisfiedPasses) {
     const char* src =
         "class Base { public constructor() -> Base = default; } "
         "class Child extends Base { public constructor() -> Child = default; } "
-        "class Box<T extends Base> { public T v; public constructor(T v) -> Box<T> { this.v = v; return this; } } "
+        "class Box<T extends Base> { public T v; public constructor(T v) -> Box<T> { this.v = v; "
+        "return this; } } "
         "function main() -> void { Box<Child> b = new Box<Child>(new Child()); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;

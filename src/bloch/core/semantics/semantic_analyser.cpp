@@ -192,7 +192,8 @@ namespace bloch::core {
         }
         TypeInfo out = t;
         out.typeArgs.clear();
-        for (const auto& a : t.typeArgs) out.typeArgs.push_back(substituteTypeParams(a, params, args));
+        for (const auto& a : t.typeArgs)
+            out.typeArgs.push_back(substituteTypeParams(a, params, args));
         auto isArray = [](const std::string& name) {
             return name.size() >= 2 && name.rfind("[]") == name.size() - 2;
         };
@@ -211,8 +212,7 @@ namespace bloch::core {
         return res;
     }
 
-    void SemanticAnalyser::validateTypeApplication(const TypeInfo& t, int line,
-                                                   int column) const {
+    void SemanticAnalyser::validateTypeApplication(const TypeInfo& t, int line, int column) const {
         if (t.className.empty())
             return;
         const ClassInfo* info = findClass(t.className);
@@ -234,10 +234,11 @@ namespace bloch::core {
                                      "type argument '" + typeLabel(actual) +
                                          "' does not satisfy bound '" + typeLabel(bound) + "'");
                 }
-                if (actual.className != bound.className && !isSubclassOf(actual.className, bound.className)) {
+                if (actual.className != bound.className &&
+                    !isSubclassOf(actual.className, bound.className)) {
                     throw BlochError(ErrorCategory::Semantic, line, column,
-                                     "type argument '" + typeLabel(actual) + "' does not satisfy bound '" +
-                                         typeLabel(bound) + "'");
+                                     "type argument '" + typeLabel(actual) +
+                                         "' does not satisfy bound '" + typeLabel(bound) + "'");
                 }
             }
         }
@@ -369,9 +370,8 @@ namespace bloch::core {
                         ErrorCategory::Semantic, m.line, m.column,
                         "static method '" + m.name + "' cannot be declared virtual or override");
                 }
-                const MethodInfo* baseMethod =
-                    findMethodInHierarchy(combine(ValueType::Unknown, info.base), m.name,
-                                          &m.paramTypes);
+                const MethodInfo* baseMethod = findMethodInHierarchy(
+                    combine(ValueType::Unknown, info.base), m.name, &m.paramTypes);
                 if (m.isOverride) {
                     if (!baseMethod) {
                         throw BlochError(
@@ -419,9 +419,8 @@ namespace bloch::core {
                 if (m.hasBody) {
                     auto it = std::find(required.begin(), required.end(), m.signature);
                     if (it != required.end()) {
-                        const MethodInfo* baseMethod =
-                            findMethodInHierarchy(combine(ValueType::Unknown, info.base), m.name,
-                                                  &m.paramTypes);
+                        const MethodInfo* baseMethod = findMethodInHierarchy(
+                            combine(ValueType::Unknown, info.base), m.name, &m.paramTypes);
                         if (baseMethod) {
                             if (m.isStatic) {
                                 throw BlochError(ErrorCategory::Semantic, m.line, m.column,
@@ -821,8 +820,8 @@ namespace bloch::core {
                 if (bi != builtInGates.end())
                     return combine(bi->second.returnType, "");
                 if (!m_currentClass.empty()) {
-                    auto* method = findMethodInHierarchy(combine(ValueType::Unknown, m_currentClass),
-                                                         callee->name, &argTypes);
+                    auto* method = findMethodInHierarchy(
+                        combine(ValueType::Unknown, m_currentClass), callee->name, &argTypes);
                     if (method) {
                         if (!method->isStatic && m_inStaticContext)
                             return combine(ValueType::Unknown, "");
@@ -850,8 +849,8 @@ namespace bloch::core {
                                     binding[expected.className] = actual;
                                     return;
                                 }
-                                for (size_t i = 0; i < expected.typeArgs.size() &&
-                                                   i < actual.typeArgs.size();
+                                for (size_t i = 0;
+                                     i < expected.typeArgs.size() && i < actual.typeArgs.size();
                                      ++i)
                                     bindParams(expected.typeArgs[i], actual.typeArgs[i]);
                             };
@@ -859,17 +858,19 @@ namespace bloch::core {
                             for (size_t i = 0; i < params.size() && i < argTypes.size(); ++i)
                                 bindParams(params[i], argTypes[i]);
 
-                            std::function<TypeInfo(const TypeInfo&)> subst = [&](const TypeInfo& t) {
-                                if (t.isTypeParam) {
-                                    auto it = binding.find(t.className);
-                                    if (it != binding.end())
-                                        return it->second;
-                                }
-                                TypeInfo out = t;
-                                out.typeArgs.clear();
-                                for (const auto& a : t.typeArgs) out.typeArgs.push_back(subst(a));
-                                return out;
-                            };
+                            std::function<TypeInfo(const TypeInfo&)> subst =
+                                [&](const TypeInfo& t) {
+                                    if (t.isTypeParam) {
+                                        auto it = binding.find(t.className);
+                                        if (it != binding.end())
+                                            return it->second;
+                                    }
+                                    TypeInfo out = t;
+                                    out.typeArgs.clear();
+                                    for (const auto& a : t.typeArgs)
+                                        out.typeArgs.push_back(subst(a));
+                                    return out;
+                                };
                             ret = subst(ret);
                         }
                         return ret;
@@ -1152,9 +1153,8 @@ namespace bloch::core {
                                          typeToString(initT) + "'");
                 }
             } else if (!tinfo.className.empty()) {
-                bool targetIsArray =
-                    tinfo.className.size() >= 2 &&
-                    tinfo.className.rfind("[]") == tinfo.className.size() - 2;
+                bool targetIsArray = tinfo.className.size() >= 2 &&
+                                     tinfo.className.rfind("[]") == tinfo.className.size() - 2;
                 if (initInfo.value == ValueType::Null) {
                     if (targetIsArray) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -1167,9 +1167,9 @@ namespace bloch::core {
                                              typeLabel(tinfo) + "'");
                     }
                 } else if (initInfo.value != ValueType::Unknown) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "initializer for '" + node.name + "' expected '" +
-                                         typeLabel(tinfo) + "'");
+                    throw BlochError(
+                        ErrorCategory::Semantic, node.line, node.column,
+                        "initializer for '" + node.name + "' expected '" + typeLabel(tinfo) + "'");
                 }
             }
         }
@@ -1210,9 +1210,9 @@ namespace bloch::core {
         if (node.value) {
             auto actual = inferTypeInfo(node.value.get());
             if (!isVoid) {
-                bool expectedIsArray = m_currentReturn.className.size() >= 2 &&
-                                       m_currentReturn.className.rfind("[]") ==
-                                           m_currentReturn.className.size() - 2;
+                bool expectedIsArray =
+                    m_currentReturn.className.size() >= 2 &&
+                    m_currentReturn.className.rfind("[]") == m_currentReturn.className.size() - 2;
                 if (actual.value == ValueType::Null) {
                     if (m_currentReturn.className.empty() || expectedIsArray) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -1337,8 +1337,9 @@ namespace bloch::core {
             if (node.value) {
                 auto valType = inferTypeInfo(node.value.get());
                 TypeInfo targetType = field->type;
-                bool fieldIsArray = targetType.className.size() >= 2 &&
-                                    targetType.className.rfind("[]") == targetType.className.size() - 2;
+                bool fieldIsArray =
+                    targetType.className.size() >= 2 &&
+                    targetType.className.rfind("[]") == targetType.className.size() - 2;
                 if (valType.value == ValueType::Null) {
                     if (fieldIsArray || targetType.className.empty()) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -1515,8 +1516,8 @@ namespace bloch::core {
                         if (actual.value != ValueType::Unknown && actual.className.empty()) {
                             throw BlochError(ErrorCategory::Semantic, arg->line, arg->column,
                                              "argument #" + std::to_string(i + 1) + " to '" + name +
-                                                 "' expected type parameter '" + expected.className +
-                                                 "'");
+                                                 "' expected type parameter '" +
+                                                 expected.className + "'");
                         }
                         if (actual.isTypeParam) {
                             // Passing a type parameter to another type-parameter-typed parameter
@@ -1528,10 +1529,10 @@ namespace bloch::core {
                             if (!bound->className.empty() && !actual.className.empty() &&
                                 actual.className != bound->className &&
                                 !isSubclassOf(actual.className, bound->className)) {
-                                throw BlochError(
-                                    ErrorCategory::Semantic, arg->line, arg->column,
-                                    "argument #" + std::to_string(i + 1) + " to '" + name +
-                                        "' must satisfy bound '" + typeLabel(*bound) + "'");
+                                throw BlochError(ErrorCategory::Semantic, arg->line, arg->column,
+                                                 "argument #" + std::to_string(i + 1) + " to '" +
+                                                     name + "' must satisfy bound '" +
+                                                     typeLabel(*bound) + "'");
                             }
                         }
                         continue;
@@ -1608,9 +1609,9 @@ namespace bloch::core {
             if (objType.isTypeParam) {
                 auto bound = getTypeParamBound(objType.className);
                 if (!bound || bound->className.empty()) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "type parameter '" + objType.className +
-                                         "' is not bound to a class type");
+                    throw BlochError(
+                        ErrorCategory::Semantic, node.line, node.column,
+                        "type parameter '" + objType.className + "' is not bound to a class type");
                 }
                 searchType = *bound;
             }
@@ -1732,9 +1733,9 @@ namespace bloch::core {
         if (objType.isTypeParam) {
             auto bound = getTypeParamBound(objType.className);
             if (!bound || bound->className.empty()) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "type parameter '" + objType.className +
-                                     "' is not bound to a class type");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "type parameter '" + objType.className + "' is not bound to a class type");
             }
             searchType = *bound;
         }
@@ -1910,8 +1911,9 @@ namespace bloch::core {
             if (node.value) {
                 auto valType = inferTypeInfo(node.value.get());
                 TypeInfo targetType = field->type;
-                bool fieldIsArray = targetType.className.size() >= 2 &&
-                                    targetType.className.rfind("[]") == targetType.className.size() - 2;
+                bool fieldIsArray =
+                    targetType.className.size() >= 2 &&
+                    targetType.className.rfind("[]") == targetType.className.size() - 2;
                 if (valType.value == ValueType::Null) {
                     if (fieldIsArray || targetType.className.empty()) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
@@ -1951,9 +1953,9 @@ namespace bloch::core {
         if (objType.isTypeParam) {
             auto bound = getTypeParamBound(objType.className);
             if (!bound || bound->className.empty()) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "type parameter '" + objType.className +
-                                     "' is not bound to a class type");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "type parameter '" + objType.className + "' is not bound to a class type");
             }
             searchType = *bound;
         }
@@ -1988,11 +1990,9 @@ namespace bloch::core {
             auto valType = inferTypeInfo(node.value.get());
             TypeInfo targetType = field->type;
             if (!searchType.typeArgs.empty() && cls)
-                targetType =
-                    substituteTypeParams(targetType, cls->typeParams, searchType.typeArgs);
-            bool fieldIsArray =
-                targetType.className.size() >= 2 &&
-                targetType.className.rfind("[]") == targetType.className.size() - 2;
+                targetType = substituteTypeParams(targetType, cls->typeParams, searchType.typeArgs);
+            bool fieldIsArray = targetType.className.size() >= 2 &&
+                                targetType.className.rfind("[]") == targetType.className.size() - 2;
             if (valType.value == ValueType::Null) {
                 if (fieldIsArray || targetType.className.empty()) {
                     throw BlochError(ErrorCategory::Semantic, node.line, node.column,

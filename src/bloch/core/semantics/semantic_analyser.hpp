@@ -191,8 +191,7 @@ namespace bloch::core {
         const ClassInfo* findClass(const std::string& name) const;
         MethodInfo* findMethodInHierarchy(const TypeInfo& classType, const std::string& method,
                                           const std::vector<TypeInfo>* params = nullptr) const;
-        FieldInfo* findFieldInHierarchy(const TypeInfo& classType,
-                                        const std::string& field) const;
+        FieldInfo* findFieldInHierarchy(const TypeInfo& classType, const std::string& field) const;
         const FieldInfo* resolveField(const std::string& name, int line, int column) const;
         bool isSubclassOf(const std::string& derived, const std::string& base) const;
         void validateOverrides(ClassInfo& info);
@@ -212,10 +211,9 @@ namespace bloch::core {
         TypeInfo substituteTypeParams(const TypeInfo& t,
                                       const std::vector<ClassInfo::TypeParamInfo>& params,
                                       const std::vector<TypeInfo>& args) const;
-        std::vector<TypeInfo> substituteMany(
-            const std::vector<TypeInfo>& types,
-            const std::vector<ClassInfo::TypeParamInfo>& params,
-            const std::vector<TypeInfo>& args) const;
+        std::vector<TypeInfo> substituteMany(const std::vector<TypeInfo>& types,
+                                             const std::vector<ClassInfo::TypeParamInfo>& params,
+                                             const std::vector<TypeInfo>& args) const;
         void validateTypeApplication(const TypeInfo& t, int line, int column) const;
         std::optional<TypeInfo> getTypeParamBound(const std::string& name) const;
     };
