@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,8 +36,13 @@ namespace bloch::core {
         struct TypeInfo {
             ValueType value = ValueType::Unknown;
             std::string className;  // non-empty when referring to a user-defined class
+            std::vector<TypeInfo> typeArgs;
+            bool isTypeParam = false;
             bool isClass() const { return !className.empty(); }
         };
+
+        static bool typeEquals(const TypeInfo& a, const TypeInfo& b);
+        static std::string typeLabel(const TypeInfo& t);
 
         // Visitors
         void visit(VariableDeclaration& node) override;
@@ -59,6 +64,7 @@ namespace bloch::core {
         void visit(CastExpression& node) override;
         void visit(PostfixExpression& node) override;
         void visit(LiteralExpression& node) override;
+        void visit(NullLiteralExpression& node) override;
         void visit(VariableExpression& node) override;
         void visit(CallExpression& node) override;
         void visit(MemberAccessExpression& node) override;
@@ -79,6 +85,7 @@ namespace bloch::core {
         void visit(VoidType& node) override;
 
         void visit(Parameter& node) override;
+        void visit(TypeParameter& node) override;
         void visit(AnnotationNode& node) override;
         void visit(ImportDeclaration& node) override;
         void visit(FieldDeclaration& node) override;
@@ -120,6 +127,8 @@ namespace bloch::core {
             bool isOverride = false;
             bool hasBody = false;
             bool isDefault = false;  // used for constructors
+            std::string name;
+            std::string signature;
             TypeInfo returnType;
             std::vector<TypeInfo> paramTypes;
             std::string owner;
@@ -134,9 +143,15 @@ namespace bloch::core {
             bool isAbstract = false;
             bool hasDestructor = true;       // implicit default exists
             bool hasUserDestructor = false;  // true if explicitly declared
+            struct TypeParamInfo {
+                std::string name;
+                TypeInfo bound;
+            };
+            std::vector<TypeParamInfo> typeParams;
             std::vector<std::string> abstractMethods;
             std::unordered_map<std::string, FieldInfo> fields;
-            std::unordered_map<std::string, MethodInfo> methods;
+            std::unordered_map<std::string, std::vector<MethodInfo>> methods;
+            std::unordered_set<std::string> methodSignatures;
             std::vector<MethodInfo> constructors;
             std::vector<ConstructorDeclaration*> ctorDecls;  // raw pointers owned by AST
             int line = 0;
@@ -151,6 +166,9 @@ namespace bloch::core {
         bool m_allowSuperConstructorCall = false;
         std::string m_currentMethod;
         bool m_currentMethodIsOverride = false;
+
+        // Track full type information (including generic arguments) alongside the symbol table.
+        std::vector<std::unordered_map<std::string, TypeInfo>> m_typeStack;
 
         // Helpers
         void beginScope();
@@ -171,10 +189,9 @@ namespace bloch::core {
         TypeInfo inferTypeInfo(Expression* expr) const;
         void buildClassRegistry(Program& program);
         const ClassInfo* findClass(const std::string& name) const;
-        MethodInfo* findMethodInHierarchy(const std::string& className,
-                                          const std::string& method) const;
-        FieldInfo* findFieldInHierarchy(const std::string& className,
-                                        const std::string& field) const;
+        MethodInfo* findMethodInHierarchy(const TypeInfo& classType, const std::string& method,
+                                          const std::vector<TypeInfo>* params = nullptr) const;
+        FieldInfo* findFieldInHierarchy(const TypeInfo& classType, const std::string& field) const;
         const FieldInfo* resolveField(const std::string& name, int line, int column) const;
         bool isSubclassOf(const std::string& derived, const std::string& base) const;
         void validateOverrides(ClassInfo& info);
@@ -187,6 +204,18 @@ namespace bloch::core {
 
         // Type inference
         std::optional<int> evaluateConstInt(Expression* expr) const;
+
+        // Generics helpers
+        std::vector<ClassInfo::TypeParamInfo> m_currentTypeParams;
+        bool m_inClassRegistryBuild = false;
+        TypeInfo substituteTypeParams(const TypeInfo& t,
+                                      const std::vector<ClassInfo::TypeParamInfo>& params,
+                                      const std::vector<TypeInfo>& args) const;
+        std::vector<TypeInfo> substituteMany(const std::vector<TypeInfo>& types,
+                                             const std::vector<ClassInfo::TypeParamInfo>& params,
+                                             const std::vector<TypeInfo>& args) const;
+        void validateTypeApplication(const TypeInfo& t, int line, int column) const;
+        std::optional<TypeInfo> getTypeParamBound(const std::string& name) const;
     };
 
 }  // namespace bloch::core

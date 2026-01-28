@@ -1,0 +1,35 @@
+// Demonstrates generic parsing: type parameters, bounds, and type arguments.
+
+// A base class used for a bounded type parameter.
+class NumberBox {
+    public int magnitude;
+    public constructor(int m) -> NumberBox { this.magnitude = m; return this; }
+}
+
+// Single type parameter.
+class Box<T> {
+    public T value;
+    public constructor(T v) -> Box<T> { this.value = v; return this; }
+    public function get() -> T { return this.value; }
+}
+
+// Multiple type parameters with an upper bound.
+class Pair<K, V extends NumberBox> {
+    public K key;
+    public V val;
+
+    public constructor(K key, V val) -> Pair<K, V> {
+        this.key = key;
+        this.val = val;
+        return this;
+    }
+}
+
+function main() -> void {
+    // Type arguments on declarations are parsed and validated (compile-time only for now).
+    Box<string> bs = new Box<string>("hello");
+    Pair<string, NumberBox> p = new Pair<string, NumberBox>("size", new NumberBox(5));
+
+    echo(bs.get());
+    echo(p.val.magnitude);
+}

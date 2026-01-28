@@ -206,6 +206,63 @@ TEST(RuntimeTest, EchoFloatPrintsWithDecimal) {
     EXPECT_EQ("3.0\n", output.str());
 }
 
+TEST(RuntimeTest, NullEqualityChecksObjectPresence) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; } function main() -> void { Foo f = "
+        "null; echo(f == null); Foo g = new Foo(); echo(g == null); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("1\n0\n", output.str());
+}
+
+TEST(RuntimeTest, NullInequalityChecksObjectPresence) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; } function main() -> void { Foo f = "
+        "null; echo(f != null); Foo g = new Foo(); echo(g != null); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("0\n1\n", output.str());
+}
+
+TEST(RuntimeTest, MethodOverloadDispatchesByParameterTypes) {
+    const char* src =
+        "class Foo { public function val(int x) -> int { return 1; } public function val(float x) "
+        "-> int { return 2; } public constructor() -> Foo = default; } "
+        "function main() -> void { Foo f = new Foo(); echo(f.val(1)); echo(f.val(1f)); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("1\n2\n", output.str());
+}
+
+TEST(RuntimeTest, MemberAccessOnNullThrows) {
+    const char* src =
+        "class Foo { public int x; public constructor() -> Foo = default; } function main() -> "
+        "void { Foo f = null; int y = f.x; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    EXPECT_THROW(eval.execute(*program), BlochError);
+}
+
 TEST(RuntimeTest, SkipsGcThreadWhenProgramHasNoClasses) {
     const char* src = "function main() -> void { bit b = 0b; echo(b); }";
     auto program = parseProgram(src);
@@ -322,6 +379,22 @@ TEST(RuntimeTest, EchoModes) {
     out.str("");
     old = std::cout.rdbuf(out.rdbuf());
     eval2.execute(*program);
+    std::cout.rdbuf(old);
+    EXPECT_EQ("1\n", out.str());
+}
+
+TEST(RuntimeTest, GenericInstantiationSpecialisesAtRuntime) {
+    const char* src =
+        "class Box<T> { public T v; public constructor(T v) -> Box<T> { this.v = v; return this; } "
+        "public function get() -> T { return this.v; } } "
+        "function main() -> void { Box<int> b = new Box<int>(1); echo(b.get()); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream out;
+    auto* old = std::cout.rdbuf(out.rdbuf());
+    eval.execute(*program);
     std::cout.rdbuf(old);
     EXPECT_EQ("1\n", out.str());
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.3](https://github.com/bloch-labs/bloch/compare/v1.0.2...v1.0.3) (2026-01-28)
+
+
+### Documentation
+
+* adjust figure size for JOSS PDF rendering ([#216](https://github.com/bloch-labs/bloch/issues/216)) ([cecb996](https://github.com/bloch-labs/bloch/commit/cecb9961416e7289e54afab69c1d0563c90a0788))
+* joss review feedback ([ed81f8a](https://github.com/bloch-labs/bloch/commit/ed81f8a1cc13f14aaddabd42e1f3dc97d9ad006e))
+
 ## [1.0.2](https://github.com/bloch-labs/bloch/compare/v1.0.1...v1.0.2) (2025-12-11)
 
 

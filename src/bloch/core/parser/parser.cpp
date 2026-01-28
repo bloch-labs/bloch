@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -85,6 +85,26 @@ namespace bloch::core {
                m_tokens[idx + 2].type == TokenType::Identifier) {
             idx += 2;
         }
+        // Skip generic type arguments if present: < ... >
+        auto skipTypeArgs = [&](size_t& i) {
+            if (i + 1 >= m_tokens.size() || m_tokens[i + 1].type != TokenType::Less)
+                return;
+            int depth = 0;
+            size_t j = i + 1;
+            while (j < m_tokens.size()) {
+                if (m_tokens[j].type == TokenType::Less)
+                    depth++;
+                else if (m_tokens[j].type == TokenType::Greater) {
+                    depth--;
+                    if (depth == 0) {
+                        i = j;
+                        break;
+                    }
+                }
+                j++;
+            }
+        };
+        skipTypeArgs(idx);
         if (idx + 1 >= m_tokens.size())
             return false;
         TokenType afterName = m_tokens[idx + 1].type;
@@ -180,8 +200,20 @@ namespace bloch::core {
         cls->isStatic = isStatic;
         cls->isAbstract = isAbstract;
 
+        if (check(TokenType::Less)) {
+            cls->typeParameters = parseTypeParameters();
+        }
+
         if (match(TokenType::Extends)) {
-            cls->baseName = parseQualifiedName();
+            auto baseTy = parseType();
+            if (!baseTy)
+                reportError("Expected base class name after 'extends'");
+            if (!dynamic_cast<NamedType*>(baseTy.get())) {
+                reportError("Base class must be a named type");
+            }
+            cls->baseType = std::move(baseTy);
+            if (auto named = dynamic_cast<NamedType*>(cls->baseType.get()))
+                cls->baseName = named->nameParts;
             if (check(TokenType::Extends)) {
                 reportError("Only single inheritance is supported");
             }
@@ -1157,6 +1189,14 @@ namespace bloch::core {
             return std::make_unique<LiteralExpression>(LiteralExpression{tok.value, litType});
         }
 
+        if (match(TokenType::Null)) {
+            const Token& tok = previous();
+            std::unique_ptr<NullLiteralExpression> expr = std::make_unique<NullLiteralExpression>();
+            expr->line = tok.line;
+            expr->column = tok.column;
+            return expr;
+        }
+
         if (match(TokenType::Measure)) {
             const Token& measureTok = previous();
             std::unique_ptr<Expression> target = parseExpression();
@@ -1266,6 +1306,12 @@ namespace bloch::core {
             case TokenType::StringLiteral:
                 return std::make_unique<LiteralExpression>(
                     LiteralExpression{token.value, "string"});
+            case TokenType::Null: {
+                auto expr = std::make_unique<NullLiteralExpression>();
+                expr->line = token.line;
+                expr->column = token.column;
+                return expr;
+            }
             default:
                 reportError("Expected a literal value.");
                 return nullptr;
@@ -1283,7 +1329,12 @@ namespace bloch::core {
                    check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit)) {
             baseType = parsePrimitiveType();
         } else if (check(TokenType::Identifier)) {
-            baseType = std::make_unique<NamedType>(parseQualifiedName());
+            std::vector<std::string> parts = parseQualifiedName();
+            auto named = std::make_unique<NamedType>(parts);
+            if (match(TokenType::Less)) {
+                named->typeArguments = parseTypeArgumentList();
+            }
+            baseType = std::move(named);
         } else {
             reportError("Expected type");
             return nullptr;
@@ -1328,6 +1379,37 @@ namespace bloch::core {
     std::unique_ptr<Type> Parser::parseArrayType(std::unique_ptr<Type> elementType, int size,
                                                  std::unique_ptr<Expression> sizeExpr) {
         return std::make_unique<ArrayType>(std::move(elementType), size, std::move(sizeExpr));
+    }
+
+    std::vector<std::unique_ptr<TypeParameter>> Parser::parseTypeParameters() {
+        std::vector<std::unique_ptr<TypeParameter>> params;
+        (void)expect(TokenType::Less, "Expected '<' to start type parameters");
+        if (check(TokenType::Greater)) {
+            (void)advance();
+            return params;
+        }
+        do {
+            const Token& nameTok = expect(TokenType::Identifier, "Expected type parameter name");
+            auto param = std::make_unique<TypeParameter>();
+            param->name = nameTok.value;
+            param->line = nameTok.line;
+            param->column = nameTok.column;
+            if (match(TokenType::Extends)) {
+                param->bound = parseType();
+            }
+            params.push_back(std::move(param));
+        } while (match(TokenType::Comma));
+        (void)expect(TokenType::Greater, "Expected '>' to end type parameters");
+        return params;
+    }
+
+    std::vector<std::unique_ptr<Type>> Parser::parseTypeArgumentList() {
+        std::vector<std::unique_ptr<Type>> args;
+        do {
+            args.push_back(parseType());
+        } while (match(TokenType::Comma));
+        (void)expect(TokenType::Greater, "Expected '>' after type arguments");
+        return args;
     }
 
     // Parameters and Argments
@@ -1378,6 +1460,13 @@ namespace bloch::core {
                 std::make_unique<LiteralExpression>(lit->value, lit->literalType);
             clone->line = lit->line;
             clone->column = lit->column;
+            return clone;
+        }
+        if (auto nullLit = dynamic_cast<const NullLiteralExpression*>(&expr)) {
+            std::unique_ptr<NullLiteralExpression> clone =
+                std::make_unique<NullLiteralExpression>();
+            clone->line = nullLit->line;
+            clone->column = nullLit->column;
             return clone;
         }
         if (auto var = dynamic_cast<const VariableExpression*>(&expr)) {
@@ -1546,6 +1635,9 @@ namespace bloch::core {
             return std::make_unique<PrimitiveType>(prim->name);
         if (auto named = dynamic_cast<const NamedType*>(&type)) {
             std::unique_ptr<NamedType> clone = std::make_unique<NamedType>(named->nameParts);
+            for (const auto& arg : named->typeArguments) {
+                clone->typeArguments.push_back(cloneType(*arg));
+            }
             clone->line = named->line;
             clone->column = named->column;
             return clone;

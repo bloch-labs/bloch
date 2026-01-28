@@ -21,6 +21,7 @@
 #include <iomanip>
 #include <optional>
 #include <sstream>
+#include <unordered_map>
 #include <utility>
 
 #include "bloch/core/semantics/built_ins.hpp"
@@ -32,6 +33,12 @@ namespace bloch::runtime {
     using support::BlochError;
     using support::blochWarning;
     using support::ErrorCategory;
+
+    namespace {
+        std::string typeKey(const RuntimeTypeInfo& t);
+        std::unique_ptr<Type> runtimeTypeToAst(const RuntimeTypeInfo& rt);
+        RuntimeTypeInfo typeInfoFromValue(const Value& v);
+    }
 
     static constexpr bool kTraceConstructors = false;
 
@@ -45,6 +52,10 @@ namespace bloch::runtime {
             cur = cur->base;
         }
         return {nullptr, nullptr};
+    }
+
+    static bool isNullReference(const Value& v) {
+        return v.type == Value::Type::Object && !v.objectValue;
     }
 
     static std::string valueToString(const Value& v) {
@@ -117,6 +128,8 @@ namespace bloch::runtime {
                 oss << "}";
                 return oss.str();
             case Value::Type::Object:
+                if (isNullReference(v))
+                    return "null";
                 if (v.objectValue && v.objectValue->cls)
                     return "<" + v.objectValue->cls->name + " object>";
                 return "<object>";
@@ -129,7 +142,7 @@ namespace bloch::runtime {
                     if (obj && obj->cls)
                         oss << "<" << obj->cls->name << ">";
                     else
-                        oss << "<object>";
+                        oss << "null";
                 }
                 oss << "}";
                 return oss.str();
@@ -140,7 +153,8 @@ namespace bloch::runtime {
         }
     }
 
-    RuntimeTypeInfo RuntimeEvaluator::typeInfoFromAst(Type* type) const {
+    RuntimeTypeInfo RuntimeEvaluator::typeInfoFromAst(
+        Type* type, const std::unordered_map<std::string, RuntimeTypeInfo>& subst) const {
         RuntimeTypeInfo info;
         if (!type)
             return info;
@@ -158,11 +172,23 @@ namespace bloch::runtime {
             else if (prim->name == "qubit")
                 info.kind = Value::Type::Qubit;
         } else if (auto named = dynamic_cast<NamedType*>(type)) {
-            info.kind = Value::Type::Object;
-            if (!named->nameParts.empty())
-                info.className = named->nameParts.back();
+            // Type parameter substitution
+            if (!named->nameParts.empty()) {
+                std::string base = named->nameParts.back();
+                auto it = subst.find(base);
+                if (it != subst.end())
+                    return it->second;
+                info.kind = Value::Type::Object;
+                info.className = base;
+                for (auto& arg : named->typeArguments)
+                    info.typeArgs.push_back(typeInfoFromAst(arg.get(), subst));
+                info.className = typeKey(info);
+                // Strip to base if no args (non-generic class)
+                if (info.typeArgs.empty())
+                    info.className = base;
+            }
         } else if (auto arr = dynamic_cast<ArrayType*>(type)) {
-            auto elem = typeInfoFromAst(arr->elementType.get());
+            auto elem = typeInfoFromAst(arr->elementType.get(), subst);
             switch (elem.kind) {
                 case Value::Type::Int:
                     info.kind = Value::Type::IntArray;
@@ -182,17 +208,165 @@ namespace bloch::runtime {
                 case Value::Type::Qubit:
                     info.kind = Value::Type::QubitArray;
                     break;
-                case Value::Type::Object:
+                default:
                     info.kind = Value::Type::ObjectArray;
                     info.className = elem.className;
-                    break;
-                default:
+                    info.typeArgs.push_back(elem);
                     break;
             }
         } else if (dynamic_cast<VoidType*>(type)) {
             info.kind = Value::Type::Void;
         }
         return info;
+    }
+
+    namespace {
+        std::string typeKey(const RuntimeTypeInfo& t) {
+            if (!t.className.empty()) {
+                if (t.typeArgs.empty())
+                    return t.className;
+                std::ostringstream oss;
+                oss << t.className;
+                // If className already includes args (e.g. from nesting), avoid duplication.
+                if (t.className.find('<') == std::string::npos) {
+                    oss << "<";
+                    for (size_t i = 0; i < t.typeArgs.size(); ++i) {
+                        if (i)
+                            oss << ",";
+                        oss << typeKey(t.typeArgs[i]);
+                    }
+                    oss << ">";
+                }
+                return oss.str();
+            }
+            // Primitive / array labels
+            switch (t.kind) {
+                case Value::Type::Int:
+                    return "int";
+                case Value::Type::Float:
+                    return "float";
+                case Value::Type::Bit:
+                    return "bit";
+                case Value::Type::String:
+                    return "string";
+                case Value::Type::Char:
+                    return "char";
+                case Value::Type::Qubit:
+                    return "qubit";
+                case Value::Type::IntArray:
+                    return "int[]";
+                case Value::Type::FloatArray:
+                    return "float[]";
+                case Value::Type::BitArray:
+                    return "bit[]";
+                case Value::Type::StringArray:
+                    return "string[]";
+                case Value::Type::CharArray:
+                    return "char[]";
+                case Value::Type::QubitArray:
+                    return "qubit[]";
+                case Value::Type::ObjectArray:
+                    if (!t.typeArgs.empty())
+                        return typeKey(t.typeArgs.front()) + "[]";
+                    if (!t.className.empty())
+                        return t.className + "[]";
+                    return "object[]";
+                default:
+                    return "unknown";
+            }
+        }
+    }  // namespace
+
+    namespace {
+        std::unique_ptr<Type> runtimeTypeToAst(const RuntimeTypeInfo& rt) {
+            if (!rt.className.empty()) {
+                auto nt = std::make_unique<NamedType>(std::vector<std::string>{rt.className});
+                for (const auto& ta : rt.typeArgs)
+                    nt->typeArguments.push_back(runtimeTypeToAst(ta));
+                return nt;
+            }
+            switch (rt.kind) {
+                case Value::Type::Int:
+                    return std::make_unique<PrimitiveType>("int");
+                case Value::Type::Float:
+                    return std::make_unique<PrimitiveType>("float");
+                case Value::Type::Bit:
+                    return std::make_unique<PrimitiveType>("bit");
+                case Value::Type::String:
+                    return std::make_unique<PrimitiveType>("string");
+                case Value::Type::Char:
+                    return std::make_unique<PrimitiveType>("char");
+                case Value::Type::Qubit:
+                    return std::make_unique<PrimitiveType>("qubit");
+                case Value::Type::IntArray:
+                    return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("int"), -1,
+                                                       nullptr);
+                case Value::Type::FloatArray:
+                    return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("float"), -1,
+                                                       nullptr);
+                case Value::Type::BitArray:
+                    return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("bit"), -1,
+                                                       nullptr);
+                case Value::Type::StringArray:
+                    return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("string"),
+                                                       -1, nullptr);
+                case Value::Type::CharArray:
+                    return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("char"), -1,
+                                                       nullptr);
+                case Value::Type::ObjectArray:
+                    return std::make_unique<ArrayType>(!rt.typeArgs.empty()
+                                                           ? runtimeTypeToAst(rt.typeArgs.front())
+                                                           : std::make_unique<PrimitiveType>("int"),
+                                                       -1, nullptr);
+                default:
+                    return std::make_unique<VoidType>();
+            }
+        }
+
+        RuntimeTypeInfo typeInfoFromValue(const Value& v) {
+            RuntimeTypeInfo t;
+            switch (v.type) {
+                case Value::Type::Int:
+                    t.kind = Value::Type::Int;
+                    break;
+                case Value::Type::Float:
+                    t.kind = Value::Type::Float;
+                    break;
+                case Value::Type::Bit:
+                    t.kind = Value::Type::Bit;
+                    break;
+                case Value::Type::String:
+                    t.kind = Value::Type::String;
+                    break;
+                case Value::Type::Char:
+                    t.kind = Value::Type::Char;
+                    break;
+                case Value::Type::Qubit:
+                    t.kind = Value::Type::Qubit;
+                    break;
+                case Value::Type::Object:
+                    t.kind = Value::Type::Object;
+                    if (!v.className.empty())
+                        t.className = v.className;
+                    else if (v.objectValue && v.objectValue->cls)
+                        t.className = v.objectValue->cls->name;
+                    break;
+                case Value::Type::ObjectArray:
+                    t.kind = Value::Type::ObjectArray;
+                    if (!v.className.empty())
+                        t.className = v.className;
+                    break;
+                default:
+                    t.kind = v.type;
+                    break;
+            }
+            return t;
+        }
+    }  // namespace
+
+    RuntimeTypeInfo RuntimeEvaluator::typeInfoFromAst(Type* type) const {
+        static const std::unordered_map<std::string, RuntimeTypeInfo> emptySubst;
+        return typeInfoFromAst(type, emptySubst);
     }
 
     Value RuntimeEvaluator::defaultValueForField(const RuntimeField& field,
@@ -347,6 +521,14 @@ namespace bloch::runtime {
             v.className = name;
             return v;
         }
+        auto tmplIt = m_genericTemplates.find(name);
+        if (tmplIt != m_genericTemplates.end()) {
+            Value v;
+            v.type = Value::Type::ClassRef;
+            v.classRef = nullptr;
+            v.className = name;
+            return v;
+        }
         return {};
     }
 
@@ -356,7 +538,8 @@ namespace bloch::runtime {
             if (fit != it->end()) {
                 Value newVal = v;
                 if (fit->second.value.type == Value::Type::Object &&
-                    newVal.type == Value::Type::Object && !fit->second.value.className.empty()) {
+                    newVal.type == Value::Type::Object && newVal.objectValue &&
+                    !fit->second.value.className.empty()) {
                     newVal.className = fit->second.value.className;
                 }
                 fit->second.value = newVal;
@@ -372,7 +555,8 @@ namespace bloch::runtime {
                     Value newVal = v;
                     const Value& existing = thisObj->fields[field->offset];
                     if (existing.type == Value::Type::Object &&
-                        newVal.type == Value::Type::Object && !existing.className.empty()) {
+                        newVal.type == Value::Type::Object && newVal.objectValue &&
+                        !existing.className.empty()) {
                         newVal.className = existing.className;
                     }
                     thisObj->fields[field->offset] = newVal;
@@ -384,7 +568,7 @@ namespace bloch::runtime {
                 Value newVal = v;
                 const Value& existing = owner->staticStorage[field->offset];
                 if (existing.type == Value::Type::Object && newVal.type == Value::Type::Object &&
-                    !existing.className.empty()) {
+                    newVal.objectValue && !existing.className.empty()) {
                     newVal.className = existing.className;
                 }
                 owner->staticStorage[field->offset] = newVal;
@@ -432,12 +616,122 @@ namespace bloch::runtime {
         return nullptr;
     }
 
-    RuntimeMethod* RuntimeEvaluator::findMethod(RuntimeClass* cls, const std::string& name) {
+    static std::string runtimeSignatureLabel(const std::string& name,
+                                             const std::vector<RuntimeTypeInfo>& params) {
+        std::ostringstream oss;
+        oss << name << "(";
+        for (size_t i = 0; i < params.size(); ++i) {
+            if (i)
+                oss << ",";
+            if (!params[i].className.empty())
+                oss << params[i].className;
+            else {
+                switch (params[i].kind) {
+                    case Value::Type::Int:
+                        oss << "int";
+                        break;
+                    case Value::Type::Float:
+                        oss << "float";
+                        break;
+                    case Value::Type::Bit:
+                        oss << "bit";
+                        break;
+                    case Value::Type::String:
+                        oss << "string";
+                        break;
+                    case Value::Type::Char:
+                        oss << "char";
+                        break;
+                    case Value::Type::Qubit:
+                        oss << "qubit";
+                        break;
+                    case Value::Type::Object:
+                        oss << "object";
+                        break;
+                    case Value::Type::ObjectArray:
+                        oss << "object[]";
+                        break;
+                    default:
+                        oss << "unknown";
+                        break;
+                }
+            }
+        }
+        oss << ")";
+        return oss.str();
+    }
+
+    RuntimeMethod* RuntimeEvaluator::findMethod(RuntimeClass* cls, const std::string& name,
+                                                const std::vector<Value>* args) {
+        auto matches = [&](const RuntimeMethod& cand, const std::vector<Value>& actuals) {
+            if (cand.params.size() != actuals.size())
+                return false;
+            for (size_t i = 0; i < cand.params.size(); ++i) {
+                const auto& exp = cand.params[i];
+                const auto& act = actuals[i];
+                switch (exp.kind) {
+                    case Value::Type::Int:
+                        if (act.type != Value::Type::Int)
+                            return false;
+                        break;
+                    case Value::Type::Float:
+                        if (act.type != Value::Type::Float)
+                            return false;
+                        break;
+                    case Value::Type::Bit:
+                        if (act.type != Value::Type::Bit)
+                            return false;
+                        break;
+                    case Value::Type::String:
+                        if (act.type != Value::Type::String)
+                            return false;
+                        break;
+                    case Value::Type::Char:
+                        if (act.type != Value::Type::Char)
+                            return false;
+                        break;
+                    case Value::Type::Qubit:
+                        if (act.type != Value::Type::Qubit)
+                            return false;
+                        break;
+                    case Value::Type::Object:
+                        if (isNullReference(act))
+                            break;
+                        if (act.type != Value::Type::Object)
+                            return false;
+                        if (!exp.className.empty() && act.className != exp.className)
+                            return false;
+                        break;
+                    case Value::Type::ObjectArray:
+                        if (act.type != Value::Type::ObjectArray)
+                            return false;
+                        if (!exp.className.empty() && act.className != exp.className)
+                            return false;
+                        break;
+                    default:
+                        return false;
+                }
+            }
+            return true;
+        };
+
         RuntimeClass* cur = cls;
         while (cur) {
             auto mit = cur->methods.find(name);
-            if (mit != cur->methods.end())
-                return &mit->second;
+            if (mit != cur->methods.end()) {
+                if (!args)
+                    return mit->second.empty() ? nullptr : &mit->second.front();
+                RuntimeMethod* found = nullptr;
+                for (auto& cand : mit->second) {
+                    if (matches(cand, *args)) {
+                        if (found)
+                            return nullptr;  // ambiguous
+                        found = &cand;
+                    }
+                }
+                if (found)
+                    return found;
+            }
             cur = cur->base;
         }
         return nullptr;
@@ -445,39 +739,40 @@ namespace bloch::runtime {
 
     void RuntimeEvaluator::buildClassTable(Program& program) {
         m_classTable.clear();
-        std::unordered_map<std::string, std::string> baseNames;
+        m_genericTemplates.clear();
         for (auto& clsNode : program.classes) {
             if (!clsNode)
                 continue;
+            if (!clsNode->typeParameters.empty()) {
+                m_genericTemplates[clsNode->name] = clsNode.get();
+                continue;
+            }
             auto rc = std::make_shared<RuntimeClass>();
             rc->name = clsNode->name;
             rc->isStatic = clsNode->isStatic;
             rc->isAbstract = clsNode->isAbstract;
-            if (!clsNode->baseName.empty())
-                baseNames[rc->name] = clsNode->baseName.back();
             m_classTable[rc->name] = rc;
-        }
-        // wire bases and inherit layout
-        for (auto& kv : m_classTable) {
-            auto itBase = baseNames.find(kv.first);
-            if (itBase != baseNames.end()) {
-                kv.second->base = findClass(itBase->second);
-                if (kv.second->base) {
-                    kv.second->instanceFields = kv.second->base->instanceFields;
-                    kv.second->instanceFieldIndex = kv.second->base->instanceFieldIndex;
-                    kv.second->vtable = kv.second->base->vtable;
-                }
-            }
         }
         // populate members
         for (auto& clsNode : program.classes) {
-            if (!clsNode)
-                continue;
+            if (!clsNode || !clsNode->typeParameters.empty())
+                continue;  // generic templates handled lazily
             RuntimeClass* rc = findClass(clsNode->name);
             if (!rc)
                 continue;
+            // Wire base (non-generic class)
+            if (clsNode->baseType) {
+                if (auto named = dynamic_cast<NamedType*>(clsNode->baseType.get())) {
+                    if (named->typeArguments.empty()) {
+                        rc->base = findClass(named->nameParts.back());
+                    } else {
+                        rc->base = instantiateGeneric(named, {});
+                    }
+                }
+            } else if (!clsNode->baseName.empty()) {
+                rc->base = findClass(clsNode->baseName.back());
+            }
             if (rc->base) {
-                // Refresh inherited layout now that base metadata is populated.
                 rc->instanceFields = rc->base->instanceFields;
                 rc->instanceFieldIndex = rc->base->instanceFieldIndex;
                 rc->vtable = rc->base->vtable;
@@ -515,26 +810,29 @@ namespace bloch::runtime {
                     m.isVirtual = method->isVirtual;
                     m.isOverride = method->isOverride;
                     m.owner = rc;
-                    rc->methods[method->name] = m;
-                    RuntimeMethod* stored = &rc->methods[method->name];
+                    for (auto& p : method->params)
+                        m.params.push_back(typeInfoFromAst(p->type.get()));
+                    m.signature = runtimeSignatureLabel(method->name, m.params);
+                    auto& bucket = rc->methods[method->name];
+                    bucket.push_back(m);
+                    RuntimeMethod* stored = &bucket.back();
                     if (stored->isVirtual || stored->isOverride) {
-                        size_t idx = rc->vtable.size();
                         RuntimeMethod* baseMethod = nullptr;
                         if (rc->base) {
                             auto it = rc->base->methods.find(method->name);
-                            if (it != rc->base->methods.end() && it->second.isVirtual)
-                                baseMethod = &it->second;
+                            if (it != rc->base->methods.end()) {
+                                for (auto& cand : it->second) {
+                                    if (cand.signature == stored->signature) {
+                                        baseMethod = &cand;
+                                        break;
+                                    }
+                                }
+                            }
                         }
+                        rc->vtable[stored->signature] = stored;
                         if (baseMethod) {
-                            idx = baseMethod->vtableIndex;
-                        } else {
-                            rc->vtable.push_back(nullptr);
-                            idx = rc->vtable.size() - 1;
+                            rc->vtable[stored->signature] = stored;
                         }
-                        stored->vtableIndex = idx;
-                        if (idx >= rc->vtable.size())
-                            rc->vtable.resize(idx + 1, nullptr);
-                        rc->vtable[idx] = stored;
                     }
                 } else if (auto ctor = dynamic_cast<ConstructorDeclaration*>(member.get())) {
                     RuntimeConstructor c;
@@ -550,6 +848,150 @@ namespace bloch::runtime {
             if (rc->staticStorage.size() < rc->staticFields.size())
                 rc->staticStorage.resize(rc->staticFields.size());
         }
+    }
+
+    RuntimeClass* RuntimeEvaluator::instantiateGeneric(
+        const NamedType* typeNode, const std::unordered_map<std::string, RuntimeTypeInfo>& subst) {
+        if (!typeNode || typeNode->nameParts.empty())
+            return nullptr;
+        std::string base = typeNode->nameParts.back();
+        auto tmplIt = m_genericTemplates.find(base);
+        if (tmplIt == m_genericTemplates.end())
+            return nullptr;
+        std::vector<RuntimeTypeInfo> argInfos;
+        for (auto& arg : typeNode->typeArguments)
+            argInfos.push_back(typeInfoFromAst(arg.get(), subst));
+        RuntimeTypeInfo assembled;
+        assembled.kind = Value::Type::Object;
+        assembled.className = base;
+        assembled.typeArgs = argInfos;
+        std::string key = typeKey(assembled);
+        if (auto existing = findClass(key))
+            return existing;
+
+        core::ClassDeclaration* tmpl = tmplIt->second;
+        std::unordered_map<std::string, RuntimeTypeInfo> localSubst = subst;
+        for (size_t i = 0; i < tmpl->typeParameters.size() && i < argInfos.size(); ++i) {
+            localSubst[tmpl->typeParameters[i]->name] = argInfos[i];
+        }
+
+        auto rc = std::make_shared<RuntimeClass>();
+        rc->name = key;
+        rc->isStatic = tmpl->isStatic;
+        rc->isAbstract = tmpl->isAbstract;
+        rc->typeArgs = argInfos;
+        for (auto& tp : tmpl->typeParameters) rc->typeParamNames.push_back(tp->name);
+        if (tmpl->baseType) {
+            if (auto baseNamed = dynamic_cast<NamedType*>(tmpl->baseType.get())) {
+                if (baseNamed->typeArguments.empty()) {
+                    rc->base = findClass(baseNamed->nameParts.back());
+                } else {
+                    rc->base = instantiateGeneric(baseNamed, localSubst);
+                }
+            }
+        } else if (!tmpl->baseName.empty()) {
+            rc->base = findClass(tmpl->baseName.back());
+        }
+        if (rc->base) {
+            rc->instanceFields = rc->base->instanceFields;
+            rc->instanceFieldIndex = rc->base->instanceFieldIndex;
+            rc->vtable = rc->base->vtable;
+        }
+
+        for (auto& member : tmpl->members) {
+            if (auto field = dynamic_cast<FieldDeclaration*>(member.get())) {
+                RuntimeField f;
+                f.name = field->name;
+                f.type = typeInfoFromAst(field->fieldType.get(), localSubst);
+                f.isStatic = field->isStatic;
+                f.isFinal = field->isFinal;
+                f.isTracked = field->isTracked;
+                f.initializer = field->initializer.get();
+                f.hasInitializer = field->initializer != nullptr;
+                if (auto arr = dynamic_cast<ArrayType*>(field->fieldType.get()))
+                    f.arraySize = arr->size;
+                f.line = field->line;
+                f.column = field->column;
+                if (f.isTracked || f.type.kind == Value::Type::Qubit ||
+                    f.type.kind == Value::Type::QubitArray)
+                    rc->hasTrackedFields = true;
+                if (f.isStatic) {
+                    f.offset = rc->staticFields.size();
+                    rc->staticFieldIndex[f.name] = f.offset;
+                    rc->staticFields.push_back(f);
+                } else {
+                    f.offset = rc->instanceFields.size();
+                    rc->instanceFieldIndex[f.name] = f.offset;
+                    rc->instanceFields.push_back(f);
+                }
+            } else if (auto method = dynamic_cast<MethodDeclaration*>(member.get())) {
+                RuntimeMethod m;
+                m.decl = method;
+                m.isStatic = method->isStatic;
+                m.isVirtual = method->isVirtual;
+                m.isOverride = method->isOverride;
+                m.owner = rc.get();
+                for (auto& p : method->params)
+                    m.params.push_back(typeInfoFromAst(p->type.get(), localSubst));
+                m.signature = runtimeSignatureLabel(method->name, m.params);
+                auto& bucket = rc->methods[method->name];
+                bucket.push_back(m);
+                RuntimeMethod* stored = &bucket.back();
+                if (stored->isVirtual || stored->isOverride) {
+                    RuntimeMethod* baseMethod = nullptr;
+                    if (rc->base) {
+                        auto it = rc->base->methods.find(method->name);
+                        if (it != rc->base->methods.end()) {
+                            for (auto& cand : it->second) {
+                                if (cand.signature == stored->signature) {
+                                    baseMethod = &cand;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    rc->vtable[stored->signature] = stored;
+                    if (baseMethod) {
+                        rc->vtable[stored->signature] = stored;
+                    }
+                }
+            } else if (auto ctor = dynamic_cast<ConstructorDeclaration*>(member.get())) {
+                RuntimeConstructor c;
+                c.decl = ctor;
+                for (auto& p : ctor->params)
+                    c.params.push_back(typeInfoFromAst(p->type.get(), localSubst));
+                c.isDefault = ctor->isDefault;
+                rc->constructors.push_back(c);
+            } else if (auto dtor = dynamic_cast<DestructorDeclaration*>(member.get())) {
+                rc->hasDestructor = true;
+                rc->destructorDecl = dtor;
+            }
+        }
+        if (rc->staticStorage.size() < rc->staticFields.size())
+            rc->staticStorage.resize(rc->staticFields.size());
+        m_classTable[key] = rc;
+        initStaticFields(rc.get());
+        return rc.get();
+    }
+
+    RuntimeClass* RuntimeEvaluator::instantiateGeneric(const NamedType* typeNode) {
+        static const std::unordered_map<std::string, RuntimeTypeInfo> emptySubst;
+        return instantiateGeneric(typeNode, emptySubst);
+    }
+
+    RuntimeClass* RuntimeEvaluator::instantiateGeneric(const std::string& base,
+                                                       const std::vector<RuntimeTypeInfo>& args) {
+        auto tmplIt = m_genericTemplates.find(base);
+        if (tmplIt == m_genericTemplates.end())
+            return nullptr;
+        auto nt = std::make_unique<NamedType>(std::vector<std::string>{base});
+        for (const auto& a : args) nt->typeArguments.push_back(runtimeTypeToAst(a));
+        std::unordered_map<std::string, RuntimeTypeInfo> subst;
+        core::ClassDeclaration* tmpl = tmplIt->second;
+        for (size_t i = 0; i < tmpl->typeParameters.size() && i < args.size(); ++i) {
+            subst[tmpl->typeParameters[i]->name] = args[i];
+        }
+        return instantiateGeneric(nt.get(), subst);
     }
 
     void RuntimeEvaluator::initStaticFields(RuntimeClass* cls) {
@@ -785,6 +1227,8 @@ namespace bloch::runtime {
                 const auto& expected = candidate.params[i];
                 const auto& actual = args[i];
                 if (expected.kind == Value::Type::Object) {
+                    if (isNullReference(actual))
+                        continue;
                     if (actual.type != Value::Type::Object)
                         return false;
                     if (!expected.className.empty() && actual.className != expected.className)
@@ -1056,10 +1500,8 @@ namespace bloch::runtime {
                             v.qubitArray[i] = allocateTrackedQubit(var->name);
                     }
                 }
-            } else if (auto named = dynamic_cast<NamedType*>(var->varType.get())) {
+            } else if (dynamic_cast<NamedType*>(var->varType.get())) {
                 v.type = Value::Type::Object;
-                if (!named->nameParts.empty())
-                    v.className = named->nameParts.back();
             }
             bool initialized = false;
             if (var->initializer) {
@@ -1161,10 +1603,6 @@ namespace bloch::runtime {
                     v = eval(var->initializer.get());
                     initialized = true;
                 }
-            }
-            if (auto named = dynamic_cast<NamedType*>(var->varType.get())) {
-                if (!named->nameParts.empty())
-                    v.className = named->nameParts.back();
             }
             m_env.back()[var->name] = {v, var->isTracked, initialized};
         } else if (auto block = dynamic_cast<BlockStatement*>(s)) {
@@ -1278,6 +1716,13 @@ namespace bloch::runtime {
     Value RuntimeEvaluator::eval(Expression* e) {
         if (!e)
             return {};
+        if (dynamic_cast<NullLiteralExpression*>(e)) {
+            Value v;
+            v.type = Value::Type::Object;
+            v.objectValue = nullptr;
+            v.className = "";
+            return v;
+        }
         if (auto lit = dynamic_cast<LiteralExpression*>(e)) {
             Value v;
             if (lit->literalType == "bit") {
@@ -1471,8 +1916,20 @@ namespace bloch::runtime {
             }
             return v;
         } else if (auto newExpr = dynamic_cast<NewExpression*>(e)) {
-            RuntimeTypeInfo tinfo = typeInfoFromAst(newExpr->classType.get());
+            std::unordered_map<std::string, RuntimeTypeInfo> subst;
+            if (m_currentClassCtx && !m_currentClassCtx->typeParamNames.empty()) {
+                for (size_t i = 0; i < m_currentClassCtx->typeParamNames.size() &&
+                                   i < m_currentClassCtx->typeArgs.size();
+                     ++i) {
+                    subst[m_currentClassCtx->typeParamNames[i]] = m_currentClassCtx->typeArgs[i];
+                }
+            }
+            RuntimeTypeInfo tinfo = typeInfoFromAst(newExpr->classType.get(), subst);
             RuntimeClass* cls = findClass(tinfo.className);
+            if (!cls) {
+                if (auto named = dynamic_cast<NamedType*>(newExpr->classType.get()))
+                    cls = instantiateGeneric(named, subst);
+            }
             if (!cls)
                 throw BlochError(ErrorCategory::Runtime, newExpr->line, newExpr->column,
                                  "class '" + tinfo.className + "' not found");
@@ -1524,6 +1981,10 @@ namespace bloch::runtime {
             return v;
         } else if (auto memAcc = dynamic_cast<MemberAccessExpression*>(e)) {
             Value obj = eval(memAcc->object.get());
+            if (isNullReference(obj)) {
+                throw BlochError(ErrorCategory::Runtime, memAcc->line, memAcc->column,
+                                 "null reference");
+            }
             if (obj.type == Value::Type::ClassRef && obj.classRef) {
                 auto [field, owner] = findStaticFieldWithOwner(obj.classRef, memAcc->member);
                 RuntimeMethod* method = findMethod(obj.classRef, memAcc->member);
@@ -1561,6 +2022,27 @@ namespace bloch::runtime {
         } else if (auto bin = dynamic_cast<BinaryExpression*>(e)) {
             Value l = eval(bin->left.get());
             Value r = eval(bin->right.get());
+            auto isObjectLike = [](const Value& v) {
+                return v.type == Value::Type::Object || v.type == Value::Type::ClassRef;
+            };
+
+            if (bin->op == "==" || bin->op == "!=") {
+                if (isObjectLike(l) || isObjectLike(r)) {
+                    if (l.type == Value::Type::Object && r.type == Value::Type::Object) {
+                        bool eq = l.objectValue == r.objectValue;
+                        bool res = (bin->op == "==") ? eq : !eq;
+                        return {Value::Type::Bit, 0, 0.0, res ? 1 : 0};
+                    }
+                    if (l.type == Value::Type::ClassRef && r.type == Value::Type::ClassRef) {
+                        bool eq = l.classRef == r.classRef;
+                        bool res = (bin->op == "==") ? eq : !eq;
+                        return {Value::Type::Bit, 0, 0.0, res ? 1 : 0};
+                    }
+                    throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                     "equality on references requires two class references");
+                }
+            }
+
             auto lInt = l.type == Value::Type::Bit ? l.bitValue : l.intValue;
             auto rInt = r.type == Value::Type::Bit ? r.bitValue : r.intValue;
             double lNum = l.type == Value::Type::Float ? l.floatValue : static_cast<double>(lInt);
@@ -1569,10 +2051,18 @@ namespace bloch::runtime {
                 if (l.type == Value::Type::String || r.type == Value::Type::String) {
                     return {Value::Type::String, 0, 0.0, 0, valueToString(l) + valueToString(r)};
                 }
+                if (isObjectLike(l) || isObjectLike(r)) {
+                    throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                     "operator '+' not supported for class references");
+                }
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float) {
                     return {Value::Type::Float, 0, lNum + rNum};
                 }
                 return {Value::Type::Int, lInt + rInt};
+            }
+            if (isObjectLike(l) || isObjectLike(r)) {
+                throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                 "operator '" + bin->op + "' not supported for class references");
             }
             if (bin->op == "-") {
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float)
@@ -1841,7 +2331,7 @@ namespace bloch::runtime {
                 RuntimeMethod* method = nullptr;
                 RuntimeClass* staticCls = m_currentClassCtx;
                 if (staticCls)
-                    method = findMethod(staticCls, name);
+                    method = findMethod(staticCls, name, &args);
                 if (method) {
                     std::shared_ptr<Object> receiver;
                     if (!method->isStatic) {
@@ -1859,6 +2349,10 @@ namespace bloch::runtime {
                 std::vector<Value> args;
                 for (auto& a : callExpr->arguments) args.push_back(eval(a.get()));
                 Value target = eval(member->object.get());
+                if (isNullReference(target)) {
+                    throw BlochError(ErrorCategory::Runtime, member->line, member->column,
+                                     "null reference");
+                }
                 RuntimeMethod* method = nullptr;
                 RuntimeClass* staticCls = nullptr;
                 std::shared_ptr<Object> receiver;
@@ -1868,19 +2362,29 @@ namespace bloch::runtime {
                     staticCls = !target.className.empty() ? findClass(target.className) : nullptr;
                     if (!staticCls)
                         staticCls = receiver->cls;
-                    method = findMethod(staticCls, member->member);
-                    if (method && method->isVirtual && receiver->cls &&
-                        method->vtableIndex < receiver->cls->vtable.size() &&
-                        receiver->cls->vtable[method->vtableIndex]) {
-                        method = receiver->cls->vtable[method->vtableIndex];
+                    method = findMethod(staticCls, member->member, &args);
+                    if (method && method->isVirtual && receiver->cls) {
+                        auto it = receiver->cls->vtable.find(method->signature);
+                        if (it != receiver->cls->vtable.end())
+                            method = it->second;
                     }
                     if (viaSuper && staticCls && staticCls->base) {
-                        method = findMethod(staticCls->base, member->member);
+                        method = findMethod(staticCls->base, member->member, &args);
                         staticCls = staticCls->base;
                     }
                 } else if (target.type == Value::Type::ClassRef && target.classRef) {
                     staticCls = target.classRef;
-                    method = findMethod(staticCls, member->member);
+                    method = findMethod(staticCls, member->member, &args);
+                } else if (target.type == Value::Type::ClassRef && !target.classRef &&
+                           !target.className.empty()) {
+                    // Static call on a generic template (e.g., List.of(x)) — attempt to
+                    // instantiate using argument types.
+                    std::vector<RuntimeTypeInfo> inferred;
+                    if (!args.empty())
+                        inferred.push_back(typeInfoFromValue(args.front()));
+                    staticCls = instantiateGeneric(target.className, inferred);
+                    if (staticCls)
+                        method = findMethod(staticCls, member->member, &args);
                 }
                 if (method) {
                     return callMethod(method, staticCls, receiver, args);
@@ -1970,6 +2474,10 @@ namespace bloch::runtime {
             return v;
         } else if (auto memAssign = dynamic_cast<MemberAssignmentExpression*>(e)) {
             Value obj = eval(memAssign->object.get());
+            if (isNullReference(obj)) {
+                throw BlochError(ErrorCategory::Runtime, memAssign->line, memAssign->column,
+                                 "null reference");
+            }
             Value rhs = eval(memAssign->value.get());
             if (obj.type == Value::Type::Object && obj.objectValue) {
                 RuntimeField* instField =

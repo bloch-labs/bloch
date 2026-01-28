@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,6 +62,69 @@ TEST(SemanticTest, RedeclaredVariableFails) {
 
 TEST(SemanticTest, InnerVariableNotVisibleOutside) {
     auto program = parseProgram("{ int y; } y = 1;");
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, NullAllowedForClassReferences) {
+    const char* src =
+        "class Node { public Node next; public constructor() -> Node { this.next = null; return "
+        "this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, NullRejectedForPrimitive) {
+    auto program = parseProgram("int x = null;");
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, NullRejectedForArrays) {
+    auto program = parseProgram("int[] xs = null;");
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, NullComparisonRequiresClassReference) {
+    auto program = parseProgram("function main() -> void { int x = 0; if (x == null) { } }");
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, NullComparisonAllowedForClassReference) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; } function main() -> void { Foo f = "
+        "null; if (f == null) { } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, NullNotEqualsAllowedForClassReference) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; } function main() -> void { Foo f = "
+        "new Foo(); if (f != null) { } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, MethodOverloadingAllowedForDifferentParams) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; public function bar(int a) -> void { } "
+        "public function bar(float a) -> void { } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, DuplicateMethodSignatureRejected) {
+    const char* src =
+        "class Foo { public constructor() -> Foo = default; public function bar(int a) -> void { } "
+        "public function bar(int b) -> void { } }";
+    auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
@@ -674,4 +737,35 @@ TEST(SemanticTest, QuantumFunctionInvalidReturnFails) {
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, GenericTypeArgumentCountMismatchFails) {
+    const char* src =
+        "class Box<T> { public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int, int> b; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, GenericBoundViolationFails) {
+    const char* src =
+        "class Base { public constructor() -> Base = default; } "
+        "class Box<T extends Base> { public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int> b; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, GenericBoundSatisfiedPasses) {
+    const char* src =
+        "class Base { public constructor() -> Base = default; } "
+        "class Child extends Base { public constructor() -> Child = default; } "
+        "class Box<T extends Base> { public T v; public constructor(T v) -> Box<T> { this.v = v; "
+        "return this; } } "
+        "function main() -> void { Box<Child> b = new Box<Child>(new Child()); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
 }
