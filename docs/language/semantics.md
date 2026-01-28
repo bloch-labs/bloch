@@ -1,0 +1,71 @@
+---
+title: Semantic Rules
+---
+# Semantic Rules
+
+This page documents compile-time rules enforced by the semantic analyser (`src/bloch/semantics`). Errors report 1-based line and column.
+
+## Names and scopes
+
+- Lexical scoping for `{ ... }` blocks and functions.
+- No shadowing: redeclaring a variable in any active scope is an error.
+- Parameters live in the function scope and may not be redeclared.
+
+## Variables
+
+- `final` variables cannot be assigned to after declaration.
+- A variable must be declared before use.
+- Only `qubit` may be declared with commas: `qubit q0, q1;`. Other types must be one per declaration.
+- `@tracked` may only annotate `qubit` or `qubit[]`; otherwise it is an error.
+
+## Functions
+
+- `@quantum` functions must return `bit` or `void`.
+- Non-void functions must have at least one `return` along all paths.
+- `void` functions may not `return` a value.
+- Calling an undefined function is an error. Built-in gates are recognised as functions for arity/type checks.
+
+## Calls and built-ins
+
+- Built-in gate signatures (also used for type-checking):
+  - `h(qubit) -> void`
+  - `x(qubit) -> void`
+  - `y(qubit) -> void`
+  - `z(qubit) -> void`
+  - `rx(qubit, float) -> void`
+  - `ry(qubit, float) -> void`
+  - `rz(qubit, float) -> void`
+  - `cx(qubit, qubit) -> void`
+- Argument counts and types are checked. Example: `rx(q, 1);` is invalid (`1` is `int` not `float`).
+- Assigning the result of a `void` function (user-defined or built-in) is an error.
+
+## Postfix operators
+
+- `i++` and `i--` are only valid on non-`final` variables of type `int` only.
+- Postfix targets must be variables (not expressions like `(a+b)++`).
+
+## Arrays
+
+- Element type must be a primitive (`int, float, char, string, bit, qubit`).
+- `qubit[]` cannot be initialised with an array literal; use a fixed size (`qubit[N] r;`).
+- Fixed-size arrays without an initialiser are default-initialised (`0`, `0.0`, `""`, `'\0'`, or newly allocated qubits).
+- Array literals type-check all elements; permissive conversions are applied where implemented at runtime:
+  - `int[]` accepts `int`, `bit`, and `float` (truncated to `int`).
+  - `float[]` accepts `float`, `int`, and `bit` (promoted to `float`).
+  - `bit[]` accepts only `bit`.
+  - `string[]` accepts only `string`.
+  - `char[]` accepts only `char`.
+- Array element assignment checks index bounds and value type.
+- Assignment into an array must target a variable array (e.g., `a[i] = ...;`).
+
+## Measurement and reset
+
+- `measure q;` is a statement that collapses a qubit and records a classical bit.
+- `measure q` is also an expression that returns a `bit` value.
+- `reset q;` returns the qubit to `|0>` even if previously measured.
+
+## @tracked variables and shots
+
+- `@tracked` qubits and registers accumulate outcome counts at scope exit. If not measured, an outcome of `"?"` is recorded.
+- With `--shots=N`, the runtime executes the program `N` times and aggregates tracked outcomes across runs.
+
