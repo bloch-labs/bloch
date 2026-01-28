@@ -1,7 +1,7 @@
 # DES-003: New Primitives (boolean, long)
 
 ## Scope
-Implements ADR-005: add `boolean` and `long` primitives to Bloch.
+* ADR-005
 
 ## High Level Flow
 - Lexer adds keywords/literal suffixes → Parser recognises `boolean`/`long` primitives and `L` suffix → Semantics enforces type rules/promotions → Runtime adds value kinds/ops/printing.

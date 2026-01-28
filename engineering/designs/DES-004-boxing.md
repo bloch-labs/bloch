@@ -1,19 +1,19 @@
-# DES-004: Boxing Strategy in Stdlib
+# DES-004: Stdlib - Boxing
 
 ## Scope
-Implements ADR-006: boxed classes for every primitive (excluding `bit`/`qubit`). Provides explicit APIs so primitives can be used in generic/reference-only contexts.
+* ADR-006
 
 ## High Level Flow
 - Parser unchanged → Semantics unchanged → Runtime unchanged → Stdlib provides boxed classes with explicit constructors/accessors.
 
 ## Compilation (Lexer/Parser/AST)
-- No compiler changes; boxes are plain classes in stdlib.
+- No compiler changes.
 
 ## Semantic Analysis
-- No new rules; boxes follow normal class rules.
+- No semantic analysis changes.
 
 ## Runtime Architecture
-- No runtime changes; boxes are instantiated like any class.
+- No runtime changes.
 
 ## Stdlib Classes & APIs
 - **Object**
@@ -26,8 +26,10 @@ Implements ADR-006: boxed classes for every primitive (excluding `bit`/`qubit`).
   - `toPrimitive() -> boolean`
   - `equals(Object) -> boolean` (value-based)
   - `toString() -> string` ("true"/"false")
-  - `and(Boolean) -> Boolean`, `or(Boolean) -> Boolean`, `xor(Boolean) -> Boolean`, `not() -> Boolean`
-  - `compareTo(Boolean) -> int`
+  - `and(Boolean) -> Boolean`
+  - `or(Boolean) -> Boolean`
+  - `xor(Boolean) -> Boolean`
+  - `not() -> Boolean`
   - `static parse(string) -> Boolean`
 
 - **Integer**
@@ -52,7 +54,6 @@ Implements ADR-006: boxed classes for every primitive (excluding `bit`/`qubit`).
   - `toBinaryString() -> string`
   - `abs() -> Long`
   - `negate() -> Long`
-  - `compareTo(Long) -> int`
   - `static parse(string) -> Long`
   - `static min(Long, Long) -> Long`
   - `static max(Long, Long) -> Long`
@@ -67,7 +68,6 @@ Implements ADR-006: boxed classes for every primitive (excluding `bit`/`qubit`).
   - `floor() -> Float`
   - `ceil() -> Float`
   - `round() -> Integer`
-  - `compareTo(Float) -> int`
   - `static parse(string) -> Float`
   - `static min(Float, Float) -> Float`
   - `static max(Float, Float) -> Float`
@@ -82,7 +82,6 @@ Implements ADR-006: boxed classes for every primitive (excluding `bit`/`qubit`).
   - `isWhitespace() -> boolean`
   - `toUpper() -> Char`
   - `toLower() -> Char`
-  - `compareTo(Char) -> int`
 
 - **String**
   - `valueOf(string) -> String`
@@ -93,13 +92,11 @@ Implements ADR-006: boxed classes for every primitive (excluding `bit`/`qubit`).
   - `isEmpty() -> boolean`
   - `concat(String) -> String`
   - `substring(int start, int end) -> String`
-  - `indexOf(String) -> int`
   - `toUpper() -> String`
   - `toLower() -> String`
   - `trim() -> String`
   - `startsWith(String) -> boolean`
   - `endsWith(String) -> boolean`
-  - `compareTo(String) -> int`
   - `static join(String sep, String[] parts) -> String`
 
 ## Testing

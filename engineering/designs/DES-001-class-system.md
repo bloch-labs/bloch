@@ -1,7 +1,9 @@
 # DES-001: Class System Architecture (C++)
 
 ## Scope
-ADR-001 (class system), ADR-002 (null handling), ADR-003 (generics)
+* ADR-001
+* ADR-002
+* ADR-003
 
 ## High Level Flow
 <div align="center">
@@ -20,7 +22,7 @@ flowchart TD
 </div>
 
 ## Compilation (Lexer/Parser/AST)
-- Files: `src/bloch/core/parser/parser.cpp`, `src/bloch/core/ast/ast.hpp`.
+- Files: `src/bloch/core/parser/parser.{hpp,cpp}`, `src/bloch/core/ast/ast.hpp`.
 - `ClassDeclaration`: `typeParameters`, `baseType` (generic-aware), legacy `baseName`.
 - `NamedType`: `nameParts`, `typeArguments`.
 - Flow: modifiers → name → optional `<...>` → optional `extends` (`parseType`) → body members.

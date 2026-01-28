@@ -1,7 +1,7 @@
 # DES-002: @shots Annotation Design
 
 ## Scope
-Implements ADR-004: source-level shot count annotation on `main`.
+* ADR-004
 
 ## High Level Flow
 - Parser reads `@shots(N)` on `main` → Semantics validates placement/value → Runtime resolves shot count vs CLI → Execution uses resolved count.
