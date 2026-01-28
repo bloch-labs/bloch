@@ -424,6 +424,43 @@ TEST(ParserTest, ParseLogicalAndBitwiseExpressions) {
     EXPECT_EQ(unaryBang->op, "!");
 }
 
+TEST(ParserTest, ParseGenericClassAndInstantiation) {
+    const char* src =
+        "class Box<T> { public T v; public constructor(T v) -> Box<T> { this.v = v; return this; } "
+        "}"
+        "function main() -> void { Box<int> b = new Box<int>(1); }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->classes.size(), 1u);
+    auto* cls = program->classes[0].get();
+    ASSERT_EQ(cls->typeParameters.size(), 1u);
+    EXPECT_EQ(cls->typeParameters[0]->name, "T");
+
+    ASSERT_EQ(cls->members.size(), 2u);  // field + ctor
+    auto* ctor = dynamic_cast<ConstructorDeclaration*>(cls->members[1].get());
+    ASSERT_NE(ctor, nullptr);
+    ASSERT_EQ(ctor->params.size(), 1u);
+    auto* ctorParamType = dynamic_cast<NamedType*>(ctor->params[0]->type.get());
+    ASSERT_NE(ctorParamType, nullptr);
+    EXPECT_EQ(ctorParamType->nameParts.back(), "T");
+
+    ASSERT_EQ(program->functions.size(), 1u);
+    auto* mainFn = program->functions[0].get();
+    ASSERT_NE(mainFn->body, nullptr);
+    ASSERT_EQ(mainFn->body->statements.size(), 1u);
+    auto* var = dynamic_cast<VariableDeclaration*>(mainFn->body->statements[0].get());
+    ASSERT_NE(var, nullptr);
+    auto* namedType = dynamic_cast<NamedType*>(var->varType.get());
+    ASSERT_NE(namedType, nullptr);
+    ASSERT_EQ(namedType->typeArguments.size(), 1u);
+    auto* targ = dynamic_cast<PrimitiveType*>(namedType->typeArguments[0].get());
+    ASSERT_NE(targ, nullptr);
+    EXPECT_EQ(targ->name, "int");
+}
+
 TEST(ParserTest, ParseArrayTypesAndIndexing) {
     const char* src =
         "int[] a; int[5] b; int[] c = {0,1,2}; function main() -> void { echo(c[1]); }";

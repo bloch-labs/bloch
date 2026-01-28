@@ -738,3 +738,34 @@ TEST(SemanticTest, QuantumFunctionInvalidReturnFails) {
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
+
+TEST(SemanticTest, GenericTypeArgumentCountMismatchFails) {
+    const char* src =
+        "class Box<T> { public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int, int> b; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, GenericBoundViolationFails) {
+    const char* src =
+        "class Base { public constructor() -> Base = default; } "
+        "class Box<T extends Base> { public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int> b; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, GenericBoundSatisfiedPasses) {
+    const char* src =
+        "class Base { public constructor() -> Base = default; } "
+        "class Child extends Base { public constructor() -> Child = default; } "
+        "class Box<T extends Base> { public T v; public constructor(T v) -> Box<T> { this.v = v; "
+        "return this; } } "
+        "function main() -> void { Box<Child> b = new Box<Child>(new Child()); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}

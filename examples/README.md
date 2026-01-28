@@ -154,7 +154,18 @@ Encapsulates a p=1 QAOA for the 4-node cycle. Constructor captures `(gamma, beta
 bloch examples/07_null_demo.bloch
 ```
 
-This example demonstrates null reference in a user created class. While primitives are non-nullable, class members can be initialised to null. 
+This example demonstrates null reference in a user created class. While primitives are non-nullable, class members can be initialised to null.
+
+## 08 Generics
+
+**File** `examples/08_generics.bloch`
+
+**Try:**
+```bash
+bloch examples/08_generics.bloch
+```
+
+This demonstrates the usage of generics in user classes. 
 
 ## Multi-file import: static QuantumMath helper
 

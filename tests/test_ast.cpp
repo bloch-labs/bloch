@@ -48,3 +48,15 @@ TEST(ASTTest, ExpressionNodes) {
     EXPECT_EQ(leftLit->value, "1");
     EXPECT_EQ(rightLit->value, "2");
 }
+
+TEST(ASTTest, NamedTypeCarriesTypeArguments) {
+    auto arg = std::make_unique<PrimitiveType>("int");
+    auto named = std::make_unique<NamedType>(std::vector<std::string>{"Box"});
+    named->typeArguments.push_back(std::move(arg));
+
+    ASSERT_EQ(named->nameParts.back(), "Box");
+    ASSERT_EQ(named->typeArguments.size(), 1u);
+    auto* primArg = dynamic_cast<PrimitiveType*>(named->typeArguments[0].get());
+    ASSERT_NE(primArg, nullptr);
+    EXPECT_EQ(primArg->name, "int");
+}
