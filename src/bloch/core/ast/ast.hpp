@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ namespace bloch::core {
     struct BlockStatement;
     struct AnnotationNode;
     struct Parameter;
+    struct TypeParameter;
 
     enum class Visibility { Public, Private, Protected };
 
@@ -362,6 +363,7 @@ namespace bloch::core {
     // User-defined or qualified type
     struct NamedType : public Type {
         std::vector<std::string> nameParts;
+        std::vector<std::unique_ptr<Type>> typeArguments;
 
         explicit NamedType(std::vector<std::string> parts) : nameParts(std::move(parts)) {}
         void accept(ASTVisitor& visitor) override;
@@ -397,6 +399,14 @@ namespace bloch::core {
         std::unique_ptr<Type> type;
 
         Parameter() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    struct TypeParameter : public ASTNode {
+        std::string name;
+        std::unique_ptr<Type> bound;  // optional upper bound (extends)
+
+        TypeParameter() = default;
         void accept(ASTVisitor& visitor) override;
     };
 
@@ -477,7 +487,9 @@ namespace bloch::core {
     // Class Declaration
     struct ClassDeclaration : public ASTNode {
         std::string name;
+        std::vector<std::unique_ptr<TypeParameter>> typeParameters;
         std::vector<std::string> baseName;
+        std::unique_ptr<Type> baseType;
         bool isStatic = false;
         bool isAbstract = false;
         std::vector<std::unique_ptr<ClassMember>> members;
@@ -556,6 +568,7 @@ namespace bloch::core {
         virtual void visit(NamedType& node) = 0;
         virtual void visit(ArrayType& node) = 0;
         virtual void visit(VoidType& node) = 0;
+        virtual void visit(TypeParameter& node) = 0;
 
         virtual void visit(Parameter& node) = 0;
         virtual void visit(AnnotationNode& node) = 0;
@@ -607,6 +620,7 @@ namespace bloch::core {
     inline void ArrayType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void VoidType::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void Parameter::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void TypeParameter::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AnnotationNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ImportDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void FieldDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }

@@ -357,3 +357,20 @@ function main() -> void {
     std::string output = runBloch(src, "array_ops.bloch");
     EXPECT_EQ("{0, 1, 1, 0}\n1\n{1, 2, 3}\n{2, 2, 3}\n", output);
 }
+
+TEST(IntegrationTest, GenericInstantiationEndToEnd) {
+    std::string src = R"(
+class Box<T> {
+    public T v;
+    public constructor(T v) -> Box<T> { this.v = v; return this; }
+    public function get() -> T { return this.v; }
+}
+
+function main() -> void {
+    Box<string> b = new Box<string>("hi");
+    echo(b.get());
+}
+)";
+    std::string output = runBloch(src, "generic_runtime.bloch");
+    EXPECT_EQ("hi\n", output);
+}

@@ -383,6 +383,22 @@ TEST(RuntimeTest, EchoModes) {
     EXPECT_EQ("1\n", out.str());
 }
 
+TEST(RuntimeTest, GenericInstantiationSpecialisesAtRuntime) {
+    const char* src =
+        "class Box<T> { public T v; public constructor(T v) -> Box<T> { this.v = v; return this; } "
+        "public function get() -> T { return this.v; } } "
+        "function main() -> void { Box<int> b = new Box<int>(1); echo(b.get()); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream out;
+    auto* old = std::cout.rdbuf(out.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(old);
+    EXPECT_EQ("1\n", out.str());
+}
+
 TEST(RuntimeTest, UnmeasuredTrackedQubit) {
     const char* src = "function main() -> void { @tracked qubit q; }";
     auto program = parseProgram(src);
