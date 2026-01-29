@@ -1,1 +1,120 @@
-// Integer stdlib placeholder. Define the Integer class and helpers here.
+import Object;
+
+class Integer extends Object {
+    private final int value;
+
+    public constructor() -> Integer {
+        this.value = 0;
+        return this;
+    }
+
+    public constructor(int v) -> Integer {
+        this.value = v;
+        return this;
+    }
+
+    public static function valueOf(int v) -> Integer {
+        return new Integer(v);
+    }
+
+    public function toPrimitive() -> int {
+        return this.value;
+    }
+
+    public override function equals(Object other) -> boolean {
+        if (other == null) { return false; }
+        Integer o = (Integer)other;
+        return this.value == o.value;
+    }
+
+    public function toString() -> string {
+        int n = this.value;
+        if (n == 0) { return "0"; }
+        boolean negative = n < 0;
+        if (negative) { n = -n; }
+        string s = "";
+        while (n > 0) {
+            int digit = n % 10;
+            char c = (char)(digit + 48);
+            s = c + s;
+            n = n / 10;
+        }
+        if (negative) { s = "-" + s; }
+        return s;
+    }
+
+    public function toHexString() -> string {
+        int n = this.value;
+        if (n == 0) { return "0"; }
+        boolean negative = n < 0;
+        if (negative) { n = -n; }
+        string s = "";
+        while (n > 0) {
+            int digit = n % 16;
+            char c;
+            if (digit < 10) {
+                c = (char)(digit + 48);
+            } else {
+                c = (char)(digit - 10 + 97); // 'a'
+            }
+            s = c + s;
+            n = n / 16;
+        }
+        if (negative) { s = "-" + s; }
+        return s;
+    }
+
+    public function toBinaryString() -> string {
+        int n = this.value;
+        if (n == 0) { return "0"; }
+        boolean negative = n < 0;
+        if (negative) { n = -n; }
+        string s = "";
+        while (n > 0) {
+            int bit = n % 2;
+            char c = (char)(bit + 48);
+            s = c + s;
+            n = n / 2;
+        }
+        if (negative) { s = "-" + s; }
+        return s;
+    }
+
+    public function abs() -> Integer {
+        if (this.value < 0) { return new Integer(-this.value); }
+        return this;
+    }
+
+    public function negate() -> Integer {
+        return new Integer(-this.value);
+    }
+
+    public static function parse(string s) -> Integer {
+        if (s == null || s.length() == 0) { return new Integer(0); }
+        int i = 0;
+        boolean negative = false;
+        if (s[0] == '-') {
+            negative = true;
+            i = 1;
+        }
+        int result = 0;
+        while (i < s.length()) {
+            int d = (int)s[i] - 48;
+            if (d < 0 || d > 9) { return new Integer(0); }
+            result = result * 10 + d;
+            i = i + 1;
+        }
+        if (negative) { result = -result; }
+        return new Integer(result);
+    }
+
+    public static function min(Integer a, Integer b) -> Integer {
+        if (a.value <= b.value) { return a; }
+        return b;
+    }
+
+    public static function max(Integer a, Integer b) -> Integer {
+        if (a.value >= b.value) { return a; }
+        return b;
+    }
+}
