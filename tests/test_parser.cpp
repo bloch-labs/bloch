@@ -140,6 +140,28 @@ TEST(ParserTest, ParseInitialisedFloatVariableDeclaration) {
     EXPECT_EQ(lit->literalType, "float");
 }
 
+TEST(ParserTest, ParseBooleanVariableDeclaration) {
+    Lexer lexer("boolean flag = true;");
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 1u);
+
+    auto* var = dynamic_cast<VariableDeclaration*>(program->statements[0].get());
+    ASSERT_NE(var, nullptr);
+    EXPECT_EQ(var->name, "flag");
+
+    auto* type = dynamic_cast<PrimitiveType*>(var->varType.get());
+    ASSERT_NE(type, nullptr);
+    EXPECT_EQ(type->name, "boolean");
+
+    auto* lit = dynamic_cast<LiteralExpression*>(var->initializer.get());
+    ASSERT_NE(lit, nullptr);
+    EXPECT_EQ(lit->literalType, "boolean");
+    EXPECT_EQ(lit->value, "true");
+}
+
 TEST(ParserTest, ParseArrayWithIdentifierSize) {
     const char* src = "final int n = 2; qubit[n] qs;";
     Lexer lexer(src);

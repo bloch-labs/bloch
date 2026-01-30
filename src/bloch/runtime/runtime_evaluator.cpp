@@ -80,6 +80,8 @@ namespace bloch::runtime {
             }
             case Value::Type::Bit:
                 return std::to_string(v.bitValue);
+            case Value::Type::Boolean:
+                return v.boolValue ? "true" : "false";
             case Value::Type::Int:
                 return std::to_string(v.intValue);
             case Value::Type::BitArray:
@@ -88,6 +90,15 @@ namespace bloch::runtime {
                     if (i)
                         oss << ", ";
                     oss << v.bitArray[i];
+                }
+                oss << "}";
+                return oss.str();
+            case Value::Type::BooleanArray:
+                oss << "{";
+                for (size_t i = 0; i < v.boolArray.size(); ++i) {
+                    if (i)
+                        oss << ", ";
+                    oss << (v.boolArray[i] ? "true" : "false");
                 }
                 oss << "}";
                 return oss.str();
@@ -165,6 +176,8 @@ namespace bloch::runtime {
                 info.kind = Value::Type::Float;
             else if (prim->name == "bit")
                 info.kind = Value::Type::Bit;
+            else if (prim->name == "boolean")
+                info.kind = Value::Type::Boolean;
             else if (prim->name == "string")
                 info.kind = Value::Type::String;
             else if (prim->name == "char")
@@ -198,6 +211,9 @@ namespace bloch::runtime {
                     break;
                 case Value::Type::Bit:
                     info.kind = Value::Type::BitArray;
+                    break;
+                case Value::Type::Boolean:
+                    info.kind = Value::Type::BooleanArray;
                     break;
                 case Value::Type::String:
                     info.kind = Value::Type::StringArray;
@@ -247,6 +263,8 @@ namespace bloch::runtime {
                     return "float";
                 case Value::Type::Bit:
                     return "bit";
+                case Value::Type::Boolean:
+                    return "boolean";
                 case Value::Type::String:
                     return "string";
                 case Value::Type::Char:
@@ -259,6 +277,8 @@ namespace bloch::runtime {
                     return "float[]";
                 case Value::Type::BitArray:
                     return "bit[]";
+                case Value::Type::BooleanArray:
+                    return "boolean[]";
                 case Value::Type::StringArray:
                     return "string[]";
                 case Value::Type::CharArray:
@@ -292,6 +312,8 @@ namespace bloch::runtime {
                     return std::make_unique<PrimitiveType>("float");
                 case Value::Type::Bit:
                     return std::make_unique<PrimitiveType>("bit");
+                case Value::Type::Boolean:
+                    return std::make_unique<PrimitiveType>("boolean");
                 case Value::Type::String:
                     return std::make_unique<PrimitiveType>("string");
                 case Value::Type::Char:
@@ -307,6 +329,9 @@ namespace bloch::runtime {
                 case Value::Type::BitArray:
                     return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("bit"), -1,
                                                        nullptr);
+                case Value::Type::BooleanArray:
+                    return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("boolean"),
+                                                       -1, nullptr);
                 case Value::Type::StringArray:
                     return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("string"),
                                                        -1, nullptr);
@@ -334,6 +359,9 @@ namespace bloch::runtime {
                     break;
                 case Value::Type::Bit:
                     t.kind = Value::Type::Bit;
+                    break;
+                case Value::Type::Boolean:
+                    t.kind = Value::Type::Boolean;
                     break;
                 case Value::Type::String:
                     t.kind = Value::Type::String;
@@ -390,6 +418,9 @@ namespace bloch::runtime {
             case Value::Type::Bit:
                 v.bitValue = 0;
                 break;
+            case Value::Type::Boolean:
+                v.boolValue = false;
+                break;
             case Value::Type::String:
                 v.stringValue = "";
                 break;
@@ -407,6 +438,9 @@ namespace bloch::runtime {
                 break;
             case Value::Type::BitArray:
                 v.bitArray.assign(std::max(0, field.arraySize), 0);
+                break;
+            case Value::Type::BooleanArray:
+                v.boolArray.assign(std::max(0, field.arraySize), false);
                 break;
             case Value::Type::StringArray:
                 v.stringArray.assign(std::max(0, field.arraySize), "");
@@ -1437,6 +1471,20 @@ namespace bloch::runtime {
             runCycleCollector();
         if (!s)
             return;
+        auto isTruthy = [](const Value& v) {
+            switch (v.type) {
+                case Value::Type::Boolean:
+                    return v.boolValue;
+                case Value::Type::Bit:
+                    return v.bitValue != 0;
+                case Value::Type::Int:
+                    return v.intValue != 0;
+                case Value::Type::Float:
+                    return v.floatValue != 0.0;
+                default:
+                    return false;
+            }
+        };
         if (auto var = dynamic_cast<VariableDeclaration*>(s)) {
             Value v;
             if (auto prim = dynamic_cast<PrimitiveType*>(var->varType.get())) {
@@ -1444,6 +1492,8 @@ namespace bloch::runtime {
                     v.type = Value::Type::Int;
                 else if (prim->name == "bit")
                     v.type = Value::Type::Bit;
+                else if (prim->name == "boolean")
+                    v.type = Value::Type::Boolean;
                 else if (prim->name == "float")
                     v.type = Value::Type::Float;
                 else if (prim->name == "string")
@@ -1458,6 +1508,8 @@ namespace bloch::runtime {
                 if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
                     if (elem->name == "bit")
                         v.type = Value::Type::BitArray;
+                    else if (elem->name == "boolean")
+                        v.type = Value::Type::BooleanArray;
                     else if (elem->name == "int")
                         v.type = Value::Type::IntArray;
                     else if (elem->name == "float")
@@ -1486,6 +1538,8 @@ namespace bloch::runtime {
                     int n = arr->size;
                     if (v.type == Value::Type::BitArray)
                         v.bitArray.assign(n, 0);
+                    else if (v.type == Value::Type::BooleanArray)
+                        v.boolArray.assign(n, false);
                     else if (v.type == Value::Type::IntArray)
                         v.intArray.assign(n, 0);
                     else if (v.type == Value::Type::FloatArray)
@@ -1531,6 +1585,20 @@ namespace bloch::runtime {
                                                          el->column,
                                                          "bit[] initialiser expects bit elements");
                                     v.bitArray.push_back(ev.bitValue ? 1 : 0);
+                                }
+                            } else if (elem->name == "boolean") {
+                                v.type = Value::Type::BooleanArray;
+                                v.boolArray.clear();
+                                for (auto& el : arrLit->elements) {
+                                    Value ev = eval(el.get());
+                                    if (ev.type == Value::Type::Boolean)
+                                        v.boolArray.push_back(ev.boolValue);
+                                    else if (ev.type == Value::Type::Bit)
+                                        v.boolArray.push_back(ev.bitValue != 0);
+                                    else
+                                        throw BlochError(
+                                            ErrorCategory::Runtime, el->line, el->column,
+                                            "boolean[] initialiser expects boolean elements");
                                 }
                             } else if (elem->name == "int") {
                                 v.type = Value::Type::IntArray;
@@ -1621,14 +1689,14 @@ namespace bloch::runtime {
             m_hasReturn = true;
         } else if (auto ifs = dynamic_cast<IfStatement*>(s)) {
             Value cond = eval(ifs->condition.get());
-            if (cond.intValue || cond.bitValue) {
+            if (isTruthy(cond)) {
                 exec(ifs->thenBranch.get());
             } else {
                 exec(ifs->elseBranch.get());
             }
         } else if (auto tern = dynamic_cast<TernaryStatement*>(s)) {
             Value cond = eval(tern->condition.get());
-            if (cond.intValue || cond.bitValue) {
+            if (isTruthy(cond)) {
                 exec(tern->thenBranch.get());
             } else {
                 exec(tern->elseBranch.get());
@@ -1638,10 +1706,10 @@ namespace bloch::runtime {
             if (fors->initializer)
                 exec(fors->initializer.get());
             while (true) {
-                Value c{Value::Type::Bit};
+                bool condVal = true;
                 if (fors->condition)
-                    c = eval(fors->condition.get());
-                if (!(c.intValue || c.bitValue))
+                    condVal = isTruthy(eval(fors->condition.get()));
+                if (!condVal)
                     break;
                 exec(fors->body.get());
                 if (m_hasReturn)
@@ -1652,10 +1720,10 @@ namespace bloch::runtime {
             endScope();
         } else if (auto whiles = dynamic_cast<WhileStatement*>(s)) {
             while (true) {
-                Value c{Value::Type::Bit};
+                bool condVal = true;
                 if (whiles->condition)
-                    c = eval(whiles->condition.get());
-                if (!(c.intValue || c.bitValue))
+                    condVal = isTruthy(eval(whiles->condition.get()));
+                if (!condVal)
                     break;
                 exec(whiles->body.get());
                 if (m_hasReturn)
@@ -1728,6 +1796,9 @@ namespace bloch::runtime {
             if (lit->literalType == "bit") {
                 v.type = Value::Type::Bit;
                 v.bitValue = std::stoi(lit->value);
+            } else if (lit->literalType == "boolean") {
+                v.type = Value::Type::Boolean;
+                v.boolValue = (lit->value == "true");
             } else if (lit->literalType == "float") {
                 v.type = Value::Type::Float;
                 v.floatValue = std::stof(lit->value);
@@ -1850,6 +1921,16 @@ namespace bloch::runtime {
                             throw BlochError(ErrorCategory::Runtime, el->line, el->column,
                                              "inconsistent element types in array literal");
                         v.bitArray.push_back(ev.bitValue ? 1 : 0);
+                    }
+                    break;
+                case Value::Type::Boolean:
+                    v.type = Value::Type::BooleanArray;
+                    for (auto& el : arr->elements) {
+                        Value ev = eval(el.get());
+                        if (ev.type != Value::Type::Boolean)
+                            throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                             "inconsistent element types in array literal");
+                        v.boolArray.push_back(ev.boolValue);
                     }
                     break;
                 case Value::Type::Int:
@@ -2025,22 +2106,53 @@ namespace bloch::runtime {
             auto isObjectLike = [](const Value& v) {
                 return v.type == Value::Type::Object || v.type == Value::Type::ClassRef;
             };
+            auto makeBoolean = [](bool b) {
+                Value v;
+                v.type = Value::Type::Boolean;
+                v.boolValue = b;
+                return v;
+            };
 
             if (bin->op == "==" || bin->op == "!=") {
                 if (isObjectLike(l) || isObjectLike(r)) {
                     if (l.type == Value::Type::Object && r.type == Value::Type::Object) {
                         bool eq = l.objectValue == r.objectValue;
                         bool res = (bin->op == "==") ? eq : !eq;
-                        return {Value::Type::Bit, 0, 0.0, res ? 1 : 0};
+                        return makeBoolean(res);
                     }
                     if (l.type == Value::Type::ClassRef && r.type == Value::Type::ClassRef) {
                         bool eq = l.classRef == r.classRef;
                         bool res = (bin->op == "==") ? eq : !eq;
-                        return {Value::Type::Bit, 0, 0.0, res ? 1 : 0};
+                        return makeBoolean(res);
                     }
                     throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
                                      "equality on references requires two class references");
                 }
+            }
+
+            bool lIsBool = l.type == Value::Type::Boolean;
+            bool rIsBool = r.type == Value::Type::Boolean;
+            if (lIsBool || rIsBool) {
+                auto toBool = [&](const Value& v) -> bool {
+                    if (v.type == Value::Type::Boolean)
+                        return v.boolValue;
+                    if (v.type == Value::Type::Bit)
+                        return v.bitValue != 0;
+                    throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                     "boolean operations require boolean or bit operands");
+                };
+                if (bin->op == "&&" || bin->op == "||") {
+                    bool lb = toBool(l);
+                    bool rb = toBool(r);
+                    return makeBoolean(bin->op == "&&" ? (lb && rb) : (lb || rb));
+                }
+                if (bin->op == "==" || bin->op == "!=") {
+                    bool lb = toBool(l);
+                    bool rb = toBool(r);
+                    return makeBoolean(bin->op == "==" ? (lb == rb) : (lb != rb));
+                }
+                throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                 "operator '" + bin->op + "' not supported for boolean");
             }
 
             auto lInt = l.type == Value::Type::Bit ? l.bitValue : l.intValue;
@@ -2091,43 +2203,43 @@ namespace bloch::runtime {
 
             if (bin->op == ">") {
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float)
-                    return {Value::Type::Bit, 0, 0.0, lNum > rNum};
-                return {Value::Type::Bit, 0, 0.0, lInt > rInt};
+                    return makeBoolean(lNum > rNum);
+                return makeBoolean(lInt > rInt);
             }
             if (bin->op == "<") {
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float)
-                    return {Value::Type::Bit, 0, 0.0, lNum < rNum};
-                return {Value::Type::Bit, 0, 0.0, lInt < rInt};
+                    return makeBoolean(lNum < rNum);
+                return makeBoolean(lInt < rInt);
             }
             if (bin->op == ">=") {
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float)
-                    return {Value::Type::Bit, 0, 0.0, lNum >= rNum};
-                return {Value::Type::Bit, 0, 0.0, lInt >= rInt};
+                    return makeBoolean(lNum >= rNum);
+                return makeBoolean(lInt >= rInt);
             }
             if (bin->op == "<=") {
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float)
-                    return {Value::Type::Bit, 0, 0.0, lNum <= rNum};
-                return {Value::Type::Bit, 0, 0.0, lInt <= rInt};
+                    return makeBoolean(lNum <= rNum);
+                return makeBoolean(lInt <= rInt);
             }
             if (bin->op == "==") {
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float)
-                    return {Value::Type::Bit, 0, 0.0, lNum == rNum};
-                return {Value::Type::Bit, 0, 0.0, lInt == rInt};
+                    return makeBoolean(lNum == rNum);
+                return makeBoolean(lInt == rInt);
             }
             if (bin->op == "!=") {
                 if (l.type == Value::Type::Float || r.type == Value::Type::Float)
-                    return {Value::Type::Bit, 0, 0.0, lNum != rNum};
-                return {Value::Type::Bit, 0, 0.0, lInt != rInt};
+                    return makeBoolean(lNum != rNum);
+                return makeBoolean(lInt != rInt);
             }
             if (bin->op == "&&") {
                 bool lb = l.type == Value::Type::Float ? lNum != 0.0 : lInt != 0;
                 bool rb = r.type == Value::Type::Float ? rNum != 0.0 : rInt != 0;
-                return {Value::Type::Bit, 0, 0.0, lb && rb};
+                return makeBoolean(lb && rb);
             }
             if (bin->op == "||") {
                 bool lb = l.type == Value::Type::Float ? lNum != 0.0 : lInt != 0;
                 bool rb = r.type == Value::Type::Float ? rNum != 0.0 : rInt != 0;
-                return {Value::Type::Bit, 0, 0.0, lb || rb};
+                return makeBoolean(lb || rb);
             }
             if (bin->op == "&") {
                 if (l.type == Value::Type::Bit && r.type == Value::Type::Bit)
@@ -2239,14 +2351,23 @@ namespace bloch::runtime {
                 return {Value::Type::Int, -r.intValue};
             }
             if (unary->op == "!") {
-                if (r.type == Value::Type::BitArray) {
+                if (r.type == Value::Type::BitArray || r.type == Value::Type::BooleanArray) {
                     throw BlochError(ErrorCategory::Runtime, unary->line, unary->column,
-                                     "logical '!' unsupported for bit[]");
+                                     "logical '!' unsupported for bit[] or boolean[]");
                 }
-                bool rb = r.type == Value::Type::Float
-                              ? r.floatValue != 0.0
-                              : (r.type == Value::Type::Bit ? r.bitValue != 0 : r.intValue != 0);
-                return {Value::Type::Bit, 0, 0.0, !rb};
+                bool rb = false;
+                if (r.type == Value::Type::Boolean)
+                    rb = r.boolValue;
+                else if (r.type == Value::Type::Float)
+                    rb = r.floatValue != 0.0;
+                else if (r.type == Value::Type::Bit)
+                    rb = r.bitValue != 0;
+                else if (r.type == Value::Type::Int)
+                    rb = r.intValue != 0;
+                Value v;
+                v.type = Value::Type::Boolean;
+                v.boolValue = !rb;
+                return v;
             }
             if (unary->op == "~") {
                 if (r.type == Value::Type::Bit)
@@ -2434,6 +2555,17 @@ namespace bloch::runtime {
                                              " out of bounds for length " +
                                              std::to_string(coll.floatArray.size()));
                     return {Value::Type::Float, 0, coll.floatArray[idxi]};
+                case Value::Type::BooleanArray: {
+                    if (idxi < 0 || idxi >= static_cast<int>(coll.boolArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                         "index " + std::to_string(idxi) +
+                                             " out of bounds for length " +
+                                             std::to_string(coll.boolArray.size()));
+                    Value v;
+                    v.type = Value::Type::Boolean;
+                    v.boolValue = coll.boolArray[idxi];
+                    return v;
+                }
                 case Value::Type::StringArray:
                     if (idxi < 0 || idxi >= static_cast<int>(coll.stringArray.size()))
                         throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
@@ -2566,6 +2698,20 @@ namespace bloch::runtime {
                     else
                         throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
                                          "type mismatch for bit[] assignment");
+                    break;
+                case Value::Type::BooleanArray:
+                    if (i < 0 || i >= static_cast<int>(arr.boolArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "index " + std::to_string(i) +
+                                             " out of bounds for length " +
+                                             std::to_string(arr.boolArray.size()));
+                    if (rhs.type == Value::Type::Boolean)
+                        arr.boolArray[i] = rhs.boolValue;
+                    else if (rhs.type == Value::Type::Bit)
+                        arr.boolArray[i] = rhs.bitValue != 0;
+                    else
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "type mismatch for boolean[] assignment");
                     break;
                 case Value::Type::StringArray:
                     if (i < 0 || i >= static_cast<int>(arr.stringArray.size()))
