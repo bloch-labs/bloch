@@ -1,7 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "bootstrap-sha": "4006de8fc15acdb3734a64f7755e3fbe1dec2671",
-  "last-release-sha": "4006de8fc15acdb3734a64f7755e3fbe1dec2671",
   "include-v-in-tag": true,
   "include-component-in-tag": false,
   "changelog-sections": [
@@ -14,7 +13,9 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "bloch"
+      "package-name": "bloch",
+      "last-release-sha": "4006de8fc15acdb3734a64f7755e3fbe1dec2671",
+      "last-release-version": "1.0.2"
     }
   }
 }
