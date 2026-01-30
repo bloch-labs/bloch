@@ -884,7 +884,7 @@ namespace bloch::core {
             auto rt = inferTypeInfo(bin->right.get());
             if (bin->op == "==" || bin->op == "!=" || bin->op == "<" || bin->op == ">" ||
                 bin->op == "<=" || bin->op == ">=" || bin->op == "&&" || bin->op == "||")
-                return combine(ValueType::Bit, "");
+                return combine(ValueType::Boolean, "");
             if (bin->op == "+" && (lt.value == ValueType::String || rt.value == ValueType::String))
                 return combine(ValueType::String, "");
             if (bin->op == "+") {
@@ -915,7 +915,7 @@ namespace bloch::core {
                 return combine((rt.value == ValueType::Float) ? ValueType::Float : ValueType::Int,
                                "");
             if (un->op == "!")
-                return combine(ValueType::Bit, "");
+                return combine(ValueType::Boolean, "");
             if (un->op == "~")
                 return combine((rt.value == ValueType::Bit) ? ValueType::Bit : ValueType::Unknown,
                                "");
@@ -1228,8 +1228,18 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(IfStatement& node) {
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
+            auto condType = inferTypeInfo(node.condition.get());
+            auto isCond = [](ValueType v) {
+                return v == ValueType::Boolean || v == ValueType::Bit || v == ValueType::Int ||
+                       v == ValueType::Float;
+            };
+            if (condType.value != ValueType::Unknown && !isCond(condType.value)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "if condition must be 'boolean', 'bit', 'int', or 'float'");
+            }
+        }
         if (node.thenBranch)
             node.thenBranch->accept(*this);
         if (node.elseBranch)
@@ -1237,8 +1247,18 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(TernaryStatement& node) {
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
+            auto condType = inferTypeInfo(node.condition.get());
+            auto isCond = [](ValueType v) {
+                return v == ValueType::Boolean || v == ValueType::Bit || v == ValueType::Int ||
+                       v == ValueType::Float;
+            };
+            if (condType.value != ValueType::Unknown && !isCond(condType.value)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "ternary condition must be 'boolean', 'bit', 'int', or 'float'");
+            }
+        }
         if (node.thenBranch)
             node.thenBranch->accept(*this);
         if (node.elseBranch)
@@ -1249,8 +1269,18 @@ namespace bloch::core {
         beginScope();
         if (node.initializer)
             node.initializer->accept(*this);
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
+            auto condType = inferTypeInfo(node.condition.get());
+            auto isCond = [](ValueType v) {
+                return v == ValueType::Boolean || v == ValueType::Bit || v == ValueType::Int ||
+                       v == ValueType::Float;
+            };
+            if (condType.value != ValueType::Unknown && !isCond(condType.value)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "for-loop condition must be 'boolean', 'bit', 'int', or 'float'");
+            }
+        }
         if (node.increment)
             node.increment->accept(*this);
         if (node.body)
@@ -1259,8 +1289,18 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(WhileStatement& node) {
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
+            auto condType = inferTypeInfo(node.condition.get());
+            auto isCond = [](ValueType v) {
+                return v == ValueType::Boolean || v == ValueType::Bit || v == ValueType::Int ||
+                       v == ValueType::Float;
+            };
+            if (condType.value != ValueType::Unknown && !isCond(condType.value)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "while condition must be 'boolean', 'bit', 'int', or 'float'");
+            }
+        }
         if (node.body)
             node.body->accept(*this);
     }
@@ -1379,6 +1419,30 @@ namespace bloch::core {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                              "null can only be used in equality comparisons");
         }
+        auto isBoolish = [](const TypeInfo& t) {
+            return t.value == ValueType::Boolean || t.value == ValueType::Bit;
+        };
+        if (node.op == "&&" || node.op == "||") {
+            if ((lt.value != ValueType::Unknown && !isBoolish(lt)) ||
+                (rt.value != ValueType::Unknown && !isBoolish(rt))) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "logical '" + node.op + "' requires 'boolean' or 'bit' operands");
+            }
+            return;
+        }
+        if (node.op == "==" || node.op == "!=") {
+            if ((lt.value == ValueType::Boolean || rt.value == ValueType::Boolean) &&
+                ((lt.value != ValueType::Unknown && !isBoolish(lt)) ||
+                 (rt.value != ValueType::Unknown && !isBoolish(rt)))) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "boolean equality requires 'boolean' or 'bit' operands");
+            }
+        } else {
+            if (lt.value == ValueType::Boolean || rt.value == ValueType::Boolean) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "operator '" + node.op + "' not supported for 'boolean'");
+            }
+        }
         if (node.op == "==" || node.op == "!=") {
             auto isArrayClass = [](const std::string& name) {
                 return name.size() >= 2 && name.rfind("[]") == name.size() - 2;
@@ -1405,8 +1469,22 @@ namespace bloch::core {
     }
 
     void SemanticAnalyser::visit(UnaryExpression& node) {
-        if (node.right)
+        if (node.right) {
             node.right->accept(*this);
+            auto rt = inferTypeInfo(node.right.get());
+            if (node.op == "!") {
+                if (rt.value != ValueType::Unknown && rt.value != ValueType::Boolean &&
+                    rt.value != ValueType::Bit) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "logical '!' requires 'boolean' or 'bit' operand");
+                }
+            } else if (node.op == "~") {
+                if (rt.value == ValueType::Boolean) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "bitwise '~' not supported for 'boolean'");
+                }
+            }
+        }
     }
 
     void SemanticAnalyser::visit(CastExpression& node) {
@@ -2022,6 +2100,70 @@ namespace bloch::core {
             node.index->accept(*this);
         if (node.value)
             node.value->accept(*this);
+
+        auto colType = inferTypeInfo(node.collection.get());
+        if (colType.className.size() < 2 ||
+            colType.className.rfind("[]") != colType.className.size() - 2) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "indexing requires an array value");
+        }
+
+        // Validate index type: allow int, bit, or float (numeric non-char)
+        auto idxType = inferTypeInfo(node.index.get());
+        auto isNumericIndex = [](ValueType v) {
+            return v == ValueType::Int || v == ValueType::Float || v == ValueType::Bit;
+        };
+        if (idxType.value != ValueType::Unknown && !isNumericIndex(idxType.value)) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "array index must be int, bit, or float");
+        }
+
+        auto valType = inferTypeInfo(node.value.get());
+        std::string elemName = colType.className.substr(0, colType.className.size() - 2);
+        auto reject = [&](const std::string& expected) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "assignment to array element expected '" + expected + "'");
+        };
+
+        if (elemName == "int") {
+            if (valType.value != ValueType::Unknown && valType.value != ValueType::Int &&
+                valType.value != ValueType::Bit && valType.value != ValueType::Float) {
+                reject("int");
+            }
+        } else if (elemName == "float") {
+            if (valType.value != ValueType::Unknown && valType.value != ValueType::Float &&
+                valType.value != ValueType::Int && valType.value != ValueType::Bit) {
+                reject("float");
+            }
+        } else if (elemName == "bit") {
+            if (valType.value != ValueType::Unknown && valType.value != ValueType::Bit) {
+                reject("bit");
+            }
+        } else if (elemName == "boolean") {
+            if (valType.value != ValueType::Unknown && valType.value != ValueType::Boolean &&
+                valType.value != ValueType::Bit) {
+                reject("boolean");
+            }
+        } else if (elemName == "string") {
+            if (valType.value != ValueType::Unknown && valType.value != ValueType::String) {
+                reject("string");
+            }
+        } else if (elemName == "char") {
+            if (valType.value != ValueType::Unknown && valType.value != ValueType::Char) {
+                reject("char");
+            }
+        } else if (elemName == "qubit") {
+            if (valType.value != ValueType::Unknown && valType.value != ValueType::Qubit) {
+                reject("qubit");
+            }
+        } else {
+            // Class array element
+            if (valType.value == ValueType::Null)
+                return;
+            if (valType.className.empty() || valType.className != elemName) {
+                reject(elemName);
+            }
+        }
     }
 
     void SemanticAnalyser::visit(PrimitiveType&) {}

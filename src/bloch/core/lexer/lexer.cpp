@@ -237,12 +237,15 @@ namespace bloch::core {
 
             // Primitives
             {"null", TokenType::Null},
+            {"true", TokenType::True},
+            {"false", TokenType::False},
             {"int", TokenType::Int},
             {"float", TokenType::Float},
             {"string", TokenType::String},
             {"char", TokenType::Char},
             {"qubit", TokenType::Qubit},
             {"bit", TokenType::Bit},
+            {"boolean", TokenType::Boolean},
 
             // Keywords
             {"void", TokenType::Void},
