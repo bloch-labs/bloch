@@ -2049,20 +2049,19 @@ namespace bloch::compiler {
             bool elemIsArray = isArrayName(elemType.className);
             bool elemIsClass = !elemType.className.empty() && !elemIsArray;
             if (!elemIsClass) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "cannot assign null to array element of type '" +
-                                     typeLabel(elemType) + "'");
+                throw BlochError(
+                    ErrorCategory::Semantic, node.line, node.column,
+                    "cannot assign null to array element of type '" + typeLabel(elemType) + "'");
             }
             return;
         }
 
-        auto typesCompatible = typeEquals(valType, elemType) ||
-                               (elemType.value == ValueType::Int && valType.value == ValueType::Bit);
+        auto typesCompatible = typeEquals(valType, elemType) || (elemType.value == ValueType::Int &&
+                                                                 valType.value == ValueType::Bit);
 
         if (!typesCompatible) {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                             "assignment to array element expects '" + typeLabel(elemType) +
-                                 "'");
+                             "assignment to array element expects '" + typeLabel(elemType) + "'");
         }
     }
 
