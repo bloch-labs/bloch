@@ -30,6 +30,8 @@ namespace bloch::core {
             return ValueType::Qubit;
         if (name == "bit")
             return ValueType::Bit;
+        if (name == "boolean")
+            return ValueType::Boolean;
         if (name == "null")
             return ValueType::Null;
         if (name == "void")
@@ -52,6 +54,8 @@ namespace bloch::core {
                 return "qubit";
             case ValueType::Bit:
                 return "bit";
+            case ValueType::Boolean:
+                return "boolean";
             case ValueType::Null:
                 return "null";
             case ValueType::Void:

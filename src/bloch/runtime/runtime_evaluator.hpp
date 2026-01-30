@@ -89,6 +89,7 @@ namespace bloch::runtime {
             Int,
             Float,
             Bit,
+            Boolean,
             String,
             Char,
             Qubit,
@@ -96,6 +97,7 @@ namespace bloch::runtime {
             IntArray,
             FloatArray,
             BitArray,
+            BooleanArray,
             StringArray,
             CharArray,
             QubitArray,
@@ -108,12 +110,14 @@ namespace bloch::runtime {
         int intValue = 0;
         double floatValue = 0.0;
         int bitValue = 0;
+        bool boolValue = false;
         std::string stringValue = "";
         char charValue = '\0';
         int qubit = -1;
         std::vector<int> intArray;
         std::vector<double> floatArray;
         std::vector<int> bitArray;
+        std::vector<bool> boolArray;
         std::vector<std::string> stringArray;
         std::vector<char> charArray;
         std::vector<int> qubitArray;

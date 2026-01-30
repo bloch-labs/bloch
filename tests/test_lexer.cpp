@@ -82,6 +82,16 @@ TEST(LexerTest, KeywordDetection) {
     EXPECT_EQ(tokens[2].type, TokenType::Return);
 }
 
+TEST(LexerTest, BooleanKeywordAndLiterals) {
+    Lexer lexer("boolean true false");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_GE(tokens.size(), 4u);
+    EXPECT_EQ(tokens[0].type, TokenType::Boolean);
+    EXPECT_EQ(tokens[1].type, TokenType::True);
+    EXPECT_EQ(tokens[2].type, TokenType::False);
+}
+
 TEST(LexerTest, NullKeyword) {
     Lexer lexer("null");
     auto tokens = lexer.tokenize();

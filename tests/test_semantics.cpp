@@ -239,6 +239,20 @@ TEST(SemanticTest, AssignFromFunctionCall) {
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
+TEST(SemanticTest, BooleanArrayElementAssignment) {
+    const char* src = "function main() -> void { boolean[] bs = {true, false}; bs[1] = true; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, BooleanArrayRejectsIntAssignment) {
+    const char* src = "function main() -> void { boolean[] bs = {true}; bs[0] = 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
 TEST(SemanticTest, CallBeforeDeclaration) {
     const char* src = "bit b = foo(); function foo() -> bit { return 0b; }";
     auto program = parseProgram(src);

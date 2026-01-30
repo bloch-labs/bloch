@@ -218,7 +218,7 @@ TEST(RuntimeTest, NullEqualityChecksObjectPresence) {
     auto* oldBuf = std::cout.rdbuf(output.rdbuf());
     eval.execute(*program);
     std::cout.rdbuf(oldBuf);
-    EXPECT_EQ("1\n0\n", output.str());
+    EXPECT_EQ("true\nfalse\n", output.str());
 }
 
 TEST(RuntimeTest, NullInequalityChecksObjectPresence) {
@@ -233,7 +233,36 @@ TEST(RuntimeTest, NullInequalityChecksObjectPresence) {
     auto* oldBuf = std::cout.rdbuf(output.rdbuf());
     eval.execute(*program);
     std::cout.rdbuf(oldBuf);
-    EXPECT_EQ("0\n1\n", output.str());
+    EXPECT_EQ("false\ntrue\n", output.str());
+}
+
+TEST(RuntimeTest, BooleanLogicAndEcho) {
+    const char* src =
+        "function main() -> void { boolean t = true; boolean f = false; echo(t && f); echo(t || "
+        "f); "
+        "echo(!f); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("false\ntrue\ntrue\n", output.str());
+}
+
+TEST(RuntimeTest, BooleanArrayIndexing) {
+    const char* src = "function main() -> void { boolean[] bs = {true, false}; echo(bs[1]); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("false\n", output.str());
 }
 
 TEST(RuntimeTest, MethodOverloadDispatchesByParameterTypes) {
@@ -507,7 +536,7 @@ TEST(RuntimeTest, LogicalAndBitwiseOperations) {
     auto* oldBuf = std::cout.rdbuf(output.rdbuf());
     eval.execute(*program);
     std::cout.rdbuf(oldBuf);
-    EXPECT_EQ("0\n1\n0\n1\n0\n0\n1\n", output.str());
+    EXPECT_EQ("0\n1\n0\n1\nfalse\nfalse\ntrue\n", output.str());
 }
 
 TEST(RuntimeTest, BitArrayBitwiseOperations) {
@@ -569,9 +598,7 @@ TEST(RuntimeTest, ArrayAssignmentTypeMismatchThrows) {
     const char* src = "function main() -> void { string[] s = {\"a\"}; s[0] = 1; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    analyser.analyse(*program);
-    RuntimeEvaluator eval;
-    EXPECT_THROW(eval.execute(*program), BlochError);
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(RuntimeTest, ArrayAssignmentOutOfBoundsThrows) {

@@ -30,12 +30,15 @@ namespace bloch::core {
 
         // Keywords
         Null,
+        True,
+        False,
         Int,
         Float,
         String,
         Char,
         Qubit,
         Bit,
+        Boolean,
         Void,
         Function,
         Return,
