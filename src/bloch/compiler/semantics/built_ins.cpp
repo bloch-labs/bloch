@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/core/semantics/built_ins.hpp"
+#include "bloch/compiler/semantics/built_ins.hpp"
 
-namespace bloch::core {
+namespace bloch::compiler {
 
     const std::unordered_map<std::string, BuiltInGate> builtInGates = {
         {"h", BuiltInGate{"h", {ValueType::Qubit}, ValueType::Void}},
@@ -27,4 +27,4 @@ namespace bloch::core {
         {"cx", BuiltInGate{"cx", {ValueType::Qubit, ValueType::Qubit}, ValueType::Void}},
     };
 
-}  // namespace bloch::core
+}  // namespace bloch::compiler

@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,14 +18,20 @@
 #include <stdexcept>
 #include <vector>
 
-#include "bloch/core/ast/ast.hpp"
-#include "bloch/core/lexer/token.hpp"
+#include "bloch/compiler/ast/ast.hpp"
+#include "bloch/compiler/lexer/token.hpp"
 
-namespace bloch::core {
-    // The Parser consumes a flat token stream and produces an AST.
-    // It's a hand-written, recursive-descent parser tuned for clarity,
-    // with small conveniences like a lookahead helper and an overflow
-    // queue (m_extraStatements) for expanding multi-declarations.
+namespace bloch::compiler {
+    /**
+     * Parser consumes a flat token stream and produces an AST.
+     *
+     * Design notes (living doc):
+     * - Statements and declarations stay hand-written for clarity.
+     * - Expressions use a Pratt/precedence-table loop (see parser.cpp) to avoid
+     *   the N-level cascade of parse* methods and make adding operators table-driven.
+     * - Multi-declarations (e.g., `qubit a, b;`) are expanded via m_extraStatements.
+     * - Errors throw BlochError with 1-based line/column taken from tokens.
+     */
     class Parser {
        public:
         explicit Parser(std::vector<Token> tokens);
@@ -99,17 +105,12 @@ namespace bloch::core {
         // Expressions
         [[nodiscard]] std::unique_ptr<Expression> parseExpression();
         [[nodiscard]] std::unique_ptr<Expression> parseAssignmentExpression();
-        [[nodiscard]] std::unique_ptr<Expression> parseLogicalOr();
-        [[nodiscard]] std::unique_ptr<Expression> parseLogicalAnd();
-        [[nodiscard]] std::unique_ptr<Expression> parseBitwiseOr();
-        [[nodiscard]] std::unique_ptr<Expression> parseBitwiseXor();
-        [[nodiscard]] std::unique_ptr<Expression> parseBitwiseAnd();
-        [[nodiscard]] std::unique_ptr<Expression> parseEquality();
-        [[nodiscard]] std::unique_ptr<Expression> parseComparison();
-        [[nodiscard]] std::unique_ptr<Expression> parseAdditive();
-        [[nodiscard]] std::unique_ptr<Expression> parseMultiplicative();
+        /** Pratt-style expression parser using binding powers (see parser.cpp). */
+        [[nodiscard]] std::unique_ptr<Expression> parsePrattExpression(int minBp);
+        /** Parses prefix operators (unary) and primaries; postfix handled in Pratt loop. */
+        [[nodiscard]] std::unique_ptr<Expression> parsePrefixExpression();
+        /** Compatibility wrapper for cast operands; equivalent to prefix expression parse. */
         [[nodiscard]] std::unique_ptr<Expression> parseUnary();
-        [[nodiscard]] std::unique_ptr<Expression> parseCall();
         [[nodiscard]] std::unique_ptr<Expression> parsePrimary();
         [[nodiscard]] std::unique_ptr<Expression> parseArrayLiteral();
 
@@ -136,4 +137,4 @@ namespace bloch::core {
             const std::vector<std::unique_ptr<AnnotationNode>>& annotations);
         void flushExtraStatements(std::vector<std::unique_ptr<Statement>>& dest);
     };
-}  // namespace bloch::core
+}  // namespace bloch::compiler

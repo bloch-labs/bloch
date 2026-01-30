@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ namespace bloch::runtime {
     using support::ErrorCategory;
 
     static std::mt19937 rng{std::random_device{}()};
+    // TODO(REFACTOR): inject RNG via a Strategy/adapter so simulator is
+    // deterministic under test and replaceable by other random sources.
 
     int QasmSimulator::allocateQubit() {
         // Grow the state by a factor of two, keeping existing amplitudes
@@ -44,6 +46,9 @@ namespace bloch::runtime {
         return index;
     }
 
+    // REFACTOR: Consider a small Instruction/Gate registry (Command pattern)
+    // so gate matrices + logging strings live in data tables instead of one
+    // function per gate; would shrink interface and simplify adding new ops.
     void QasmSimulator::applySingleQubitGate(int q, const std::array<std::complex<double>, 4>& m) {
         ensureQubitActive(q);
         // Standard blocked application over basis pairs differing at bit q.

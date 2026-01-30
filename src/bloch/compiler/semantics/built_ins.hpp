@@ -12,6 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/cli/cli.hpp"
+#pragma once
 
-int main(int argc, char** argv) { return bloch::cli::run(argc, argv, bloch::cli::Context{}); }
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include "bloch/compiler/semantics/type_system.hpp"
+
+namespace bloch::compiler {
+    // Built-in gate signatures used by the semantic pass and runtime dispatch.
+    struct BuiltInGate {
+        std::string name;
+        std::vector<ValueType> paramTypes;
+        ValueType returnType;
+    };
+
+    extern const std::unordered_map<std::string, BuiltInGate> builtInGates;
+}  // namespace bloch::compiler

@@ -17,10 +17,6 @@ foreach(_bloch_feature ${BLOCH_AVAILABLE_FEATURE_FLAGS})
     endif()
 endforeach()
 
-file(GLOB_RECURSE BLOCH_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/*.cpp
-)
-
 # Prefer static OpenSSL to avoid a runtime dependency; fall back to shared if
 # static libraries are unavailable. Release artifacts can force static by
 # ensuring libssl.a/libcrypto.a are present.
@@ -31,22 +27,78 @@ if(NOT OpenSSL_FOUND)
     find_package(OpenSSL REQUIRED)
 endif()
 
-add_library(bloch_lib ${BLOCH_SOURCES})
+# ---------------------------------------------------------------------------
+# Source layout by responsibility (compiler / runtime / cli / updater)
+# ---------------------------------------------------------------------------
+set(BLOCH_COMPILER_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/compiler/import/module_loader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/compiler/lexer/lexer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/compiler/parser/parser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/compiler/semantics/built_ins.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/compiler/semantics/semantic_analyser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/compiler/semantics/type_system.cpp
+)
 
-target_include_directories(bloch_lib PUBLIC
+set(BLOCH_RUNTIME_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/runtime/qasm_simulator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/runtime/runtime_evaluator.cpp
+)
+
+set(BLOCH_CLI_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/cli/cli.cpp
+)
+
+set(BLOCH_UPDATE_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/update/update_manager.cpp
+)
+
+set(BLOCH_HTTP_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/bloch/http/http_client.cpp
+)
+
+# Shared headers and compile flags that are safe across all components.
+add_library(bloch_support INTERFACE)
+target_include_directories(bloch_support INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_compile_definitions(bloch_lib PUBLIC
-    CPPHTTPLIB_OPENSSL_SUPPORT
+add_library(bloch_compiler ${BLOCH_COMPILER_SOURCES})
+target_link_libraries(bloch_compiler
+    PUBLIC bloch_support
 )
 
-target_link_libraries(bloch_lib
-    PUBLIC OpenSSL::SSL OpenSSL::Crypto
+add_library(bloch_runtime ${BLOCH_RUNTIME_SOURCES})
+target_link_libraries(bloch_runtime
+    PUBLIC bloch_compiler bloch_support
 )
 
-foreach(_bloch_definition ${_BLOCH_ENABLED_FEATURE_DEFINITIONS})
-    target_compile_definitions(bloch_lib PUBLIC ${_bloch_definition}=1)
+add_library(bloch_update ${BLOCH_UPDATE_SOURCES})
+target_link_libraries(bloch_update
+    PUBLIC bloch_support OpenSSL::SSL OpenSSL::Crypto
+)
+target_compile_definitions(bloch_update PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+
+add_library(bloch_http ${BLOCH_HTTP_SOURCES})
+target_link_libraries(bloch_http
+    PUBLIC bloch_support
+)
+
+add_library(bloch_cli ${BLOCH_CLI_SOURCES})
+target_link_libraries(bloch_cli
+    PUBLIC bloch_runtime bloch_update bloch_support
+)
+
+target_compile_definitions(bloch_cli PUBLIC
+    BLOCH_VERSION="${BLOCH_VERSION}"
+    BLOCH_COMMIT_HASH="${BLOCH_COMMIT_HASH}"
+)
+
+# Apply feature flags to public libraries (propagates to dependents).
+set(_BLOCH_PUBLIC_TARGETS bloch_compiler bloch_runtime bloch_cli bloch_http)
+foreach(_bloch_target IN LISTS _BLOCH_PUBLIC_TARGETS)
+    foreach(_bloch_definition ${_BLOCH_ENABLED_FEATURE_DEFINITIONS})
+        target_compile_definitions(${_bloch_target} PUBLIC ${_bloch_definition}=1)
+    endforeach()
 endforeach()
 
 add_executable(bloch
@@ -54,23 +106,27 @@ add_executable(bloch
 )
 
 target_link_libraries(bloch
-    bloch_lib
+    PRIVATE bloch_cli
 )
-
-foreach(_bloch_definition ${_BLOCH_ENABLED_FEATURE_DEFINITIONS})
-    target_compile_definitions(bloch PRIVATE ${_bloch_definition}=1)
-endforeach()
 
 if(_BLOCH_ENABLED_FEATURE_LABELS)
     list(JOIN _BLOCH_ENABLED_FEATURE_LABELS ", " _bloch_enabled_str)
     message(STATUS "Bloch feature flags enabled: ${_bloch_enabled_str}")
 endif()
 
-# Embed the version string into the binary
-target_compile_definitions(bloch PRIVATE
-    BLOCH_VERSION="${BLOCH_VERSION}"
-    BLOCH_COMMIT_HASH="${BLOCH_COMMIT_HASH}"
+# Install targets for local development installs
+install(TARGETS bloch bloch_cli bloch_compiler bloch_runtime bloch_update bloch_http
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
 )
 
-# Install target for local development installs
-install(TARGETS bloch RUNTIME DESTINATION bin)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bloch
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.hpp"
+)
+
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/stdlib/
+    DESTINATION share/bloch/stdlib
+    OPTIONAL
+)

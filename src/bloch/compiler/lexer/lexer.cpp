@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/core/lexer/lexer.hpp"
+#include "bloch/compiler/lexer/lexer.hpp"
 
 #include <cctype>
 #include <cstdlib>
@@ -21,7 +21,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace bloch::core {
+namespace bloch::compiler {
 
     using support::BlochError;
     using support::ErrorCategory;
@@ -237,8 +237,6 @@ namespace bloch::core {
 
             // Primitives
             {"null", TokenType::Null},
-            {"true", TokenType::True},
-            {"false", TokenType::False},
             {"int", TokenType::Int},
             {"float", TokenType::Float},
             {"string", TokenType::String},
@@ -246,6 +244,10 @@ namespace bloch::core {
             {"qubit", TokenType::Qubit},
             {"bit", TokenType::Bit},
             {"boolean", TokenType::Boolean},
+
+            // Boolean literals (treated as keywords for convenience)
+            {"true", TokenType::True},
+            {"false", TokenType::False},
 
             // Keywords
             {"void", TokenType::Void},
@@ -329,4 +331,4 @@ namespace bloch::core {
         return makeToken(TokenType::Unknown,
                          std::string(m_source.substr(start - 1, m_position - start + 1)));
     }
-}  // namespace bloch::core
+}  // namespace bloch::compiler

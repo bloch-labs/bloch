@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,18 +14,22 @@
 
 #pragma once
 
-#include <string>
-#include <unordered_map>
-#include <vector>
-#include "bloch/core/semantics/type_system.hpp"
+#ifndef BLOCH_VERSION
+#define BLOCH_VERSION "dev"
+#endif
+#ifndef BLOCH_COMMIT_HASH
+#define BLOCH_COMMIT_HASH "unknown"
+#endif
 
-namespace bloch::core {
-    // Built-in gate signatures used by the semantic pass and runtime dispatch.
-    struct BuiltInGate {
-        std::string name;
-        std::vector<ValueType> paramTypes;
-        ValueType returnType;
+#include <string_view>
+
+namespace bloch::cli {
+
+    struct Context {
+        std::string_view version = BLOCH_VERSION;
+        std::string_view commit = BLOCH_COMMIT_HASH;
     };
 
-    extern const std::unordered_map<std::string, BuiltInGate> builtInGates;
-}  // namespace bloch::core
+    int run(int argc, char** argv, const Context& ctx = {});
+
+}  // namespace bloch::cli

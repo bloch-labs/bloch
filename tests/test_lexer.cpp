@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 #include <utility>
 #include <vector>
 
-#include "bloch/core/lexer/lexer.hpp"
+#include "bloch/compiler/lexer/lexer.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch::core;
+using namespace bloch::compiler;
 using bloch::support::BlochError;
 
 TEST(LexerTest, Identifiers) {
