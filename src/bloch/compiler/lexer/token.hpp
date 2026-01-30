@@ -28,6 +28,10 @@ namespace bloch::compiler {
         StringLiteral,
         CharLiteral,
 
+        // Boolean literals
+        True,
+        False,
+
         // Keywords
         Null,
         Int,
@@ -36,6 +40,7 @@ namespace bloch::compiler {
         Char,
         Qubit,
         Bit,
+        Boolean,
         Void,
         Function,
         Return,

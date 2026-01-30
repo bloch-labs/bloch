@@ -75,7 +75,7 @@ namespace bloch::compiler {
     bool Parser::isTypeAhead() const {
         if (check(TokenType::Void) || check(TokenType::Int) || check(TokenType::Float) ||
             check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
-            check(TokenType::Qubit)) {
+            check(TokenType::Qubit) || check(TokenType::Boolean)) {
             return true;
         }
         if (!check(TokenType::Identifier))
@@ -1135,7 +1135,7 @@ namespace bloch::compiler {
     std::unique_ptr<Expression> Parser::parsePrimary() {
         if (match(TokenType::IntegerLiteral) || match(TokenType::FloatLiteral) ||
             match(TokenType::BitLiteral) || match(TokenType::StringLiteral) ||
-            match(TokenType::CharLiteral)) {
+            match(TokenType::CharLiteral) || match(TokenType::True) || match(TokenType::False)) {
             Token tok = previous();
             std::string litType;
             switch (tok.type) {
@@ -1150,6 +1150,10 @@ namespace bloch::compiler {
                     break;
                 case TokenType::CharLiteral:
                     litType = "char";
+                    break;
+                case TokenType::True:
+                case TokenType::False:
+                    litType = "boolean";
                     break;
                 case TokenType::StringLiteral:
                     litType = "string";
@@ -1297,7 +1301,8 @@ namespace bloch::compiler {
             (void)advance();
             baseType = std::make_unique<VoidType>();
         } else if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||
-                   check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit)) {
+                   check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit) ||
+                   check(TokenType::Boolean)) {
             baseType = parsePrimitiveType();
         } else if (check(TokenType::Identifier)) {
             std::vector<std::string> parts = parseQualifiedName();
@@ -1338,7 +1343,8 @@ namespace bloch::compiler {
 
     std::unique_ptr<Type> Parser::parsePrimitiveType() {
         if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||
-            check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit)) {
+            check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Qubit) ||
+            check(TokenType::Boolean)) {
             std::string typeName = advance().value;
             return std::make_unique<PrimitiveType>(typeName);
         }

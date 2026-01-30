@@ -2022,6 +2022,48 @@ namespace bloch::compiler {
             node.index->accept(*this);
         if (node.value)
             node.value->accept(*this);
+
+        // Type check: array element assignment must match element type.
+        auto isArrayName = [](const std::string& name) {
+            return name.size() >= 2 && name.rfind("[]") == name.size() - 2;
+        };
+
+        TypeInfo collectionType = inferTypeInfo(node.collection.get());
+        if (!isArrayName(collectionType.className) || collectionType.typeArgs.empty()) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "assignment target is not an array");
+        }
+
+        // Index must be int for now.
+        TypeInfo indexType = inferTypeInfo(node.index.get());
+        if (indexType.value != ValueType::Int) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "array index must be of type 'int'");
+        }
+
+        TypeInfo elemType = collectionType.typeArgs.front();
+        TypeInfo valType = inferTypeInfo(node.value.get());
+
+        if (valType.value == ValueType::Null) {
+            // Only class types may take null.
+            bool elemIsArray = isArrayName(elemType.className);
+            bool elemIsClass = !elemType.className.empty() && !elemIsArray;
+            if (!elemIsClass) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "cannot assign null to array element of type '" +
+                                     typeLabel(elemType) + "'");
+            }
+            return;
+        }
+
+        auto typesCompatible = typeEquals(valType, elemType) ||
+                               (elemType.value == ValueType::Int && valType.value == ValueType::Bit);
+
+        if (!typesCompatible) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "assignment to array element expects '" + typeLabel(elemType) +
+                                 "'");
+        }
     }
 
     void SemanticAnalyser::visit(PrimitiveType&) {}

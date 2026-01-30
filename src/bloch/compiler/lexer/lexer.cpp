@@ -243,6 +243,11 @@ namespace bloch::compiler {
             {"char", TokenType::Char},
             {"qubit", TokenType::Qubit},
             {"bit", TokenType::Bit},
+            {"boolean", TokenType::Boolean},
+
+            // Boolean literals (treated as keywords for convenience)
+            {"true", TokenType::True},
+            {"false", TokenType::False},
 
             // Keywords
             {"void", TokenType::Void},
