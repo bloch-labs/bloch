@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "bloch/core/ast/ast.hpp"
+#include "bloch/compiler/ast/ast.hpp"
 #include "bloch/runtime/qasm_simulator.hpp"
 
 namespace bloch::runtime {
@@ -34,56 +34,58 @@ namespace bloch::runtime {
     struct RuntimeClass;
     struct Object;
 
-    using core::AnnotationNode;
-    using core::ArrayAssignmentExpression;
-    using core::ArrayLiteralExpression;
-    using core::ArrayType;
-    using core::AssignmentExpression;
-    using core::AssignmentStatement;
-    using core::BinaryExpression;
-    using core::BlockStatement;
-    using core::CallExpression;
-    using core::CastExpression;
-    using core::ConstructorDeclaration;
-    using core::DestroyStatement;
-    using core::DestructorDeclaration;
-    using core::EchoStatement;
-    using core::Expression;
-    using core::ExpressionStatement;
-    using core::FieldDeclaration;
-    using core::ForStatement;
-    using core::FunctionDeclaration;
-    using core::IfStatement;
-    using core::IndexExpression;
-    using core::LiteralExpression;
-    using core::MeasureExpression;
-    using core::MeasureStatement;
-    using core::MemberAccessExpression;
-    using core::MemberAssignmentExpression;
-    using core::MethodDeclaration;
-    using core::NamedType;
-    using core::NewExpression;
-    using core::NullLiteralExpression;
-    using core::Parameter;
-    using core::ParenthesizedExpression;
-    using core::PostfixExpression;
-    using core::PrimitiveType;
-    using core::Program;
-    using core::ResetStatement;
-    using core::ReturnStatement;
-    using core::Statement;
-    using core::SuperExpression;
-    using core::TernaryStatement;
-    using core::ThisExpression;
-    using core::Type;
-    using core::UnaryExpression;
-    using core::VariableDeclaration;
-    using core::VariableExpression;
-    using core::VoidType;
-    using core::WhileStatement;
+    using compiler::AnnotationNode;
+    using compiler::ArrayAssignmentExpression;
+    using compiler::ArrayLiteralExpression;
+    using compiler::ArrayType;
+    using compiler::AssignmentExpression;
+    using compiler::AssignmentStatement;
+    using compiler::BinaryExpression;
+    using compiler::BlockStatement;
+    using compiler::CallExpression;
+    using compiler::CastExpression;
+    using compiler::ConstructorDeclaration;
+    using compiler::DestroyStatement;
+    using compiler::DestructorDeclaration;
+    using compiler::EchoStatement;
+    using compiler::Expression;
+    using compiler::ExpressionStatement;
+    using compiler::FieldDeclaration;
+    using compiler::ForStatement;
+    using compiler::FunctionDeclaration;
+    using compiler::IfStatement;
+    using compiler::IndexExpression;
+    using compiler::LiteralExpression;
+    using compiler::MeasureExpression;
+    using compiler::MeasureStatement;
+    using compiler::MemberAccessExpression;
+    using compiler::MemberAssignmentExpression;
+    using compiler::MethodDeclaration;
+    using compiler::NamedType;
+    using compiler::NewExpression;
+    using compiler::NullLiteralExpression;
+    using compiler::Parameter;
+    using compiler::ParenthesizedExpression;
+    using compiler::PostfixExpression;
+    using compiler::PrimitiveType;
+    using compiler::Program;
+    using compiler::ResetStatement;
+    using compiler::ReturnStatement;
+    using compiler::Statement;
+    using compiler::SuperExpression;
+    using compiler::TernaryStatement;
+    using compiler::ThisExpression;
+    using compiler::Type;
+    using compiler::UnaryExpression;
+    using compiler::VariableDeclaration;
+    using compiler::VariableExpression;
+    using compiler::VoidType;
+    using compiler::WhileStatement;
 
     // Runtime values carry both a discriminant and storage. Arrays are
     // represented as std::vector<> of the appropriate primitive.
+    // REFACTOR: Replace this hand-rolled tagged union with std::variant + visitors
+    // to enforce exhaustive handling and shrink the switch-heavy evaluator.
     struct Value {
         enum class Type {
             Int,
@@ -207,6 +209,9 @@ namespace bloch::runtime {
     // Interpreter that walks the AST and simulates quantum bits via
     // QasmSimulator. It also tracks @tracked variables and defers echo output
     // until warnings have been printed.
+    // REFACTOR: Split this monolith into a Visitor-based expression evaluator +
+    // Strategy pluggable backend (statevector, hardware, mock) to isolate GC,
+    // qubit bookkeeping, and execution policy; current single class is ~god object.
     class RuntimeEvaluator {
        public:
         explicit RuntimeEvaluator(bool collectQasmLog = true) : m_collectQasmLog(collectQasmLog) {}
@@ -323,7 +328,7 @@ namespace bloch::runtime {
         bool gcThreadStartedForTest() const { return m_gcThreadStarted; }
 
         // Generic templates (stored by base class name without arguments)
-        std::unordered_map<std::string, core::ClassDeclaration*> m_genericTemplates;
+        std::unordered_map<std::string, compiler::ClassDeclaration*> m_genericTemplates;
     };
 
 }  // namespace bloch::runtime

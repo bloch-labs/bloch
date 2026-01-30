@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,12 +24,12 @@
 #include <unordered_map>
 #include <utility>
 
-#include "bloch/core/semantics/built_ins.hpp"
+#include "bloch/compiler/semantics/built_ins.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 
 namespace bloch::runtime {
 
-    using core::builtInGates;
+    using compiler::builtInGates;
     using support::BlochError;
     using support::blochWarning;
     using support::ErrorCategory;
@@ -903,7 +903,7 @@ namespace bloch::runtime {
         if (auto existing = findClass(key))
             return existing;
 
-        core::ClassDeclaration* tmpl = tmplIt->second;
+        compiler::ClassDeclaration* tmpl = tmplIt->second;
         std::unordered_map<std::string, RuntimeTypeInfo> localSubst = subst;
         for (size_t i = 0; i < tmpl->typeParameters.size() && i < argInfos.size(); ++i) {
             localSubst[tmpl->typeParameters[i]->name] = argInfos[i];
@@ -1021,7 +1021,7 @@ namespace bloch::runtime {
         auto nt = std::make_unique<NamedType>(std::vector<std::string>{base});
         for (const auto& a : args) nt->typeArguments.push_back(runtimeTypeToAst(a));
         std::unordered_map<std::string, RuntimeTypeInfo> subst;
-        core::ClassDeclaration* tmpl = tmplIt->second;
+        compiler::ClassDeclaration* tmpl = tmplIt->second;
         for (size_t i = 0; i < tmpl->typeParameters.size() && i < args.size(); ++i) {
             subst[tmpl->typeParameters[i]->name] = args[i];
         }

@@ -16,7 +16,7 @@ endif()
 add_executable(bloch_tests ${TEST_SOURCES})
 
 target_link_libraries(bloch_tests
-    bloch_lib
+    bloch_runtime
 )
 
 add_test(NAME bloch_tests COMMAND bloch_tests)

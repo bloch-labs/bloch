@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,10 @@
 
 namespace bloch::update {
     namespace {
+
+        // REFACTOR: Wrap filesystem/HTTP/time dependencies behind interfaces
+        // (Strategy) so we can unit-test update logic without hitting disk/network
+        // and swap out curl/httplib or platform-specific cache paths cleanly.
 
         using Clock = std::chrono::system_clock;
         constexpr auto kUpdateWindow = std::chrono::hours(72);
