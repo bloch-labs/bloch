@@ -10,8 +10,8 @@ This guide tours the Bloch language: types, variables, functions, control flow, 
 - File extension: `.bloch`
 - Comments: `//` to end of line
 - Entry-point: `function main() -> void { ... }`
-- Types: `void, int, float, char, string, bit, qubit` and arrays `T[]` or `T[N]`
-- Literals: `123`, `3.14f`, `1b`, `'c'`, `"text"`, `{1,2,3}`
+- Types: `void, int, float, char, string, bit, boolean, qubit` and arrays `T[]` or `T[N]`
+- Literals: `123`, `3.14f`, `1b`, `'c'`, `"text"`, `{1,2,3}`, `true`, `false`
 
 ## Variables
 
@@ -19,7 +19,8 @@ This guide tours the Bloch language: types, variables, functions, control flow, 
 int a = 1;
 final float pi = 3.1415f; // cannot be reassigned
 string msg = "hello";
-bit b = 1b;               // booleans are bits (0b/1b)
+bit b = 1b;               // measurement bit (0b/1b)
+boolean flag = true;      // classical boolean
 qubit q;                  // allocates a new simulated qubit
 int[] xs = {1, 2, 3};     // dynamic-sized array (size inferred from literal)
 float[3] fs;              // fixed-size array, zero-initialised
@@ -59,9 +60,9 @@ for (int i = 0; i < 10; i = i + 1) { ... }
 
 ## Expressions and operators
 
-Arithmetic: `+ - * / %` (int, float). Comparison: `< <= > >= == !=` (returns bit).
+Arithmetic: `+ - * / %` (int, float). Comparison: `< <= > >= == !=` (returns boolean).
 
-Logical: `! && ||` (returns bit; arrays unsupported for `!`).
+Logical: `! && ||` (returns boolean; arrays unsupported for `!`).
 
 Bitwise: `~ & | ^` on `bit` and `bit[]`. `~` flips bits, `& | ^` operate per element for arrays.
 
