@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@
 #include <fstream>
 #include <sstream>
 
-#include "bloch/core/import/module_loader.hpp"
-#include "bloch/core/lexer/lexer.hpp"
-#include "bloch/core/parser/parser.hpp"
-#include "bloch/core/semantics/semantic_analyser.hpp"
+#include "bloch/compiler/import/module_loader.hpp"
+#include "bloch/compiler/lexer/lexer.hpp"
+#include "bloch/compiler/parser/parser.hpp"
+#include "bloch/compiler/semantics/semantic_analyser.hpp"
 #include "bloch/runtime/qasm_simulator.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch::core;
+using namespace bloch::compiler;
 using namespace bloch::runtime;
 using bloch::support::BlochError;
 

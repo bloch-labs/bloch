@@ -22,14 +22,14 @@ flowchart TD
 </div>
 
 ## Compilation (Lexer/Parser/AST)
-- Files: `src/bloch/core/parser/parser.{hpp,cpp}`, `src/bloch/core/ast/ast.hpp`.
+- Files: `src/bloch/compiler/parser/parser.{hpp,cpp}`, `src/bloch/compiler/ast/ast.hpp`.
 - `ClassDeclaration`: `typeParameters`, `baseType` (generic-aware), legacy `baseName`.
 - `NamedType`: `nameParts`, `typeArguments`.
 - Flow: modifiers → name → optional `<...>` → optional `extends` (`parseType`) → body members.
 - Helpers: `isTypeAhead` disambiguates tokens with `<...>`; type/expr cloners preserve type arguments.
 
 ## Semantic Analysis
-- Files: `src/bloch/core/semantics/semantic_analyser.{hpp,cpp}`.
+- Files: `src/bloch/compiler/semantics/semantic_analyser.{hpp,cpp}`.
 - Core structs: `TypeInfo { value, className, typeArgs, isTypeParam }`, `ClassInfo { name, base, typeParams, fields, methods, constructors, abstractMethods, ... }`.
 - Registry: collect classes, record type params/bounds, build signatures, enforce ctor presence, static-class restrictions.
 - Type resolution: `typeFromAst`, `validateTypeApplication`, substitution helpers (`substituteTypeParams`, `substituteMany`).
