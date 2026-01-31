@@ -209,6 +209,12 @@ namespace bloch::compiler {
                              std::string(m_source.substr(start, m_position - start)));
         }
 
+        if (peek() == 'L') {
+            (void)advance();
+            return makeToken(TokenType::LongLiteral,
+                             std::string(m_source.substr(start, m_position - start)));
+        }
+
         if (peek() == 'b') {
             std::string_view digits = m_source.substr(start, m_position - start);
             if (digits != "0" && digits != "1") {
@@ -238,6 +244,7 @@ namespace bloch::compiler {
             // Primitives
             {"null", TokenType::Null},
             {"int", TokenType::Int},
+            {"long", TokenType::Long},
             {"float", TokenType::Float},
             {"string", TokenType::String},
             {"char", TokenType::Char},

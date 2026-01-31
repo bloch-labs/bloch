@@ -20,6 +20,8 @@ namespace bloch::compiler {
         // Map source-level type names to our compact enum.
         if (name == "int")
             return ValueType::Int;
+        if (name == "long")
+            return ValueType::Long;
         if (name == "float")
             return ValueType::Float;
         if (name == "string")
@@ -44,6 +46,8 @@ namespace bloch::compiler {
         switch (type) {
             case ValueType::Int:
                 return "int";
+            case ValueType::Long:
+                return "long";
             case ValueType::Float:
                 return "float";
             case ValueType::String:

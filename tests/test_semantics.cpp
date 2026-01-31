@@ -381,11 +381,39 @@ TEST(SemanticTest, FunctionArgumentTypeMatchPasses) {
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
+TEST(SemanticTest, LongAssignmentsAndWideningPass) {
+    const char* src = "long a = 1L; long b = 1;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, LongToIntAssignmentFails) {
+    const char* src = "long a = 1L; int b = a;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, PostfixOperatorAllowsLong) {
+    const char* src = "long x = 1L; x++; x--;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
 TEST(SemanticTest, PostfixOperatorThrowsErrorWhenNotOnInt) {
     const char* src = "string s = \"hello\"; s++;";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, LongArrayIndexAllowed) {
+    const char* src = "int[] a = {1,2}; long i = 1L; a[i] = 3;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
 TEST(SemanticTest, QubitArrayCannotBeInitialised) {
