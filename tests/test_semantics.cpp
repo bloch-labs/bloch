@@ -40,9 +40,7 @@ static void expectSemanticError(const char* src) {
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
-static void expectParseError(const char* src) {
-    EXPECT_THROW(parseProgram(src), BlochError);
-}
+static void expectParseError(const char* src) { EXPECT_THROW(parseProgram(src), BlochError); }
 
 TEST(SemanticTest, VariableMustBeDeclared) {
     auto program = parseProgram("int x; x = 5;");
@@ -211,9 +209,7 @@ TEST(SemanticTest, ShotsAnnotationDuplicateFails) {
     expectSemanticError("@shots(3) @shots(5) function main() -> void { }");
 }
 
-TEST(SemanticTest, ShotsAnnotationOnVariableFails) {
-    expectParseError("@shots(2) int x = 1;");
-}
+TEST(SemanticTest, ShotsAnnotationOnVariableFails) { expectParseError("@shots(2) int x = 1;"); }
 
 TEST(SemanticTest, ShotsAnnotationOnFieldFails) {
     expectParseError("class A { @shots(2) public int x; public constructor() -> A = default; }");
@@ -238,8 +234,7 @@ TEST(SemanticTest, WhileConditionRequiresBooleanOrBit) {
 }
 
 TEST(SemanticTest, ForConditionRequiresBooleanOrBit) {
-    expectSemanticError(
-        "function main() -> void { for (int i = 0; i; i = i + 1) { echo(i); } }");
+    expectSemanticError("function main() -> void { for (int i = 0; i; i = i + 1) { echo(i); } }");
 }
 
 TEST(SemanticTest, TernaryConditionRequiresBooleanOrBit) {

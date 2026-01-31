@@ -1495,7 +1495,9 @@ namespace bloch::compiler {
         auto isStringType = [](const TypeInfo& t) {
             return t.className.empty() && t.value == ValueType::String;
         };
-        auto isBitType = [](const TypeInfo& t) { return t.className.empty() && t.value == ValueType::Bit; };
+        auto isBitType = [](const TypeInfo& t) {
+            return t.className.empty() && t.value == ValueType::Bit;
+        };
         auto errorWithTypes = [&](const std::string& message) {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column, message);
         };
@@ -1530,8 +1532,9 @@ namespace bloch::compiler {
             bool rBool = isBooleanLike(rt);
             if (lBool || rBool) {
                 if (!(lBool && rBool)) {
-                    errorWithTypes("equality requires boolean or bit operands when used with "
-                                   "boolean/bit");
+                    errorWithTypes(
+                        "equality requires boolean or bit operands when used with "
+                        "boolean/bit");
                 }
                 return;
             }
@@ -1541,8 +1544,8 @@ namespace bloch::compiler {
                 (lt.value == ValueType::String || lt.value == ValueType::Char)) {
                 return;
             }
-            errorWithTypes("operator '" + node.op + "' not supported for types '" +
-                           typeLabel(lt) + "' and '" + typeLabel(rt) + "'");
+            errorWithTypes("operator '" + node.op + "' not supported for types '" + typeLabel(lt) +
+                           "' and '" + typeLabel(rt) + "'");
         }
 
         if (node.op == "&&" || node.op == "||") {
@@ -1559,8 +1562,7 @@ namespace bloch::compiler {
             bool lBitArr = isBitArrayType(lt);
             bool rBitArr = isBitArrayType(rt);
             if (!((lBit || lBitArr) && (rBit || rBitArr))) {
-                errorWithTypes("bitwise operator '" + node.op +
-                               "' requires bit or bit[] operands");
+                errorWithTypes("bitwise operator '" + node.op + "' requires bit or bit[] operands");
             }
             return;
         }
