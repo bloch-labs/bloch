@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -89,6 +90,7 @@ namespace bloch::runtime {
     struct Value {
         enum class Type {
             Int,
+            Long,
             Float,
             Bit,
             Boolean,
@@ -97,6 +99,7 @@ namespace bloch::runtime {
             Qubit,
             // Arrays
             IntArray,
+            LongArray,
             FloatArray,
             BitArray,
             BooleanArray,
@@ -110,6 +113,7 @@ namespace bloch::runtime {
         };
         Type type = Type::Void;
         int intValue = 0;
+        std::int64_t longValue = 0;
         double floatValue = 0.0;
         int bitValue = 0;
         bool boolValue = false;
@@ -117,6 +121,7 @@ namespace bloch::runtime {
         char charValue = '\0';
         int qubit = -1;
         std::vector<int> intArray;
+        std::vector<std::int64_t> longArray;
         std::vector<double> floatArray;
         std::vector<int> bitArray;
         std::vector<bool> boolArray;

@@ -59,6 +59,28 @@ TEST(ParserTest, ParseInitialisedVariableDeclaration) {
     EXPECT_EQ(lit->literalType, "int");
 }
 
+TEST(ParserTest, ParseInitialisedLongVariableDeclaration) {
+    Lexer lexer("long x = 42L;");
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 1u);
+
+    auto* var = dynamic_cast<VariableDeclaration*>(program->statements[0].get());
+    ASSERT_NE(var, nullptr);
+    EXPECT_EQ(var->name, "x");
+
+    auto* type = dynamic_cast<PrimitiveType*>(var->varType.get());
+    ASSERT_NE(type, nullptr);
+    EXPECT_EQ(type->name, "long");
+
+    auto* lit = dynamic_cast<LiteralExpression*>(var->initializer.get());
+    ASSERT_NE(lit, nullptr);
+    EXPECT_EQ(lit->value, "42L");
+    EXPECT_EQ(lit->literalType, "long");
+}
+
 TEST(ParserTest, ParseNullLiteralAssignment) {
     const char* src =
         "class Foo { public constructor() -> Foo = default; } function main() -> void { Foo f = "
