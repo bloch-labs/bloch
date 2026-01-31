@@ -265,6 +265,23 @@ TEST(RuntimeTest, BooleanArrayIndexing) {
     EXPECT_EQ("false\n", output.str());
 }
 
+TEST(RuntimeTest, EqualitySupportsStringAndChar) {
+    const char* src =
+        "function main() -> void { "
+        "string a = \"hi\"; string b = \"hi\"; string c = \"no\"; "
+        "echo(a == b); echo(a != c); "
+        "char x = 'a'; char y = 'a'; echo(x == y); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("true\ntrue\ntrue\n", output.str());
+}
+
 TEST(RuntimeTest, MethodOverloadDispatchesByParameterTypes) {
     const char* src =
         "class Foo { public function val(int x) -> int { return 1; } public function val(float x) "
@@ -359,7 +376,7 @@ TEST(RuntimeTest, LongArrayInitializationAndIndexing) {
 
 TEST(RuntimeTest, TernaryExecutesCorrectBranch) {
     const char* src =
-        "function main() -> void { int x = 0; x ? echo(\"true\"); : echo(\"false\"); }";
+        "function main() -> void { bit x = 0b; x ? echo(\"true\"); : echo(\"false\"); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
@@ -649,13 +666,17 @@ TEST(RuntimeTest, NegativeIndexRuntimeThrows) {
     EXPECT_THROW(eval.execute(*program), BlochError);
 }
 
-TEST(RuntimeTest, UnaryTildeOnIntThrows) {
-    const char* src = "function main() -> void { int x = 2; echo(~x); }";
+TEST(RuntimeTest, UnaryTildeOnBitFlips) {
+    const char* src = "function main() -> void { bit x = 1b; echo(~x); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
     RuntimeEvaluator eval;
-    EXPECT_THROW(eval.execute(*program), BlochError);
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("0\n", output.str());
 }
 
 TEST(RuntimeTest, RyRzAppearInQasm) {
