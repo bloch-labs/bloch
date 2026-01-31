@@ -242,7 +242,7 @@ function main() -> void {
     int heads = 0;
     for (int i = 0; i < 10; i = i + 1) {
         bit b = flip();
-        if (b == 1) {
+        if (b == 1b) {
             heads = heads + 1;
         }
     }

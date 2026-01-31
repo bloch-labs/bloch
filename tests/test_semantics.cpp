@@ -28,6 +28,22 @@ static std::unique_ptr<Program> parseProgram(const char* src) {
     return parser.parse();
 }
 
+static void expectSemanticOk(const char* src) {
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+static void expectSemanticError(const char* src) {
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+static void expectParseError(const char* src) {
+    EXPECT_THROW(parseProgram(src), BlochError);
+}
+
 TEST(SemanticTest, VariableMustBeDeclared) {
     auto program = parseProgram("int x; x = 5;");
     SemanticAnalyser analyser;
@@ -184,17 +200,108 @@ TEST(SemanticTest, QuantumReturnTypeInvalidChar) {
 }
 
 TEST(SemanticTest, ShotsAnnotationAllowedOnMain) {
-    const char* src = "@shots(5) function main() -> void { }";
-    auto program = parseProgram(src);
-    SemanticAnalyser analyser;
-    EXPECT_NO_THROW(analyser.analyse(*program));
+    expectSemanticOk("@shots(5) function main() -> void { }");
 }
 
 TEST(SemanticTest, ShotsAnnotationRejectedOffMain) {
-    const char* src = "@shots(5) function foo() -> void { }";
-    auto program = parseProgram(src);
-    SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochError);
+    expectSemanticError("@shots(5) function foo() -> void { }");
+}
+
+TEST(SemanticTest, ShotsAnnotationDuplicateFails) {
+    expectSemanticError("@shots(3) @shots(5) function main() -> void { }");
+}
+
+TEST(SemanticTest, ShotsAnnotationOnVariableFails) {
+    expectParseError("@shots(2) int x = 1;");
+}
+
+TEST(SemanticTest, ShotsAnnotationOnFieldFails) {
+    expectParseError("class A { @shots(2) public int x; public constructor() -> A = default; }");
+}
+
+TEST(SemanticTest, ShotsAnnotationOnMethodFails) {
+    expectParseError(
+        "class A { @shots(2) public function foo() -> void { } "
+        "public constructor() -> A = default; }");
+}
+
+TEST(SemanticTest, QuantumAnnotationOnMainFails) {
+    expectSemanticError("@quantum function main() -> void { }");
+}
+
+TEST(SemanticTest, IfConditionRequiresBooleanOrBit) {
+    expectSemanticError("function main() -> void { int x = 1; if (x) { } }");
+}
+
+TEST(SemanticTest, WhileConditionRequiresBooleanOrBit) {
+    expectSemanticError("function main() -> void { float x = 1.0f; while (x) { } }");
+}
+
+TEST(SemanticTest, ForConditionRequiresBooleanOrBit) {
+    expectSemanticError(
+        "function main() -> void { for (int i = 0; i; i = i + 1) { echo(i); } }");
+}
+
+TEST(SemanticTest, TernaryConditionRequiresBooleanOrBit) {
+    expectSemanticError(
+        "function main() -> void { int x = 1; x ? echo(\"yes\"); : echo(\"no\"); }");
+}
+
+TEST(SemanticTest, LogicalOperatorsRequireBooleanOrBit) {
+    expectSemanticError("function main() -> void { int x = 1; if (x && x) { } }");
+}
+
+TEST(SemanticTest, ArithmeticOperatorsRejectBoolean) {
+    expectSemanticError("function main() -> void { boolean b = true; int x = b + 1; }");
+}
+
+TEST(SemanticTest, ArithmeticOperatorsRejectBit) {
+    expectSemanticError("function main() -> void { bit b = 1b; int x = b + 1; }");
+}
+
+TEST(SemanticTest, ComparisonOperatorsRejectBit) {
+    expectSemanticError("function main() -> void { bit b = 1b; if (b > 0b) { } }");
+}
+
+TEST(SemanticTest, EqualityRejectsBooleanNumericMix) {
+    expectSemanticError("function main() -> void { boolean b = true; if (b == 1) { } }");
+}
+
+TEST(SemanticTest, EqualityAllowsStringOperands) {
+    expectSemanticOk("function main() -> void { if (\"a\" == \"b\") { } }");
+}
+
+TEST(SemanticTest, EqualityAllowsCharOperands) {
+    expectSemanticOk("function main() -> void { if ('a' != 'b') { } }");
+}
+
+TEST(SemanticTest, EqualityRejectsQubitOperands) {
+    expectSemanticError("function main() -> void { qubit a; qubit b; if (a == b) { } }");
+}
+
+TEST(SemanticTest, EqualityRejectsArrayOperands) {
+    expectSemanticError("function main() -> void { int[] a = {1,2}; if (a == a) { } }");
+}
+
+TEST(SemanticTest, EqualityRejectsStringNumericMix) {
+    expectSemanticError("function main() -> void { if (\"a\" == 1) { } }");
+}
+
+TEST(SemanticTest, BitwiseOperatorsRequireBit) {
+    expectSemanticError(
+        "function main() -> void { boolean a = true; boolean b = false; bit c = a & b; }");
+}
+
+TEST(SemanticTest, UnaryNotRequiresBooleanOrBit) {
+    expectSemanticError("function main() -> void { int x = 1; boolean y = !x; }");
+}
+
+TEST(SemanticTest, UnaryMinusRequiresNumeric) {
+    expectSemanticError("function main() -> void { boolean b = true; int x = -b; }");
+}
+
+TEST(SemanticTest, UnaryTildeRequiresBit) {
+    expectSemanticError("function main() -> void { int x = 2; echo(~x); }");
 }
 
 TEST(SemanticTest, VoidFunctionReturnValueFails) {

@@ -169,6 +169,36 @@ namespace bloch::compiler {
                 return true;  // widening
             return false;
         };
+
+        bool isArrayTypeName(const std::string& name) {
+            return name.size() >= 2 && name.rfind("[]") == name.size() - 2;
+        }
+
+        bool isArrayType(const SemanticAnalyser::TypeInfo& t) {
+            return !t.className.empty() && isArrayTypeName(t.className);
+        }
+
+        bool isClassRefType(const SemanticAnalyser::TypeInfo& t) {
+            return !t.className.empty() && !isArrayTypeName(t.className);
+        }
+
+        bool isNumericPrimitive(ValueType v) {
+            return v == ValueType::Int || v == ValueType::Long || v == ValueType::Float;
+        }
+
+        bool isNumericType(const SemanticAnalyser::TypeInfo& t) {
+            return t.className.empty() && isNumericPrimitive(t.value);
+        }
+
+        bool isBooleanLike(const SemanticAnalyser::TypeInfo& t) {
+            return t.className.empty() &&
+                   (t.value == ValueType::Boolean || t.value == ValueType::Bit);
+        }
+
+        bool isBitArrayType(const SemanticAnalyser::TypeInfo& t) {
+            return isArrayType(t) && !t.typeArgs.empty() && t.typeArgs[0].className.empty() &&
+                   t.typeArgs[0].value == ValueType::Bit;
+        }
     }  // namespace
 
     SemanticAnalyser::TypeInfo SemanticAnalyser::typeFromAst(Type* typeNode) const {
@@ -1005,6 +1035,12 @@ namespace bloch::compiler {
             }
             return combine(ValueType::Unknown, "");
         }
+        if (auto idx = dynamic_cast<IndexExpression*>(expr)) {
+            auto collectionType = inferTypeInfo(idx->collection.get());
+            if (isArrayType(collectionType) && !collectionType.typeArgs.empty())
+                return collectionType.typeArgs.front();
+            return combine(ValueType::Unknown, "");
+        }
         if (auto newExpr = dynamic_cast<NewExpression*>(expr)) {
             return typeFromAst(newExpr->classType.get());
         }
@@ -1115,6 +1151,10 @@ namespace bloch::compiler {
             if (ann && ann->name == "quantum") {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "'@quantum' may annotate functions only");
+            }
+            if (ann && ann->name == "shots") {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "'@shots(N)' can only decorate the main() function.");
             }
         }
         declare(node.name, node.isFinal, tinfo);
@@ -1274,8 +1314,16 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::visit(IfStatement& node) {
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
+            auto condType = inferTypeInfo(node.condition.get());
+            if (!isBooleanLike(condType)) {
+                int line = node.condition->line > 0 ? node.condition->line : node.line;
+                int col = node.condition->column > 0 ? node.condition->column : node.column;
+                throw BlochError(ErrorCategory::Semantic, line, col,
+                                 "if condition must be 'boolean' or 'bit'");
+            }
+        }
         if (node.thenBranch)
             node.thenBranch->accept(*this);
         if (node.elseBranch)
@@ -1283,8 +1331,16 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::visit(TernaryStatement& node) {
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
+            auto condType = inferTypeInfo(node.condition.get());
+            if (!isBooleanLike(condType)) {
+                int line = node.condition->line > 0 ? node.condition->line : node.line;
+                int col = node.condition->column > 0 ? node.condition->column : node.column;
+                throw BlochError(ErrorCategory::Semantic, line, col,
+                                 "conditional statement requires 'boolean' or 'bit' condition");
+            }
+        }
         if (node.thenBranch)
             node.thenBranch->accept(*this);
         if (node.elseBranch)
@@ -1295,8 +1351,16 @@ namespace bloch::compiler {
         beginScope();
         if (node.initializer)
             node.initializer->accept(*this);
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
+            auto condType = inferTypeInfo(node.condition.get());
+            if (!isBooleanLike(condType)) {
+                int line = node.condition->line > 0 ? node.condition->line : node.line;
+                int col = node.condition->column > 0 ? node.condition->column : node.column;
+                throw BlochError(ErrorCategory::Semantic, line, col,
+                                 "for-loop condition must be 'boolean' or 'bit'");
+            }
+        }
         if (node.increment)
             node.increment->accept(*this);
         if (node.body)
@@ -1305,8 +1369,16 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::visit(WhileStatement& node) {
-        if (node.condition)
+        if (node.condition) {
             node.condition->accept(*this);
+            auto condType = inferTypeInfo(node.condition.get());
+            if (!isBooleanLike(condType)) {
+                int line = node.condition->line > 0 ? node.condition->line : node.line;
+                int col = node.condition->column > 0 ? node.condition->column : node.column;
+                throw BlochError(ErrorCategory::Semantic, line, col,
+                                 "while condition must be 'boolean' or 'bit'");
+            }
+        }
         if (node.body)
             node.body->accept(*this);
     }
@@ -1420,39 +1492,132 @@ namespace bloch::compiler {
             node.right->accept(*this);
         auto lt = inferTypeInfo(node.left.get());
         auto rt = inferTypeInfo(node.right.get());
+        auto isStringType = [](const TypeInfo& t) {
+            return t.className.empty() && t.value == ValueType::String;
+        };
+        auto isBitType = [](const TypeInfo& t) { return t.className.empty() && t.value == ValueType::Bit; };
+        auto errorWithTypes = [&](const std::string& message) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column, message);
+        };
         if ((lt.value == ValueType::Null || rt.value == ValueType::Null) && node.op != "==" &&
             node.op != "!=") {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                              "null can only be used in equality comparisons");
         }
         if (node.op == "==" || node.op == "!=") {
-            auto isArrayClass = [](const std::string& name) {
-                return name.size() >= 2 && name.rfind("[]") == name.size() - 2;
-            };
-            auto isClassRef = [&](const TypeInfo& t) {
-                return !t.className.empty() && !isArrayClass(t.className);
-            };
             bool leftNull = lt.value == ValueType::Null;
             bool rightNull = rt.value == ValueType::Null;
             if (leftNull && rightNull)
                 return;
             if (leftNull || rightNull) {
                 const TypeInfo& other = leftNull ? rt : lt;
-                if (!isClassRef(other)) {
+                if (!isClassRefType(other)) {
                     throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                      "null comparison requires a class reference");
                 }
-                if (isArrayClass(other.className)) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "null comparison with arrays is not allowed");
-                }
+                return;
             }
+            if (isClassRefType(lt) || isClassRefType(rt)) {
+                if (!(isClassRefType(lt) && isClassRefType(rt))) {
+                    errorWithTypes("equality on references requires two class references");
+                }
+                return;
+            }
+            if (isArrayType(lt) || isArrayType(rt)) {
+                errorWithTypes("equality on arrays is not supported");
+            }
+            bool lBool = isBooleanLike(lt);
+            bool rBool = isBooleanLike(rt);
+            if (lBool || rBool) {
+                if (!(lBool && rBool)) {
+                    errorWithTypes("equality requires boolean or bit operands when used with "
+                                   "boolean/bit");
+                }
+                return;
+            }
+            if (isNumericType(lt) && isNumericType(rt))
+                return;
+            if (lt.className.empty() && rt.className.empty() && lt.value == rt.value &&
+                (lt.value == ValueType::String || lt.value == ValueType::Char)) {
+                return;
+            }
+            errorWithTypes("operator '" + node.op + "' not supported for types '" +
+                           typeLabel(lt) + "' and '" + typeLabel(rt) + "'");
+        }
+
+        if (node.op == "&&" || node.op == "||") {
+            if (!(isBooleanLike(lt) && isBooleanLike(rt))) {
+                errorWithTypes("logical operator '" + node.op +
+                               "' requires boolean or bit operands");
+            }
+            return;
+        }
+
+        if (node.op == "&" || node.op == "|" || node.op == "^") {
+            bool lBit = isBitType(lt);
+            bool rBit = isBitType(rt);
+            bool lBitArr = isBitArrayType(lt);
+            bool rBitArr = isBitArrayType(rt);
+            if (!((lBit || lBitArr) && (rBit || rBitArr))) {
+                errorWithTypes("bitwise operator '" + node.op +
+                               "' requires bit or bit[] operands");
+            }
+            return;
+        }
+
+        if (node.op == "+" && (isStringType(lt) || isStringType(rt)))
+            return;
+
+        if (node.op == "+" || node.op == "-" || node.op == "*" || node.op == "/") {
+            if (!(isNumericType(lt) && isNumericType(rt))) {
+                errorWithTypes("operator '" + node.op +
+                               "' requires numeric operands (int, long, float)");
+            }
+            return;
+        }
+
+        if (node.op == "%") {
+            if (!(isNumericType(lt) && isNumericType(rt)) || lt.value == ValueType::Float ||
+                rt.value == ValueType::Float) {
+                errorWithTypes("operator '%' requires integer operands (int, long)");
+            }
+            return;
+        }
+
+        if (node.op == "<" || node.op == ">" || node.op == "<=" || node.op == ">=") {
+            if (!(isNumericType(lt) && isNumericType(rt))) {
+                errorWithTypes("operator '" + node.op +
+                               "' requires numeric operands (int, long, float)");
+            }
+            return;
         }
     }
 
     void SemanticAnalyser::visit(UnaryExpression& node) {
         if (node.right)
             node.right->accept(*this);
+        auto rt = inferTypeInfo(node.right.get());
+        if (node.op == "!") {
+            if (!isBooleanLike(rt)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "logical '!' requires boolean or bit operand");
+            }
+            return;
+        }
+        if (node.op == "-") {
+            if (!isNumericType(rt)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "unary '-' requires numeric operand (int, long, float)");
+            }
+            return;
+        }
+        if (node.op == "~") {
+            if (!(rt.className.empty() && rt.value == ValueType::Bit) && !isBitArrayType(rt)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "bitwise '~' requires bit or bit[] operand");
+            }
+            return;
+        }
     }
 
     void SemanticAnalyser::visit(CastExpression& node) {
@@ -2130,11 +2295,30 @@ namespace bloch::compiler {
     void SemanticAnalyser::visit(AnnotationNode&) {}
 
     void SemanticAnalyser::visit(ImportDeclaration&) {}
-    void SemanticAnalyser::visit(FieldDeclaration&) {}
+    void SemanticAnalyser::visit(FieldDeclaration& node) {
+        for (const auto& ann : node.annotations) {
+            if (!ann)
+                continue;
+            if (ann->name == "quantum") {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "'@quantum' may annotate functions only");
+            }
+            if (ann->name == "shots") {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "'@shots(N)' can only decorate the main() function.");
+            }
+        }
+    }
 
     void SemanticAnalyser::visit(MethodDeclaration& node) {
         // Only analyse bodies for now.
         TypeInfo ret = typeFromAst(node.returnType.get());
+        for (const auto& ann : node.annotations) {
+            if (ann && ann->name == "shots") {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "'@shots(N)' can only decorate the main() function.");
+            }
+        }
         if (node.hasQuantumAnnotation) {
             bool valid = false;
             if (ret.className.empty() &&
@@ -2290,7 +2474,9 @@ namespace bloch::compiler {
         if (it != m_classes.end())
             m_currentTypeParams = it->second.typeParams;
         for (auto& member : node.members) {
-            if (auto m = dynamic_cast<MethodDeclaration*>(member.get()))
+            if (auto field = dynamic_cast<FieldDeclaration*>(member.get()))
+                field->accept(*this);
+            else if (auto m = dynamic_cast<MethodDeclaration*>(member.get()))
                 m->accept(*this);
             else if (auto ctor = dynamic_cast<ConstructorDeclaration*>(member.get()))
                 ctor->accept(*this);
@@ -2328,7 +2514,17 @@ namespace bloch::compiler {
             }
         }
 
-        if (node.hasShotsAnnotation) {
+        int shotsCount = 0;
+        for (const auto& ann : node.annotations) {
+            if (ann && ann->name == "shots")
+                shotsCount++;
+        }
+        if (shotsCount > 1) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "multiple '@shots' annotations are not allowed.");
+        }
+
+        if (shotsCount > 0 || node.hasShotsAnnotation) {
             bool isOnMainFunction = false;
             if (node.name == "main") {
                 isOnMainFunction = true;
