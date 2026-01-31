@@ -24,6 +24,7 @@ namespace bloch::compiler {
         Identifier,
         IntegerLiteral,
         FloatLiteral,
+        LongLiteral,
         BitLiteral,
         StringLiteral,
         CharLiteral,
@@ -35,6 +36,7 @@ namespace bloch::compiler {
         // Keywords
         Null,
         Int,
+        Long,
         Float,
         String,
         Char,
