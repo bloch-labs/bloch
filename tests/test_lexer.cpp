@@ -73,6 +73,20 @@ TEST(LexerTest, BitLiteral) {
     EXPECT_EQ(tokens[0].value, "1b");
 }
 
+TEST(LexerTest, LongKeywordAndLiteral) {
+    Lexer lexer("long x = 123L;");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_EQ(tokens.size(), 6u);
+    EXPECT_EQ(tokens[0].type, TokenType::Long);
+    EXPECT_EQ(tokens[1].type, TokenType::Identifier);
+    EXPECT_EQ(tokens[2].type, TokenType::Equals);
+    EXPECT_EQ(tokens[3].type, TokenType::LongLiteral);
+    EXPECT_EQ(tokens[3].value, "123L");
+    EXPECT_EQ(tokens[4].type, TokenType::Semicolon);
+    EXPECT_EQ(tokens[5].type, TokenType::Eof);
+}
+
 TEST(LexerTest, KeywordDetection) {
     Lexer lexer("int float return");
     auto tokens = lexer.tokenize();

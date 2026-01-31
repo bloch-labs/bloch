@@ -209,7 +209,7 @@ namespace bloch::compiler {
                              std::string(m_source.substr(start, m_position - start)));
         }
 
-        if (peek() == 'L' || peek() == 'l') {
+        if (peek() == 'L') {
             (void)advance();
             return makeToken(TokenType::LongLiteral,
                              std::string(m_source.substr(start, m_position - start)));
