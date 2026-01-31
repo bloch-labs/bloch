@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 #include <utility>
 #include <vector>
 
-#include "bloch/core/lexer/lexer.hpp"
+#include "bloch/compiler/lexer/lexer.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch::core;
+using namespace bloch::compiler;
 using bloch::support::BlochError;
 
 TEST(LexerTest, Identifiers) {
@@ -71,6 +71,20 @@ TEST(LexerTest, BitLiteral) {
     ASSERT_EQ(tokens.size(), 2u);
     EXPECT_EQ(tokens[0].type, TokenType::BitLiteral);
     EXPECT_EQ(tokens[0].value, "1b");
+}
+
+TEST(LexerTest, LongKeywordAndLiteral) {
+    Lexer lexer("long x = 123L;");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_EQ(tokens.size(), 6u);
+    EXPECT_EQ(tokens[0].type, TokenType::Long);
+    EXPECT_EQ(tokens[1].type, TokenType::Identifier);
+    EXPECT_EQ(tokens[2].type, TokenType::Equals);
+    EXPECT_EQ(tokens[3].type, TokenType::LongLiteral);
+    EXPECT_EQ(tokens[3].value, "123L");
+    EXPECT_EQ(tokens[4].type, TokenType::Semicolon);
+    EXPECT_EQ(tokens[5].type, TokenType::Eof);
 }
 
 TEST(LexerTest, KeywordDetection) {

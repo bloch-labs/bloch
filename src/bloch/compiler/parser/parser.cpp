@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/core/parser/parser.hpp"
+#include "bloch/compiler/parser/parser.hpp"
 
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
 #include "bloch/support/error/bloch_error.hpp"
 
-namespace bloch::core {
+namespace bloch::compiler {
 
     using support::BlochError;
     using support::ErrorCategory;
@@ -73,8 +74,8 @@ namespace bloch::core {
 
     bool Parser::isTypeAhead() const {
         if (check(TokenType::Void) || check(TokenType::Int) || check(TokenType::Float) ||
-            check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
-            check(TokenType::Boolean) || check(TokenType::Qubit)) {
+            check(TokenType::Long) || check(TokenType::Char) || check(TokenType::String) ||
+            check(TokenType::Bit) || check(TokenType::Qubit) || check(TokenType::Boolean)) {
             return true;
         }
         if (!check(TokenType::Identifier))
@@ -895,281 +896,255 @@ namespace bloch::core {
         return stmt;
     }
 
-    // Expressions
+    // Expressions (Pratt / precedence-table based)
     std::unique_ptr<Expression> Parser::parseExpression() { return parseAssignmentExpression(); }
 
+    namespace {
+        /**
+         * Binding powers for Pratt parsing.
+         * lbp = left binding power, rbp = right binding power.
+         * For left-associative infix operators: lbp == rbp - 1.
+         * For postfix operators we reuse the table with Kind::Postfix.
+         * New operators are added by extending infixBinding() below.
+         */
+        struct Binding {
+            int lbp;
+            int rbp;
+            enum class Kind { Infix, Postfix } kind = Kind::Infix;
+        };
+
+        // Returns binding power for an operator if it is handled in the Pratt loop.
+        std::optional<Binding> infixBinding(TokenType type) {
+            switch (type) {
+                case TokenType::PipePipe:
+                    return Binding{3, 4, Binding::Kind::Infix};  // logical or (left)
+                case TokenType::AmpersandAmpersand:
+                    return Binding{4, 5, Binding::Kind::Infix};  // logical and (left)
+                case TokenType::Pipe:
+                    return Binding{5, 6, Binding::Kind::Infix};  // bitwise or (left)
+                case TokenType::Caret:
+                    return Binding{6, 7, Binding::Kind::Infix};  // bitwise xor (left)
+                case TokenType::Ampersand:
+                    return Binding{7, 8, Binding::Kind::Infix};  // bitwise and (left)
+                case TokenType::EqualEqual:
+                case TokenType::BangEqual:
+                    return Binding{8, 9, Binding::Kind::Infix};  // equality (left)
+                case TokenType::Greater:
+                case TokenType::Less:
+                case TokenType::GreaterEqual:
+                case TokenType::LessEqual:
+                    return Binding{9, 10, Binding::Kind::Infix};  // relational (left)
+                case TokenType::Plus:
+                case TokenType::Minus:
+                    return Binding{11, 12, Binding::Kind::Infix};  // additive (left)
+                case TokenType::Star:
+                case TokenType::Slash:
+                case TokenType::Percent:
+                    return Binding{12, 13, Binding::Kind::Infix};  // multiplicative (left)
+                case TokenType::Dot:
+                case TokenType::LParen:    // call
+                case TokenType::LBracket:  // index
+                case TokenType::PlusPlus:  // postfix
+                case TokenType::MinusMinus:
+                    return Binding{16, 17, Binding::Kind::Postfix};  // postfix/call/member
+                default:
+                    return std::nullopt;
+            }
+        }
+
+        constexpr int kPrefixBindingPower =
+            14;  // binds tighter than binary ops, looser than postfix
+    }            // namespace
+
     std::unique_ptr<Expression> Parser::parseAssignmentExpression() {
-        std::unique_ptr<Expression> expr = parseLogicalOr();
+        // Right-associative assignment built on top of Pratt for the rest.
+        std::unique_ptr<Expression> left = parsePrattExpression(0);
 
         if (match(TokenType::Equals)) {
-            // Assignment to variable or array index
-            if (auto varExpr = dynamic_cast<VariableExpression*>(expr.get())) {
+            std::unique_ptr<Expression> value = parseAssignmentExpression();
+
+            if (auto varExpr = dynamic_cast<VariableExpression*>(left.get())) {
                 int line = varExpr->line;
                 int column = varExpr->column;
                 std::string name = varExpr->name;
-                std::unique_ptr<Expression> value = parseAssignmentExpression();
                 std::unique_ptr<AssignmentExpression> assign =
                     std::make_unique<AssignmentExpression>(name, std::move(value));
                 assign->line = line;
                 assign->column = column;
                 return assign;
-            } else if (dynamic_cast<IndexExpression*>(expr.get())) {
-                // Take ownership of the IndexExpression to move its parts
-                std::unique_ptr<IndexExpression> idx(static_cast<IndexExpression*>(expr.release()));
+            } else if (dynamic_cast<IndexExpression*>(left.get())) {
+                std::unique_ptr<IndexExpression> idx(static_cast<IndexExpression*>(left.release()));
                 int line = idx->line;
                 int column = idx->column;
-                std::unique_ptr<Expression> value = parseAssignmentExpression();
                 std::unique_ptr<ArrayAssignmentExpression> arrayAssign =
                     std::make_unique<ArrayAssignmentExpression>(
                         std::move(idx->collection), std::move(idx->index), std::move(value));
                 arrayAssign->line = line;
                 arrayAssign->column = column;
                 return arrayAssign;
-            } else if (dynamic_cast<MemberAccessExpression*>(expr.get())) {
+            } else if (dynamic_cast<MemberAccessExpression*>(left.get())) {
                 std::unique_ptr<MemberAccessExpression> mem(
-                    static_cast<MemberAccessExpression*>(expr.release()));
+                    static_cast<MemberAccessExpression*>(left.release()));
                 int line = mem->line;
                 int column = mem->column;
-                std::unique_ptr<Expression> value = parseAssignmentExpression();
                 std::unique_ptr<MemberAssignmentExpression> memberAssign =
                     std::make_unique<MemberAssignmentExpression>(std::move(mem->object),
                                                                  mem->member, std::move(value));
                 memberAssign->line = line;
                 memberAssign->column = column;
                 return memberAssign;
-            } else {
-                reportError("Invalid assignment target");
             }
+
+            reportError("Invalid assignment target");
         }
 
-        return expr;
+        return left;
     }
 
-    std::unique_ptr<Expression> Parser::parseLogicalOr() {
-        std::unique_ptr<Expression> expr = parseLogicalAnd();
-
-        while (match(TokenType::PipePipe)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseLogicalAnd();
-            expr = std::make_unique<BinaryExpression>(
-                BinaryExpression{op, std::move(expr), std::move(right)});
-        }
-
-        return expr;
-    }
-
-    std::unique_ptr<Expression> Parser::parseLogicalAnd() {
-        std::unique_ptr<Expression> expr = parseBitwiseOr();
-
-        while (match(TokenType::AmpersandAmpersand)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseBitwiseOr();
-            expr = std::make_unique<BinaryExpression>(
-                BinaryExpression{op, std::move(expr), std::move(right)});
-        }
-
-        return expr;
-    }
-
-    std::unique_ptr<Expression> Parser::parseBitwiseOr() {
-        std::unique_ptr<Expression> expr = parseBitwiseXor();
-
-        while (match(TokenType::Pipe)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseBitwiseXor();
-            expr = std::make_unique<BinaryExpression>(
-                BinaryExpression{op, std::move(expr), std::move(right)});
-        }
-
-        return expr;
-    }
-
-    std::unique_ptr<Expression> Parser::parseBitwiseXor() {
-        std::unique_ptr<Expression> expr = parseBitwiseAnd();
-
-        while (match(TokenType::Caret)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseBitwiseAnd();
-            expr = std::make_unique<BinaryExpression>(
-                BinaryExpression{op, std::move(expr), std::move(right)});
-        }
-
-        return expr;
-    }
-
-    std::unique_ptr<Expression> Parser::parseBitwiseAnd() {
-        std::unique_ptr<Expression> expr = parseEquality();
-
-        while (match(TokenType::Ampersand)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseEquality();
-            expr = std::make_unique<BinaryExpression>(
-                BinaryExpression{op, std::move(expr), std::move(right)});
-        }
-
-        return expr;
-    }
-
-    std::unique_ptr<Expression> Parser::parseEquality() {
-        std::unique_ptr<Expression> expr = parseComparison();
-
-        while (match(TokenType::EqualEqual) || match(TokenType::BangEqual)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseComparison();
-            expr = std::make_unique<BinaryExpression>(
-                BinaryExpression{op, std::move(expr), std::move(right)});
-        }
-
-        return expr;
-    }
-
-    std::unique_ptr<Expression> Parser::parseComparison() {
-        std::unique_ptr<Expression> expr = parseAdditive();
-
-        while (match(TokenType::Greater) || match(TokenType::Less) ||
-               match(TokenType::GreaterEqual) || match(TokenType::LessEqual)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseAdditive();
-            expr = std::make_unique<BinaryExpression>(
-                BinaryExpression{op, std::move(expr), std::move(right)});
-        }
-
-        return expr;
-    }
-
-    std::unique_ptr<Expression> Parser::parseAdditive() {
-        std::unique_ptr<Expression> expr = parseMultiplicative();
-
-        while (match(TokenType::Plus) || match(TokenType::Minus)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseMultiplicative();
-            expr = std::make_unique<BinaryExpression>(
-                BinaryExpression{op, std::move(expr), std::move(right)});
-        }
-
-        return expr;
-    }
-
-    std::unique_ptr<Expression> Parser::parseMultiplicative() {
-        std::unique_ptr<Expression> expr = parseUnary();
-
-        while (match(TokenType::Star) || match(TokenType::Slash) || match(TokenType::Percent)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseUnary();
-            expr = std::make_unique<BinaryExpression>(
-                BinaryExpression{op, std::move(expr), std::move(right)});
-        }
-
-        return expr;
-    }
-
-    std::unique_ptr<Expression> Parser::parseUnary() {
-        if (match(TokenType::Minus) || match(TokenType::Bang) || match(TokenType::Tilde)) {
-            std::string op = previous().value;
-            std::unique_ptr<Expression> right = parseUnary();
-            return std::make_unique<UnaryExpression>(UnaryExpression{op, std::move(right)});
-        }
-
-        return parseCall();
-    }
-
-    std::unique_ptr<Expression> Parser::parseCall() {
-        std::unique_ptr<Expression> expr = parsePrimary();
+    std::unique_ptr<Expression> Parser::parsePrattExpression(int minBp) {
+        std::unique_ptr<Expression> left = parsePrefixExpression();
 
         while (true) {
-            if (match(TokenType::LParen)) {
-                const Token& lparen = previous();
-                std::vector<std::unique_ptr<Expression>> args;
-                if (!check(TokenType::RParen)) {
-                    do {
-                        args.push_back(parseExpression());
-                    } while (match(TokenType::Comma));
-                }
-                (void)expect(TokenType::RParen, "Expected ')' after arguments");
-                int calleeLine = expr ? expr->line : 0;
-                int calleeColumn = expr ? expr->column : 0;
-                std::unique_ptr<CallExpression> call =
-                    std::make_unique<CallExpression>(std::move(expr), std::move(args));
-                if (calleeLine > 0) {
-                    call->line = calleeLine;
-                    call->column = calleeColumn;
-                } else {
-                    call->line = lparen.line;
-                    call->column = lparen.column;
-                }
-                expr = std::move(call);
-            } else if (match(TokenType::LBracket)) {
-                const Token& lbr = previous();
-                std::unique_ptr<IndexExpression> idxExpr = std::make_unique<IndexExpression>();
-                idxExpr->collection = std::move(expr);
-                std::unique_ptr<Expression> indexNode = parseExpression();
-                // Parser check for constant negative indices like a[-1]
-                bool negativeConst = false;
-                if (auto lit = dynamic_cast<LiteralExpression*>(indexNode.get())) {
-                    if (lit->literalType == "int") {
-                        try {
-                            int v = std::stoi(lit->value);
-                            negativeConst = v < 0;
-                        } catch (...) {
+            const Token& tok = peek();
+            auto binding = infixBinding(tok.type);
+            if (!binding || binding->lbp < minBp)
+                break;
+
+            (void)advance();  // consume operator / postfix marker
+
+            if (binding->kind == Binding::Kind::Postfix) {
+                switch (tok.type) {
+                    case TokenType::LParen: {
+                        const Token& lparen = tok;
+                        std::vector<std::unique_ptr<Expression>> args;
+                        if (!check(TokenType::RParen)) {
+                            do {
+                                args.push_back(parseExpression());
+                            } while (match(TokenType::Comma));
                         }
+                        (void)expect(TokenType::RParen, "Expected ')' after arguments");
+                        int calleeLine = left ? left->line : lparen.line;
+                        int calleeColumn = left ? left->column : lparen.column;
+                        std::unique_ptr<CallExpression> call =
+                            std::make_unique<CallExpression>(std::move(left), std::move(args));
+                        call->line = calleeLine;
+                        call->column = calleeColumn;
+                        left = std::move(call);
+                        continue;
                     }
-                } else if (auto unary = dynamic_cast<UnaryExpression*>(indexNode.get())) {
-                    if (unary->op == "-") {
-                        if (auto rlit = dynamic_cast<LiteralExpression*>(unary->right.get())) {
-                            if (rlit->literalType == "int") {
+                    case TokenType::LBracket: {
+                        const Token& lbr = tok;
+                        std::unique_ptr<IndexExpression> idxExpr =
+                            std::make_unique<IndexExpression>();
+                        idxExpr->collection = std::move(left);
+                        std::unique_ptr<Expression> indexNode = parseExpression();
+
+                        // Constant negative index guard preserved from legacy parser.
+                        bool negativeConst = false;
+                        if (auto lit = dynamic_cast<LiteralExpression*>(indexNode.get())) {
+                            if (lit->literalType == "int") {
                                 try {
-                                    int v = std::stoi(rlit->value);
-                                    negativeConst = v > 0;  // -0 is allowed (treated as 0)
+                                    int v = std::stoi(lit->value);
+                                    negativeConst = v < 0;
                                 } catch (...) {
                                 }
                             }
+                        } else if (auto unary = dynamic_cast<UnaryExpression*>(indexNode.get())) {
+                            if (unary->op == "-") {
+                                if (auto rlit =
+                                        dynamic_cast<LiteralExpression*>(unary->right.get())) {
+                                    if (rlit->literalType == "int") {
+                                        try {
+                                            int v = std::stoi(rlit->value);
+                                            negativeConst = v > 0;
+                                        } catch (...) {
+                                        }
+                                    }
+                                }
+                            }
                         }
+                        if (negativeConst) {
+                            throw BlochError(ErrorCategory::Parse, lbr.line, lbr.column,
+                                             "array index must be non-negative");
+                        }
+
+                        idxExpr->index = std::move(indexNode);
+                        (void)expect(TokenType::RBracket, "Expected ']' after index expression");
+                        idxExpr->line = lbr.line;
+                        idxExpr->column = lbr.column;
+                        left = std::move(idxExpr);
+                        continue;
                     }
+                    case TokenType::Dot: {
+                        const Token& dotTok = tok;
+                        const Token& memberTok =
+                            expect(TokenType::Identifier, "Expected member name after '.'");
+                        std::unique_ptr<MemberAccessExpression> member =
+                            std::make_unique<MemberAccessExpression>();
+                        member->object = std::move(left);
+                        member->member = memberTok.value;
+                        member->line = dotTok.line;
+                        member->column = dotTok.column;
+                        left = std::move(member);
+                        continue;
+                    }
+                    case TokenType::PlusPlus:
+                    case TokenType::MinusMinus: {
+                        std::unique_ptr<PostfixExpression> post =
+                            std::make_unique<PostfixExpression>(tok.value, std::move(left));
+                        post->line = tok.line;
+                        post->column = tok.column;
+                        left = std::move(post);
+                        continue;
+                    }
+                    default:
+                        break;
                 }
-                if (negativeConst) {
-                    throw BlochError(ErrorCategory::Parse, lbr.line, lbr.column,
-                                     "array index must be non-negative");
-                }
-                idxExpr->index = std::move(indexNode);
-                (void)expect(TokenType::RBracket, "Expected ']' after index expression");
-                idxExpr->line = lbr.line;
-                idxExpr->column = lbr.column;
-                expr = std::move(idxExpr);
-            } else if (match(TokenType::Dot)) {
-                const Token& dotTok = previous();
-                const Token& memberTok =
-                    expect(TokenType::Identifier, "Expected member name after '.'");
-                std::unique_ptr<MemberAccessExpression> member =
-                    std::make_unique<MemberAccessExpression>();
-                member->object = std::move(expr);
-                member->member = memberTok.value;
-                member->line = dotTok.line;
-                member->column = dotTok.column;
-                expr = std::move(member);
-            } else if (match(TokenType::PlusPlus) || match(TokenType::MinusMinus)) {
-                std::string op = previous().value;
-                std::unique_ptr<PostfixExpression> post =
-                    std::make_unique<PostfixExpression>(op, std::move(expr));
-                post->line = previous().line;
-                post->column = previous().column;
-                expr = std::move(post);
-            } else {
-                break;
             }
+
+            // Infix binary
+            std::unique_ptr<Expression> right = parsePrattExpression(binding->rbp);
+            std::unique_ptr<BinaryExpression> bin =
+                std::make_unique<BinaryExpression>(tok.value, std::move(left), std::move(right));
+            bin->line = tok.line;
+            bin->column = tok.column;
+            left = std::move(bin);
         }
 
-        return expr;
+        return left;
     }
 
+    std::unique_ptr<Expression> Parser::parsePrefixExpression() {
+        const Token& tok = peek();
+        if (tok.type == TokenType::Minus || tok.type == TokenType::Bang ||
+            tok.type == TokenType::Tilde) {
+            (void)advance();
+            std::unique_ptr<Expression> right = parsePrattExpression(kPrefixBindingPower);
+            std::unique_ptr<UnaryExpression> un =
+                std::make_unique<UnaryExpression>(tok.value, std::move(right));
+            un->line = tok.line;
+            un->column = tok.column;
+            return un;
+        }
+
+        return parsePrimary();
+    }
+
+    std::unique_ptr<Expression> Parser::parseUnary() { return parsePrefixExpression(); }
+
     std::unique_ptr<Expression> Parser::parsePrimary() {
-        if (match(TokenType::IntegerLiteral) || match(TokenType::FloatLiteral) ||
-            match(TokenType::BitLiteral) || match(TokenType::StringLiteral) ||
-            match(TokenType::CharLiteral) || match(TokenType::True) || match(TokenType::False)) {
+        if (match(TokenType::IntegerLiteral) || match(TokenType::LongLiteral) ||
+            match(TokenType::FloatLiteral) || match(TokenType::BitLiteral) ||
+            match(TokenType::StringLiteral) || match(TokenType::CharLiteral) ||
+            match(TokenType::True) || match(TokenType::False)) {
             Token tok = previous();
             std::string litType;
             switch (tok.type) {
                 case TokenType::IntegerLiteral:
                     litType = "int";
+                    break;
+                case TokenType::LongLiteral:
+                    litType = "long";
                     break;
                 case TokenType::FloatLiteral:
                     litType = "float";
@@ -1301,6 +1276,8 @@ namespace bloch::core {
         switch (token.type) {
             case TokenType::IntegerLiteral:
                 return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "int"});
+            case TokenType::LongLiteral:
+                return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "long"});
             case TokenType::FloatLiteral:
                 return std::make_unique<LiteralExpression>(LiteralExpression{token.value, "float"});
             case TokenType::BitLiteral:
@@ -1310,10 +1287,6 @@ namespace bloch::core {
             case TokenType::StringLiteral:
                 return std::make_unique<LiteralExpression>(
                     LiteralExpression{token.value, "string"});
-            case TokenType::True:
-            case TokenType::False:
-                return std::make_unique<LiteralExpression>(
-                    LiteralExpression{token.value, "boolean"});
             case TokenType::Null: {
                 auto expr = std::make_unique<NullLiteralExpression>();
                 expr->line = token.line;
@@ -1333,9 +1306,9 @@ namespace bloch::core {
         if (check(TokenType::Void)) {
             (void)advance();
             baseType = std::make_unique<VoidType>();
-        } else if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||
-                   check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Boolean) ||
-                   check(TokenType::Qubit)) {
+        } else if (check(TokenType::Int) || check(TokenType::Long) || check(TokenType::Float) ||
+                   check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
+                   check(TokenType::Qubit) || check(TokenType::Boolean)) {
             baseType = parsePrimitiveType();
         } else if (check(TokenType::Identifier)) {
             std::vector<std::string> parts = parseQualifiedName();
@@ -1375,9 +1348,9 @@ namespace bloch::core {
     }
 
     std::unique_ptr<Type> Parser::parsePrimitiveType() {
-        if (check(TokenType::Int) || check(TokenType::Float) || check(TokenType::Char) ||
-            check(TokenType::String) || check(TokenType::Bit) || check(TokenType::Boolean) ||
-            check(TokenType::Qubit)) {
+        if (check(TokenType::Int) || check(TokenType::Long) || check(TokenType::Float) ||
+            check(TokenType::Char) || check(TokenType::String) || check(TokenType::Bit) ||
+            check(TokenType::Qubit) || check(TokenType::Boolean)) {
             std::string typeName = advance().value;
             return std::make_unique<PrimitiveType>(typeName);
         }
@@ -1679,4 +1652,4 @@ namespace bloch::core {
         for (auto& stmt : m_extraStatements) dest.push_back(std::move(stmt));
         m_extraStatements.clear();
     }
-}  // namespace bloch::core
+}  // namespace bloch::compiler

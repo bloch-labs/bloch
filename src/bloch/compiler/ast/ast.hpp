@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace bloch::core {
+namespace bloch::compiler {
 
     // The AST is a compact tree built by the parser. Each node carries
     // its source position and supports a classic visitor for later stages
@@ -630,4 +630,4 @@ namespace bloch::core {
     inline void ClassDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void FunctionDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void Program::accept(ASTVisitor& visitor) { visitor.visit(*this); }
-}  // namespace bloch::core
+}  // namespace bloch::compiler

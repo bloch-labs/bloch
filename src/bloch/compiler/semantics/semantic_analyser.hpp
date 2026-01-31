@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include "bloch/core/ast/ast.hpp"
-#include "bloch/core/semantics/type_system.hpp"
+#include "bloch/compiler/ast/ast.hpp"
+#include "bloch/compiler/semantics/type_system.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 
-namespace bloch::core {
+namespace bloch::compiler {
 
     // The semantic pass checks name usage, types at a coarse level,
     // function contracts, and a few language rules (like @tracked constraints).
@@ -218,4 +218,4 @@ namespace bloch::core {
         std::optional<TypeInfo> getTypeParamBound(const std::string& name) const;
     };
 
-}  // namespace bloch::core
+}  // namespace bloch::compiler

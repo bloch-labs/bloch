@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -242,7 +242,7 @@ function main() -> void {
     int heads = 0;
     for (int i = 0; i < 10; i = i + 1) {
         bit b = flip();
-        if (b == 1) {
+        if (b == 1b) {
             heads = heads + 1;
         }
     }

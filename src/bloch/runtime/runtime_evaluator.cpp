@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,12 +24,12 @@
 #include <unordered_map>
 #include <utility>
 
-#include "bloch/core/semantics/built_ins.hpp"
+#include "bloch/compiler/semantics/built_ins.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 
 namespace bloch::runtime {
 
-    using core::builtInGates;
+    using compiler::builtInGates;
     using support::BlochError;
     using support::blochWarning;
     using support::ErrorCategory;
@@ -84,6 +84,8 @@ namespace bloch::runtime {
                 return v.boolValue ? "true" : "false";
             case Value::Type::Int:
                 return std::to_string(v.intValue);
+            case Value::Type::Long:
+                return std::to_string(static_cast<long long>(v.longValue));
             case Value::Type::BitArray:
                 oss << "{";
                 for (size_t i = 0; i < v.bitArray.size(); ++i) {
@@ -108,6 +110,15 @@ namespace bloch::runtime {
                     if (i)
                         oss << ", ";
                     oss << v.intArray[i];
+                }
+                oss << "}";
+                return oss.str();
+            case Value::Type::LongArray:
+                oss << "{";
+                for (size_t i = 0; i < v.longArray.size(); ++i) {
+                    if (i)
+                        oss << ", ";
+                    oss << v.longArray[i];
                 }
                 oss << "}";
                 return oss.str();
@@ -172,6 +183,8 @@ namespace bloch::runtime {
         if (auto prim = dynamic_cast<PrimitiveType*>(type)) {
             if (prim->name == "int")
                 info.kind = Value::Type::Int;
+            else if (prim->name == "long")
+                info.kind = Value::Type::Long;
             else if (prim->name == "float")
                 info.kind = Value::Type::Float;
             else if (prim->name == "bit")
@@ -205,6 +218,9 @@ namespace bloch::runtime {
             switch (elem.kind) {
                 case Value::Type::Int:
                     info.kind = Value::Type::IntArray;
+                    break;
+                case Value::Type::Long:
+                    info.kind = Value::Type::LongArray;
                     break;
                 case Value::Type::Float:
                     info.kind = Value::Type::FloatArray;
@@ -259,6 +275,8 @@ namespace bloch::runtime {
             switch (t.kind) {
                 case Value::Type::Int:
                     return "int";
+                case Value::Type::Long:
+                    return "long";
                 case Value::Type::Float:
                     return "float";
                 case Value::Type::Bit:
@@ -273,6 +291,8 @@ namespace bloch::runtime {
                     return "qubit";
                 case Value::Type::IntArray:
                     return "int[]";
+                case Value::Type::LongArray:
+                    return "long[]";
                 case Value::Type::FloatArray:
                     return "float[]";
                 case Value::Type::BitArray:
@@ -308,6 +328,8 @@ namespace bloch::runtime {
             switch (rt.kind) {
                 case Value::Type::Int:
                     return std::make_unique<PrimitiveType>("int");
+                case Value::Type::Long:
+                    return std::make_unique<PrimitiveType>("long");
                 case Value::Type::Float:
                     return std::make_unique<PrimitiveType>("float");
                 case Value::Type::Bit:
@@ -322,6 +344,9 @@ namespace bloch::runtime {
                     return std::make_unique<PrimitiveType>("qubit");
                 case Value::Type::IntArray:
                     return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("int"), -1,
+                                                       nullptr);
+                case Value::Type::LongArray:
+                    return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("long"), -1,
                                                        nullptr);
                 case Value::Type::FloatArray:
                     return std::make_unique<ArrayType>(std::make_unique<PrimitiveType>("float"), -1,
@@ -354,6 +379,9 @@ namespace bloch::runtime {
                 case Value::Type::Int:
                     t.kind = Value::Type::Int;
                     break;
+                case Value::Type::Long:
+                    t.kind = Value::Type::Long;
+                    break;
                 case Value::Type::Float:
                     t.kind = Value::Type::Float;
                     break;
@@ -384,6 +412,9 @@ namespace bloch::runtime {
                     if (!v.className.empty())
                         t.className = v.className;
                     break;
+                case Value::Type::LongArray:
+                    t.kind = Value::Type::LongArray;
+                    break;
                 default:
                     t.kind = v.type;
                     break;
@@ -412,6 +443,9 @@ namespace bloch::runtime {
             case Value::Type::Int:
                 v.intValue = 0;
                 break;
+            case Value::Type::Long:
+                v.longValue = 0;
+                break;
             case Value::Type::Float:
                 v.floatValue = 0.0;
                 break;
@@ -432,6 +466,9 @@ namespace bloch::runtime {
                 break;
             case Value::Type::IntArray:
                 v.intArray.assign(std::max(0, field.arraySize), 0);
+                break;
+            case Value::Type::LongArray:
+                v.longArray.assign(std::max(0, field.arraySize), 0);
                 break;
             case Value::Type::FloatArray:
                 v.floatArray.assign(std::max(0, field.arraySize), 0.0);
@@ -903,7 +940,7 @@ namespace bloch::runtime {
         if (auto existing = findClass(key))
             return existing;
 
-        core::ClassDeclaration* tmpl = tmplIt->second;
+        compiler::ClassDeclaration* tmpl = tmplIt->second;
         std::unordered_map<std::string, RuntimeTypeInfo> localSubst = subst;
         for (size_t i = 0; i < tmpl->typeParameters.size() && i < argInfos.size(); ++i) {
             localSubst[tmpl->typeParameters[i]->name] = argInfos[i];
@@ -1021,7 +1058,7 @@ namespace bloch::runtime {
         auto nt = std::make_unique<NamedType>(std::vector<std::string>{base});
         for (const auto& a : args) nt->typeArguments.push_back(runtimeTypeToAst(a));
         std::unordered_map<std::string, RuntimeTypeInfo> subst;
-        core::ClassDeclaration* tmpl = tmplIt->second;
+        compiler::ClassDeclaration* tmpl = tmplIt->second;
         for (size_t i = 0; i < tmpl->typeParameters.size() && i < args.size(); ++i) {
             subst[tmpl->typeParameters[i]->name] = args[i];
         }
@@ -1479,6 +1516,8 @@ namespace bloch::runtime {
                     return v.bitValue != 0;
                 case Value::Type::Int:
                     return v.intValue != 0;
+                case Value::Type::Long:
+                    return v.longValue != 0;
                 case Value::Type::Float:
                     return v.floatValue != 0.0;
                 default:
@@ -1490,6 +1529,8 @@ namespace bloch::runtime {
             if (auto prim = dynamic_cast<PrimitiveType*>(var->varType.get())) {
                 if (prim->name == "int")
                     v.type = Value::Type::Int;
+                else if (prim->name == "long")
+                    v.type = Value::Type::Long;
                 else if (prim->name == "bit")
                     v.type = Value::Type::Bit;
                 else if (prim->name == "boolean")
@@ -1512,6 +1553,8 @@ namespace bloch::runtime {
                         v.type = Value::Type::BooleanArray;
                     else if (elem->name == "int")
                         v.type = Value::Type::IntArray;
+                    else if (elem->name == "long")
+                        v.type = Value::Type::LongArray;
                     else if (elem->name == "float")
                         v.type = Value::Type::FloatArray;
                     else if (elem->name == "string")
@@ -1540,6 +1583,8 @@ namespace bloch::runtime {
                         v.bitArray.assign(n, 0);
                     else if (v.type == Value::Type::BooleanArray)
                         v.boolArray.assign(n, false);
+                    else if (v.type == Value::Type::LongArray)
+                        v.longArray.assign(n, 0);
                     else if (v.type == Value::Type::IntArray)
                         v.intArray.assign(n, 0);
                     else if (v.type == Value::Type::FloatArray)
@@ -1608,6 +1653,8 @@ namespace bloch::runtime {
                                     int val = 0;
                                     if (ev.type == Value::Type::Int)
                                         val = ev.intValue;
+                                    else if (ev.type == Value::Type::Long)
+                                        val = static_cast<int>(ev.longValue);
                                     else if (ev.type == Value::Type::Bit)
                                         val = ev.bitValue;
                                     else if (ev.type == Value::Type::Float)
@@ -1617,6 +1664,26 @@ namespace bloch::runtime {
                                             ErrorCategory::Runtime, el->line, el->column,
                                             "int[] initialiser expects integer elements");
                                     v.intArray.push_back(val);
+                                }
+                            } else if (elem->name == "long") {
+                                v.type = Value::Type::LongArray;
+                                v.longArray.clear();
+                                for (auto& el : arrLit->elements) {
+                                    Value ev = eval(el.get());
+                                    std::int64_t val = 0;
+                                    if (ev.type == Value::Type::Long)
+                                        val = ev.longValue;
+                                    else if (ev.type == Value::Type::Int)
+                                        val = ev.intValue;
+                                    else if (ev.type == Value::Type::Bit)
+                                        val = ev.bitValue;
+                                    else if (ev.type == Value::Type::Float)
+                                        val = static_cast<std::int64_t>(ev.floatValue);
+                                    else
+                                        throw BlochError(
+                                            ErrorCategory::Runtime, el->line, el->column,
+                                            "long[] initialiser expects integer elements");
+                                    v.longArray.push_back(val);
                                 }
                             } else if (elem->name == "float") {
                                 v.type = Value::Type::FloatArray;
@@ -1799,6 +1866,16 @@ namespace bloch::runtime {
             } else if (lit->literalType == "boolean") {
                 v.type = Value::Type::Boolean;
                 v.boolValue = (lit->value == "true");
+            } else if (lit->literalType == "long") {
+                v.type = Value::Type::Long;
+                std::string text = lit->value;
+                if (!text.empty() && (text.back() == 'L' || text.back() == 'l'))
+                    text.pop_back();
+                try {
+                    v.longValue = std::stoll(text);
+                } catch (...) {
+                    v.longValue = 0;
+                }
             } else if (lit->literalType == "float") {
                 v.type = Value::Type::Float;
                 v.floatValue = std::stof(lit->value);
@@ -1832,6 +1909,10 @@ namespace bloch::runtime {
                         v.intValue = in.intValue;
                         return v;
                     }
+                    if (in.type == Value::Type::Long) {
+                        v.intValue = static_cast<int>(in.longValue);
+                        return v;
+                    }
                     if (in.type == Value::Type::Bit) {
                         v.intValue = in.bitValue;
                         return v;
@@ -1846,6 +1927,31 @@ namespace bloch::runtime {
                     }
                     break;
                 }
+                case Value::Type::Long: {
+                    Value v;
+                    v.type = Value::Type::Long;
+                    if (in.type == Value::Type::Long) {
+                        v.longValue = in.longValue;
+                        return v;
+                    }
+                    if (in.type == Value::Type::Int) {
+                        v.longValue = in.intValue;
+                        return v;
+                    }
+                    if (in.type == Value::Type::Bit) {
+                        v.longValue = in.bitValue;
+                        return v;
+                    }
+                    if (in.type == Value::Type::Float) {
+                        v.longValue = static_cast<std::int64_t>(in.floatValue);
+                        return v;
+                    }
+                    if (in.type == Value::Type::Char) {
+                        v.longValue = static_cast<std::int64_t>(in.charValue);
+                        return v;
+                    }
+                    break;
+                }
                 case Value::Type::Float: {
                     Value v;
                     v.type = Value::Type::Float;
@@ -1855,6 +1961,10 @@ namespace bloch::runtime {
                     }
                     if (in.type == Value::Type::Int) {
                         v.floatValue = static_cast<double>(in.intValue);
+                        return v;
+                    }
+                    if (in.type == Value::Type::Long) {
+                        v.floatValue = static_cast<double>(in.longValue);
                         return v;
                     }
                     if (in.type == Value::Type::Bit) {
@@ -1878,6 +1988,10 @@ namespace bloch::runtime {
                         v.bitValue = in.intValue != 0 ? 1 : 0;
                         return v;
                     }
+                    if (in.type == Value::Type::Long) {
+                        v.bitValue = in.longValue != 0 ? 1 : 0;
+                        return v;
+                    }
                     if (in.type == Value::Type::Float) {
                         v.bitValue = in.floatValue != 0.0 ? 1 : 0;
                         return v;
@@ -1893,6 +2007,10 @@ namespace bloch::runtime {
                     }
                     if (in.type == Value::Type::Int) {
                         v.charValue = static_cast<char>(in.intValue);
+                        return v;
+                    }
+                    if (in.type == Value::Type::Long) {
+                        v.charValue = static_cast<char>(in.longValue);
                         return v;
                     }
                     break;
@@ -1944,19 +2062,37 @@ namespace bloch::runtime {
                                                                          : ev.bitValue);
                     }
                     break;
+                case Value::Type::Long:
+                    v.type = Value::Type::LongArray;
+                    for (auto& el : arr->elements) {
+                        Value ev = eval(el.get());
+                        if (ev.type != Value::Type::Long && ev.type != Value::Type::Int &&
+                            ev.type != Value::Type::Bit)
+                            throw BlochError(ErrorCategory::Runtime, el->line, el->column,
+                                             "inconsistent element types in array literal");
+                        std::int64_t val =
+                            ev.type == Value::Type::Long
+                                ? ev.longValue
+                                : static_cast<std::int64_t>(
+                                      ev.type == Value::Type::Int ? ev.intValue : ev.bitValue);
+                        v.longArray.push_back(val);
+                    }
+                    break;
                 case Value::Type::Float:
                     v.type = Value::Type::FloatArray;
                     for (auto& el : arr->elements) {
                         Value ev = eval(el.get());
                         if (ev.type != Value::Type::Float && ev.type != Value::Type::Int &&
-                            ev.type != Value::Type::Bit)
+                            ev.type != Value::Type::Long && ev.type != Value::Type::Bit)
                             throw BlochError(ErrorCategory::Runtime, el->line, el->column,
                                              "inconsistent element types in array literal");
-                        double val =
-                            (ev.type == Value::Type::Float)
-                                ? ev.floatValue
-                                : static_cast<double>(ev.type == Value::Type::Int ? ev.intValue
-                                                                                  : ev.bitValue);
+                        double val = (ev.type == Value::Type::Float)
+                                         ? ev.floatValue
+                                         : static_cast<double>(ev.type == Value::Type::Int
+                                                                   ? ev.intValue
+                                                                   : (ev.type == Value::Type::Long
+                                                                          ? ev.longValue
+                                                                          : ev.bitValue));
                         v.floatArray.push_back(val);
                     }
                     break;
@@ -2128,6 +2264,22 @@ namespace bloch::runtime {
                     throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
                                      "equality on references requires two class references");
                 }
+                if (l.type == Value::Type::String || r.type == Value::Type::String) {
+                    if (l.type != Value::Type::String || r.type != Value::Type::String) {
+                        throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                         "equality requires two strings");
+                    }
+                    bool eq = l.stringValue == r.stringValue;
+                    return makeBoolean(bin->op == "==" ? eq : !eq);
+                }
+                if (l.type == Value::Type::Char || r.type == Value::Type::Char) {
+                    if (l.type != Value::Type::Char || r.type != Value::Type::Char) {
+                        throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                         "equality requires two chars");
+                    }
+                    bool eq = l.charValue == r.charValue;
+                    return makeBoolean(bin->op == "==" ? eq : !eq);
+                }
             }
 
             bool lIsBool = l.type == Value::Type::Boolean;
@@ -2155,8 +2307,22 @@ namespace bloch::runtime {
                                  "operator '" + bin->op + "' not supported for boolean");
             }
 
-            auto lInt = l.type == Value::Type::Bit ? l.bitValue : l.intValue;
-            auto rInt = r.type == Value::Type::Bit ? r.bitValue : r.intValue;
+            auto toInt64 = [](const Value& v) -> std::int64_t {
+                switch (v.type) {
+                    case Value::Type::Long:
+                        return v.longValue;
+                    case Value::Type::Int:
+                        return v.intValue;
+                    case Value::Type::Bit:
+                        return v.bitValue;
+                    default:
+                        return 0;
+                }
+            };
+            std::int64_t lInt = toInt64(l);
+            std::int64_t rInt = toInt64(r);
+            bool hasFloat = l.type == Value::Type::Float || r.type == Value::Type::Float;
+            bool hasLong = l.type == Value::Type::Long || r.type == Value::Type::Long;
             double lNum = l.type == Value::Type::Float ? l.floatValue : static_cast<double>(lInt);
             double rNum = r.type == Value::Type::Float ? r.floatValue : static_cast<double>(rInt);
             if (bin->op == "+") {
@@ -2167,24 +2333,42 @@ namespace bloch::runtime {
                     throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
                                      "operator '+' not supported for class references");
                 }
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float) {
+                if (hasFloat) {
                     return {Value::Type::Float, 0, lNum + rNum};
                 }
-                return {Value::Type::Int, lInt + rInt};
+                if (hasLong) {
+                    Value v;
+                    v.type = Value::Type::Long;
+                    v.longValue = lInt + rInt;
+                    return v;
+                }
+                return {Value::Type::Int, static_cast<int>(lInt + rInt)};
             }
             if (isObjectLike(l) || isObjectLike(r)) {
                 throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
                                  "operator '" + bin->op + "' not supported for class references");
             }
             if (bin->op == "-") {
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                if (hasFloat)
                     return {Value::Type::Float, 0, lNum - rNum};
-                return {Value::Type::Int, lInt - rInt};
+                if (hasLong) {
+                    Value v;
+                    v.type = Value::Type::Long;
+                    v.longValue = lInt - rInt;
+                    return v;
+                }
+                return {Value::Type::Int, static_cast<int>(lInt - rInt)};
             }
             if (bin->op == "*") {
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                if (hasFloat)
                     return {Value::Type::Float, 0, lNum * rNum};
-                return {Value::Type::Int, lInt * rInt};
+                if (hasLong) {
+                    Value v;
+                    v.type = Value::Type::Long;
+                    v.longValue = lInt * rInt;
+                    return v;
+                }
+                return {Value::Type::Int, static_cast<int>(lInt * rInt)};
             }
             if (bin->op == "/") {
                 if (rNum == 0) {
@@ -2198,36 +2382,42 @@ namespace bloch::runtime {
                     throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
                                      "modulo by zero");
                 }
-                return {Value::Type::Int, lInt % rInt};
+                if (hasLong) {
+                    Value v;
+                    v.type = Value::Type::Long;
+                    v.longValue = lInt % rInt;
+                    return v;
+                }
+                return {Value::Type::Int, static_cast<int>(lInt % rInt)};
             }
 
             if (bin->op == ">") {
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                if (hasFloat)
                     return makeBoolean(lNum > rNum);
                 return makeBoolean(lInt > rInt);
             }
             if (bin->op == "<") {
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                if (hasFloat)
                     return makeBoolean(lNum < rNum);
                 return makeBoolean(lInt < rInt);
             }
             if (bin->op == ">=") {
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                if (hasFloat)
                     return makeBoolean(lNum >= rNum);
                 return makeBoolean(lInt >= rInt);
             }
             if (bin->op == "<=") {
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                if (hasFloat)
                     return makeBoolean(lNum <= rNum);
                 return makeBoolean(lInt <= rInt);
             }
             if (bin->op == "==") {
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                if (hasFloat)
                     return makeBoolean(lNum == rNum);
                 return makeBoolean(lInt == rInt);
             }
             if (bin->op == "!=") {
-                if (l.type == Value::Type::Float || r.type == Value::Type::Float)
+                if (hasFloat)
                     return makeBoolean(lNum != rNum);
                 return makeBoolean(lInt != rInt);
             }
@@ -2348,6 +2538,12 @@ namespace bloch::runtime {
             if (unary->op == "-") {
                 if (r.type == Value::Type::Float)
                     return {Value::Type::Float, 0, -r.floatValue};
+                if (r.type == Value::Type::Long) {
+                    Value v;
+                    v.type = Value::Type::Long;
+                    v.longValue = -r.longValue;
+                    return v;
+                }
                 return {Value::Type::Int, -r.intValue};
             }
             if (unary->op == "!") {
@@ -2360,6 +2556,8 @@ namespace bloch::runtime {
                     rb = r.boolValue;
                 else if (r.type == Value::Type::Float)
                     rb = r.floatValue != 0.0;
+                else if (r.type == Value::Type::Long)
+                    rb = r.longValue != 0;
                 else if (r.type == Value::Type::Bit)
                     rb = r.bitValue != 0;
                 else if (r.type == Value::Type::Int)
@@ -2391,11 +2589,15 @@ namespace bloch::runtime {
                 if (post->op == "++") {
                     if (current.type == Value::Type::Float)
                         updated.floatValue += 1.0;
+                    else if (current.type == Value::Type::Long)
+                        updated.longValue += 1;
                     else if (current.type == Value::Type::Int)
                         updated.intValue += 1;
                 } else if (post->op == "--") {
                     if (current.type == Value::Type::Float)
                         updated.floatValue -= 1.0;
+                    else if (current.type == Value::Type::Long)
+                        updated.longValue -= 1;
                     else if (current.type == Value::Type::Int)
                         updated.intValue -= 1;
                 }
@@ -2526,6 +2728,8 @@ namespace bloch::runtime {
             int idxi = 0;
             if (idxv.type == Value::Type::Int)
                 idxi = idxv.intValue;
+            else if (idxv.type == Value::Type::Long)
+                idxi = static_cast<int>(idxv.longValue);
             else if (idxv.type == Value::Type::Bit)
                 idxi = idxv.bitValue;
             else if (idxv.type == Value::Type::Float)
@@ -2548,6 +2752,18 @@ namespace bloch::runtime {
                                              " out of bounds for length " +
                                              std::to_string(coll.intArray.size()));
                     return {Value::Type::Int, coll.intArray[idxi]};
+                case Value::Type::LongArray:
+                    if (idxi < 0 || idxi >= static_cast<int>(coll.longArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
+                                         "index " + std::to_string(idxi) +
+                                             " out of bounds for length " +
+                                             std::to_string(coll.longArray.size()));
+                    {
+                        Value v;
+                        v.type = Value::Type::Long;
+                        v.longValue = coll.longArray[idxi];
+                        return v;
+                    }
                 case Value::Type::FloatArray:
                     if (idxi < 0 || idxi >= static_cast<int>(coll.floatArray.size()))
                         throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
@@ -2644,6 +2860,8 @@ namespace bloch::runtime {
             int i = 0;
             if (idxv.type == Value::Type::Int)
                 i = idxv.intValue;
+            else if (idxv.type == Value::Type::Long)
+                i = static_cast<int>(idxv.longValue);
             else if (idxv.type == Value::Type::Bit)
                 i = idxv.bitValue;
             else if (idxv.type == Value::Type::Float)
@@ -2661,6 +2879,8 @@ namespace bloch::runtime {
                                              std::to_string(arr.intArray.size()));
                     if (rhs.type == Value::Type::Int)
                         arr.intArray[i] = rhs.intValue;
+                    else if (rhs.type == Value::Type::Long)
+                        arr.intArray[i] = static_cast<int>(rhs.longValue);
                     else if (rhs.type == Value::Type::Bit)
                         arr.intArray[i] = rhs.bitValue;
                     else if (rhs.type == Value::Type::Float)
@@ -2668,6 +2888,24 @@ namespace bloch::runtime {
                     else
                         throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
                                          "type mismatch for int[] assignment");
+                    break;
+                case Value::Type::LongArray:
+                    if (i < 0 || i >= static_cast<int>(arr.longArray.size()))
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "index " + std::to_string(i) +
+                                             " out of bounds for length " +
+                                             std::to_string(arr.longArray.size()));
+                    if (rhs.type == Value::Type::Long)
+                        arr.longArray[i] = rhs.longValue;
+                    else if (rhs.type == Value::Type::Int)
+                        arr.longArray[i] = rhs.intValue;
+                    else if (rhs.type == Value::Type::Bit)
+                        arr.longArray[i] = rhs.bitValue;
+                    else if (rhs.type == Value::Type::Float)
+                        arr.longArray[i] = static_cast<std::int64_t>(rhs.floatValue);
+                    else
+                        throw BlochError(ErrorCategory::Runtime, aassign->line, aassign->column,
+                                         "type mismatch for long[] assignment");
                     break;
                 case Value::Type::FloatArray:
                     if (i < 0 || i >= static_cast<int>(arr.floatArray.size()))
@@ -2679,6 +2917,8 @@ namespace bloch::runtime {
                         arr.floatArray[i] = rhs.floatValue;
                     else if (rhs.type == Value::Type::Int)
                         arr.floatArray[i] = static_cast<double>(rhs.intValue);
+                    else if (rhs.type == Value::Type::Long)
+                        arr.floatArray[i] = static_cast<double>(rhs.longValue);
                     else if (rhs.type == Value::Type::Bit)
                         arr.floatArray[i] = static_cast<double>(rhs.bitValue);
                     else

@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@
 #include <fstream>
 #include <sstream>
 
-#include "bloch/core/import/module_loader.hpp"
-#include "bloch/core/lexer/lexer.hpp"
-#include "bloch/core/parser/parser.hpp"
-#include "bloch/core/semantics/semantic_analyser.hpp"
+#include "bloch/compiler/import/module_loader.hpp"
+#include "bloch/compiler/lexer/lexer.hpp"
+#include "bloch/compiler/parser/parser.hpp"
+#include "bloch/compiler/semantics/semantic_analyser.hpp"
 #include "bloch/runtime/qasm_simulator.hpp"
 #include "bloch/runtime/runtime_evaluator.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch::core;
+using namespace bloch::compiler;
 using namespace bloch::runtime;
 using bloch::support::BlochError;
 
@@ -265,6 +265,23 @@ TEST(RuntimeTest, BooleanArrayIndexing) {
     EXPECT_EQ("false\n", output.str());
 }
 
+TEST(RuntimeTest, EqualitySupportsStringAndChar) {
+    const char* src =
+        "function main() -> void { "
+        "string a = \"hi\"; string b = \"hi\"; string c = \"no\"; "
+        "echo(a == b); echo(a != c); "
+        "char x = 'a'; char y = 'a'; echo(x == y); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("true\ntrue\ntrue\n", output.str());
+}
+
 TEST(RuntimeTest, MethodOverloadDispatchesByParameterTypes) {
     const char* src =
         "class Foo { public function val(int x) -> int { return 1; } public function val(float x) "
@@ -327,9 +344,39 @@ TEST(RuntimeTest, IntDivisionPromotesToFloat) {
     EXPECT_EQ("0.5\n", output.str());
 }
 
+TEST(RuntimeTest, LongArithmeticAndComparison) {
+    const char* src =
+        "function main() -> void { long x = 2147483648L; long y = x + 1; echo(y); echo(x > 0); "
+        "echo(5L % 2); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("2147483649\ntrue\n1\n", output.str());
+}
+
+TEST(RuntimeTest, LongArrayInitializationAndIndexing) {
+    const char* src =
+        "function main() -> void { long[] xs = {1L,2L,3L}; long i = 1L; echo(xs[i]); xs[2] = 4; "
+        "echo(xs[2]); long[2] ys; echo(ys[0]); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("2\n4\n0\n", output.str());
+}
+
 TEST(RuntimeTest, TernaryExecutesCorrectBranch) {
     const char* src =
-        "function main() -> void { int x = 0; x ? echo(\"true\"); : echo(\"false\"); }";
+        "function main() -> void { bit x = 0b; x ? echo(\"true\"); : echo(\"false\"); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
@@ -619,13 +666,17 @@ TEST(RuntimeTest, NegativeIndexRuntimeThrows) {
     EXPECT_THROW(eval.execute(*program), BlochError);
 }
 
-TEST(RuntimeTest, UnaryTildeOnIntThrows) {
-    const char* src = "function main() -> void { int x = 2; echo(~x); }";
+TEST(RuntimeTest, UnaryTildeOnBitFlips) {
+    const char* src = "function main() -> void { bit x = 1b; echo(~x); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     analyser.analyse(*program);
     RuntimeEvaluator eval;
-    EXPECT_THROW(eval.execute(*program), BlochError);
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("0\n", output.str());
 }
 
 TEST(RuntimeTest, RyRzAppearInQasm) {

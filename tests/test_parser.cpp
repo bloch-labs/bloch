@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/core/lexer/lexer.hpp"
-#include "bloch/core/parser/parser.hpp"
+#include "bloch/compiler/lexer/lexer.hpp"
+#include "bloch/compiler/parser/parser.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch::core;
+using namespace bloch::compiler;
 using bloch::support::BlochError;
 
 TEST(ParserTest, ParseVariableDeclaration) {
@@ -57,6 +57,28 @@ TEST(ParserTest, ParseInitialisedVariableDeclaration) {
     ASSERT_NE(lit, nullptr);
     EXPECT_EQ(lit->value, "10");
     EXPECT_EQ(lit->literalType, "int");
+}
+
+TEST(ParserTest, ParseInitialisedLongVariableDeclaration) {
+    Lexer lexer("long x = 42L;");
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->statements.size(), 1u);
+
+    auto* var = dynamic_cast<VariableDeclaration*>(program->statements[0].get());
+    ASSERT_NE(var, nullptr);
+    EXPECT_EQ(var->name, "x");
+
+    auto* type = dynamic_cast<PrimitiveType*>(var->varType.get());
+    ASSERT_NE(type, nullptr);
+    EXPECT_EQ(type->name, "long");
+
+    auto* lit = dynamic_cast<LiteralExpression*>(var->initializer.get());
+    ASSERT_NE(lit, nullptr);
+    EXPECT_EQ(lit->value, "42L");
+    EXPECT_EQ(lit->literalType, "long");
 }
 
 TEST(ParserTest, ParseNullLiteralAssignment) {

@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/core/import/module_loader.hpp"
+#include "bloch/compiler/import/module_loader.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -20,11 +20,11 @@
 #include <map>
 #include <sstream>
 
-#include "bloch/core/lexer/lexer.hpp"
-#include "bloch/core/parser/parser.hpp"
+#include "bloch/compiler/lexer/lexer.hpp"
+#include "bloch/compiler/parser/parser.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 
-namespace bloch::core {
+namespace bloch::compiler {
 
     using support::BlochError;
     using support::ErrorCategory;
@@ -166,4 +166,4 @@ namespace bloch::core {
         return merged;
     }
 
-}  // namespace bloch::core
+}  // namespace bloch::compiler
