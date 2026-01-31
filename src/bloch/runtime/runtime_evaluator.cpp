@@ -2073,9 +2073,8 @@ namespace bloch::runtime {
                         std::int64_t val =
                             ev.type == Value::Type::Long
                                 ? ev.longValue
-                                : static_cast<std::int64_t>(ev.type == Value::Type::Int
-                                                                ? ev.intValue
-                                                                : ev.bitValue);
+                                : static_cast<std::int64_t>(
+                                      ev.type == Value::Type::Int ? ev.intValue : ev.bitValue);
                         v.longArray.push_back(val);
                     }
                     break;
@@ -2087,13 +2086,12 @@ namespace bloch::runtime {
                             ev.type != Value::Type::Long && ev.type != Value::Type::Bit)
                             throw BlochError(ErrorCategory::Runtime, el->line, el->column,
                                              "inconsistent element types in array literal");
-                        double val =
-                            (ev.type == Value::Type::Float)
-                                ? ev.floatValue
-                                : static_cast<double>(
-                                      ev.type == Value::Type::Int
-                                          ? ev.intValue
-                                          : (ev.type == Value::Type::Long ? ev.longValue
+                        double val = (ev.type == Value::Type::Float)
+                                         ? ev.floatValue
+                                         : static_cast<double>(ev.type == Value::Type::Int
+                                                                   ? ev.intValue
+                                                                   : (ev.type == Value::Type::Long
+                                                                          ? ev.longValue
                                                                           : ev.bitValue));
                         v.floatArray.push_back(val);
                     }
@@ -2740,8 +2738,7 @@ namespace bloch::runtime {
                     return {Value::Type::Int, coll.intArray[idxi]};
                 case Value::Type::LongArray:
                     if (idxi < 0 || idxi >= static_cast<int>(coll.longArray.size()))
-                        throw BlochError(ErrorCategory::Runtime, indexExpr->line,
-                                         indexExpr->column,
+                        throw BlochError(ErrorCategory::Runtime, indexExpr->line, indexExpr->column,
                                          "index " + std::to_string(idxi) +
                                              " out of bounds for length " +
                                              std::to_string(coll.longArray.size()));

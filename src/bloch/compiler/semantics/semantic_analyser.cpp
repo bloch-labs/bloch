@@ -1495,9 +1495,9 @@ namespace bloch::compiler {
                 TypeInfo t = getVariableType(var->name);
                 if ((t.value != ValueType::Int && t.value != ValueType::Long) ||
                     !t.className.empty()) {
-                    throw BlochError(
-                        ErrorCategory::Semantic, node.line, node.column,
-                        "Postfix operator '" + node.op + "' requires variable of type 'int' or 'long'");
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "Postfix operator '" + node.op +
+                                         "' requires variable of type 'int' or 'long'");
                 }
                 return;
             }
@@ -1507,9 +1507,9 @@ namespace bloch::compiler {
                                      "Cannot modify final field '" + var->name + "'");
                 }
                 if (field->type.value != ValueType::Int && field->type.value != ValueType::Long) {
-                    throw BlochError(
-                        ErrorCategory::Semantic, node.line, node.column,
-                        "Postfix operator '" + node.op + "' requires variable of type 'int' or 'long'");
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "Postfix operator '" + node.op +
+                                         "' requires variable of type 'int' or 'long'");
                 }
                 return;
             }
@@ -2105,9 +2105,9 @@ namespace bloch::compiler {
             return;
         }
 
-        auto typesCompatible = typeEquals(valType, elemType) ||
-                               matchesPrimitive(elemType.value, valType.value) ||
-                               (elemType.value == ValueType::Int && valType.value == ValueType::Bit);
+        auto typesCompatible =
+            typeEquals(valType, elemType) || matchesPrimitive(elemType.value, valType.value) ||
+            (elemType.value == ValueType::Int && valType.value == ValueType::Bit);
 
         if (!typesCompatible) {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,

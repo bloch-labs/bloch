@@ -22,7 +22,19 @@
 namespace bloch::compiler {
 
     // A compact type universe for semantic checks and runtime hints.
-    enum class ValueType { Int, Long, Float, String, Char, Qubit, Bit, Boolean, Null, Void, Unknown };
+    enum class ValueType {
+        Int,
+        Long,
+        Float,
+        String,
+        Char,
+        Qubit,
+        Bit,
+        Boolean,
+        Null,
+        Void,
+        Unknown
+    };
 
     ValueType typeFromString(const std::string& name);
     std::string typeToString(ValueType type);
