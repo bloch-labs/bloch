@@ -1,35 +1,24 @@
-# Contributing to Bloch
+# Contributing
 
-Thanks for helping shape Bloch! This guide keeps the contribution process simple while the language evolves rapidly.
+Thanks for your interest in contributing to Bloch! Please check the issues tab for open work or file a new issue if you spot a bug or have an idea.
 
----
+## Getting Started
 
-## Before You Start
-- We work from the `develop` branch; create feature branches from there and target it for pull requests. `main` is release-only and always matches the latest tag—no direct commits.
-- Please open or reference a GitHub issue so we keep discussion and tracking in one place.
-- CI enforces formatting, testing, and Conventional Commit messages, so local checks save time.
+To understand the codebase, start with the contributor docs in `docs/reference/README.md`. When you send a PR, include tests and any necessary doc updates.
 
----
-
-## Environment Setup
-
-### Prerequisites
-- C++20-capable compiler (GCC ≥ 10, Clang ≥ 10, or MSVC 19.28+)
-- CMake ≥ 3.16
-- Git
-
-### Build & Test
-
-#### Linux & macOS
+## Building from Source
+### Linux/MacOS
 ```bash
 git clone https://github.com/bloch-labs/bloch.git
 cd bloch
-scripts/build_and_test.sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
 
-Need debug symbols? Re-run the configure step with `-DCMAKE_BUILD_TYPE=Debug`. The `bloch` binary lives in `build/bin/`; you can execute examples directly with `./build/bin/bloch ./examples/02_bell_state.bloch`.
+Run the compiler against an example with `./build/bin/bloch examples/02_bell_state.bloch --shots=1024`.
 
-#### Windows (Visual Studio)
+### Windows (Visual Studio)
 ```powershell
 git clone https://github.com/bloch-labs/bloch.git
 cd bloch

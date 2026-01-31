@@ -3,7 +3,7 @@
 Bloch v1.1.x supports explicit casting using parentheses and performs implicit float promotion for division e.g. `1/2` yields `0.5`.
 
 ## Syntax
-- Cast: `(target_type)expression`
+- Cast: `(target_type) expression`
 - Supported targets: `int`, `float`, `bit`
 - Not supported: `void`, `char`, or class types
 
