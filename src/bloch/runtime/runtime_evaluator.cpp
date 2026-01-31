@@ -2264,6 +2264,22 @@ namespace bloch::runtime {
                     throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
                                      "equality on references requires two class references");
                 }
+                if (l.type == Value::Type::String || r.type == Value::Type::String) {
+                    if (l.type != Value::Type::String || r.type != Value::Type::String) {
+                        throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                         "equality requires two strings");
+                    }
+                    bool eq = l.stringValue == r.stringValue;
+                    return makeBoolean(bin->op == "==" ? eq : !eq);
+                }
+                if (l.type == Value::Type::Char || r.type == Value::Type::Char) {
+                    if (l.type != Value::Type::Char || r.type != Value::Type::Char) {
+                        throw BlochError(ErrorCategory::Runtime, bin->line, bin->column,
+                                         "equality requires two chars");
+                    }
+                    bool eq = l.charValue == r.charValue;
+                    return makeBoolean(bin->op == "==" ? eq : !eq);
+                }
             }
 
             bool lIsBool = l.type == Value::Type::Boolean;
