@@ -159,6 +159,8 @@ Bloch uses C-style precedence and left-to-right evaluation for most operators. H
 - Quantum gates: `h`, `x`, `y`, `z`, `rx`, `ry`, `rz`, `cx` (all return `void`).
 - `measure` and `reset` are available as statements; `measure` also has an expression form.
 
+For a single reference with descriptions, see [Built-ins and Quantum Gates](./builtins-and-gates.md).
+
 ## Program execution
 - Programs are lexed, parsed, and semantically checked before execution.
 - The runtime is an interpreter with an ideal statevector simulator that emits OpenQASM 2.0.

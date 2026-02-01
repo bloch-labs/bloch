@@ -6,7 +6,7 @@ after a measurement raises a runtime error unless you reset first, and `qubit[]`
 initialised with literals.
 
 Built-in gates cover common single- and two-qubit operations: `h`, `x`, `y`, `z`, `rx`, `ry`,
-`rz`, and `cx`.
+`rz`, and `cx`. See [Built-ins and Quantum Gates](./builtins-and-gates.md) for a full reference.
 
 Mark quantum functions with `@quantum` and return `bit`, `bit[]`, or `void`:
 ```bloch

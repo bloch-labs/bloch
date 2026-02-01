@@ -71,4 +71,4 @@ function main() -> void {
 }
 ```
 
-For deeper coverage, jump to the guides or the [Language Specification](./language-spec.md).
+For deeper coverage, jump to the guides, [Built-ins and Quantum Gates](./builtins-and-gates.md), or the [Language Specification](./language-spec.md).

@@ -18,7 +18,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Run the compiler against an example with `./build/bin/bloch examples/02_bell_state.bloch --emit-qasm`.
+Run the compiler against an example with `./build/bin/bloch examples/02_bell_state.bloch`.
 
 ### Windows (Visual Studio)
 ```powershell

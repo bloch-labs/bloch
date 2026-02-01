@@ -60,5 +60,5 @@ class Node { public Node next; public constructor() -> Node { this.next = null; 
 Use `destroy obj;` to explicitly release an object and run its destructor chain.
 
 ## Tracked fields
-`@tracked` may decorate fields. Tracked qubit fields are recorded when the object is destroyed
+`@tracked` may decorate qubit fields. Tracked qubit fields are recorded when the object is destroyed
 (explicitly or at program shutdown).
