@@ -4,7 +4,7 @@
 Akshay Pal
 
 ## Status
-Proposed
+Accepted
 
 ## Delivered In
 v1.1.0
