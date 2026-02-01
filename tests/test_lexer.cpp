@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 #include <utility>
 #include <vector>
 
-#include "bloch/core/lexer/lexer.hpp"
+#include "bloch/compiler/lexer/lexer.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch::core;
+using namespace bloch::compiler;
 using bloch::support::BlochError;
 
 TEST(LexerTest, Identifiers) {
@@ -73,6 +73,20 @@ TEST(LexerTest, BitLiteral) {
     EXPECT_EQ(tokens[0].value, "1b");
 }
 
+TEST(LexerTest, LongKeywordAndLiteral) {
+    Lexer lexer("long x = 123L;");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_EQ(tokens.size(), 6u);
+    EXPECT_EQ(tokens[0].type, TokenType::Long);
+    EXPECT_EQ(tokens[1].type, TokenType::Identifier);
+    EXPECT_EQ(tokens[2].type, TokenType::Equals);
+    EXPECT_EQ(tokens[3].type, TokenType::LongLiteral);
+    EXPECT_EQ(tokens[3].value, "123L");
+    EXPECT_EQ(tokens[4].type, TokenType::Semicolon);
+    EXPECT_EQ(tokens[5].type, TokenType::Eof);
+}
+
 TEST(LexerTest, KeywordDetection) {
     Lexer lexer("int float return");
     auto tokens = lexer.tokenize();
@@ -80,6 +94,16 @@ TEST(LexerTest, KeywordDetection) {
     EXPECT_EQ(tokens[0].type, TokenType::Int);
     EXPECT_EQ(tokens[1].type, TokenType::Float);
     EXPECT_EQ(tokens[2].type, TokenType::Return);
+}
+
+TEST(LexerTest, BooleanKeywordAndLiterals) {
+    Lexer lexer("boolean true false");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_GE(tokens.size(), 4u);
+    EXPECT_EQ(tokens[0].type, TokenType::Boolean);
+    EXPECT_EQ(tokens[1].type, TokenType::True);
+    EXPECT_EQ(tokens[2].type, TokenType::False);
 }
 
 TEST(LexerTest, NullKeyword) {

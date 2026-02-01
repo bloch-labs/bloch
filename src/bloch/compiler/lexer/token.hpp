@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 #include <string>
 
-namespace bloch::core {
+namespace bloch::compiler {
     // Tokens represent the smallest meaningful pieces the parser understands.
     // We group them loosely by purpose to keep scanning and parsing readable.
     enum class TokenType {
@@ -24,18 +24,25 @@ namespace bloch::core {
         Identifier,
         IntegerLiteral,
         FloatLiteral,
+        LongLiteral,
         BitLiteral,
         StringLiteral,
         CharLiteral,
 
+        // Boolean literals
+        True,
+        False,
+
         // Keywords
         Null,
         Int,
+        Long,
         Float,
         String,
         Char,
         Qubit,
         Bit,
+        Boolean,
         Void,
         Function,
         Return,
@@ -123,4 +130,4 @@ namespace bloch::core {
         int line;
         int column;
     };
-}  // namespace bloch::core
+}  // namespace bloch::compiler

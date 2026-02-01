@@ -1,4 +1,4 @@
-// Copyright 2026 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/core/lexer/lexer.hpp"
-#include "bloch/core/parser/parser.hpp"
-#include "bloch/core/semantics/semantic_analyser.hpp"
+#include "bloch/compiler/lexer/lexer.hpp"
+#include "bloch/compiler/parser/parser.hpp"
+#include "bloch/compiler/semantics/semantic_analyser.hpp"
 #include "bloch/support/error/bloch_error.hpp"
 #include "test_framework.hpp"
 
-using namespace bloch::core;
+using namespace bloch::compiler;
 using bloch::support::BlochError;
 
 static std::unique_ptr<Program> parseProgram(const char* src) {
@@ -27,6 +27,20 @@ static std::unique_ptr<Program> parseProgram(const char* src) {
     Parser parser(std::move(tokens));
     return parser.parse();
 }
+
+static void expectSemanticOk(const char* src) {
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+static void expectSemanticError(const char* src) {
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+static void expectParseError(const char* src) { EXPECT_THROW(parseProgram(src), BlochError); }
 
 TEST(SemanticTest, VariableMustBeDeclared) {
     auto program = parseProgram("int x; x = 5;");
@@ -184,17 +198,105 @@ TEST(SemanticTest, QuantumReturnTypeInvalidChar) {
 }
 
 TEST(SemanticTest, ShotsAnnotationAllowedOnMain) {
-    const char* src = "@shots(5) function main() -> void { }";
-    auto program = parseProgram(src);
-    SemanticAnalyser analyser;
-    EXPECT_NO_THROW(analyser.analyse(*program));
+    expectSemanticOk("@shots(5) function main() -> void { }");
 }
 
 TEST(SemanticTest, ShotsAnnotationRejectedOffMain) {
-    const char* src = "@shots(5) function foo() -> void { }";
-    auto program = parseProgram(src);
-    SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochError);
+    expectSemanticError("@shots(5) function foo() -> void { }");
+}
+
+TEST(SemanticTest, ShotsAnnotationDuplicateFails) {
+    expectSemanticError("@shots(3) @shots(5) function main() -> void { }");
+}
+
+TEST(SemanticTest, ShotsAnnotationOnVariableFails) { expectParseError("@shots(2) int x = 1;"); }
+
+TEST(SemanticTest, ShotsAnnotationOnFieldFails) {
+    expectParseError("class A { @shots(2) public int x; public constructor() -> A = default; }");
+}
+
+TEST(SemanticTest, ShotsAnnotationOnMethodFails) {
+    expectParseError(
+        "class A { @shots(2) public function foo() -> void { } "
+        "public constructor() -> A = default; }");
+}
+
+TEST(SemanticTest, QuantumAnnotationOnMainFails) {
+    expectSemanticError("@quantum function main() -> void { }");
+}
+
+TEST(SemanticTest, IfConditionRequiresBooleanOrBit) {
+    expectSemanticError("function main() -> void { int x = 1; if (x) { } }");
+}
+
+TEST(SemanticTest, WhileConditionRequiresBooleanOrBit) {
+    expectSemanticError("function main() -> void { float x = 1.0f; while (x) { } }");
+}
+
+TEST(SemanticTest, ForConditionRequiresBooleanOrBit) {
+    expectSemanticError("function main() -> void { for (int i = 0; i; i = i + 1) { echo(i); } }");
+}
+
+TEST(SemanticTest, TernaryConditionRequiresBooleanOrBit) {
+    expectSemanticError(
+        "function main() -> void { int x = 1; x ? echo(\"yes\"); : echo(\"no\"); }");
+}
+
+TEST(SemanticTest, LogicalOperatorsRequireBooleanOrBit) {
+    expectSemanticError("function main() -> void { int x = 1; if (x && x) { } }");
+}
+
+TEST(SemanticTest, ArithmeticOperatorsRejectBoolean) {
+    expectSemanticError("function main() -> void { boolean b = true; int x = b + 1; }");
+}
+
+TEST(SemanticTest, ArithmeticOperatorsRejectBit) {
+    expectSemanticError("function main() -> void { bit b = 1b; int x = b + 1; }");
+}
+
+TEST(SemanticTest, ComparisonOperatorsRejectBit) {
+    expectSemanticError("function main() -> void { bit b = 1b; if (b > 0b) { } }");
+}
+
+TEST(SemanticTest, EqualityRejectsBooleanNumericMix) {
+    expectSemanticError("function main() -> void { boolean b = true; if (b == 1) { } }");
+}
+
+TEST(SemanticTest, EqualityAllowsStringOperands) {
+    expectSemanticOk("function main() -> void { if (\"a\" == \"b\") { } }");
+}
+
+TEST(SemanticTest, EqualityAllowsCharOperands) {
+    expectSemanticOk("function main() -> void { if ('a' != 'b') { } }");
+}
+
+TEST(SemanticTest, EqualityRejectsQubitOperands) {
+    expectSemanticError("function main() -> void { qubit a; qubit b; if (a == b) { } }");
+}
+
+TEST(SemanticTest, EqualityRejectsArrayOperands) {
+    expectSemanticError("function main() -> void { int[] a = {1,2}; if (a == a) { } }");
+}
+
+TEST(SemanticTest, EqualityRejectsStringNumericMix) {
+    expectSemanticError("function main() -> void { if (\"a\" == 1) { } }");
+}
+
+TEST(SemanticTest, BitwiseOperatorsRequireBit) {
+    expectSemanticError(
+        "function main() -> void { boolean a = true; boolean b = false; bit c = a & b; }");
+}
+
+TEST(SemanticTest, UnaryNotRequiresBooleanOrBit) {
+    expectSemanticError("function main() -> void { int x = 1; boolean y = !x; }");
+}
+
+TEST(SemanticTest, UnaryMinusRequiresNumeric) {
+    expectSemanticError("function main() -> void { boolean b = true; int x = -b; }");
+}
+
+TEST(SemanticTest, UnaryTildeRequiresBit) {
+    expectSemanticError("function main() -> void { int x = 2; echo(~x); }");
 }
 
 TEST(SemanticTest, VoidFunctionReturnValueFails) {
@@ -237,6 +339,20 @@ TEST(SemanticTest, AssignFromFunctionCall) {
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, BooleanArrayElementAssignment) {
+    const char* src = "function main() -> void { boolean[] bs = {true, false}; bs[1] = true; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, BooleanArrayRejectsIntAssignment) {
+    const char* src = "function main() -> void { boolean[] bs = {true}; bs[0] = 1; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, CallBeforeDeclaration) {
@@ -367,11 +483,39 @@ TEST(SemanticTest, FunctionArgumentTypeMatchPasses) {
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
+TEST(SemanticTest, LongAssignmentsAndWideningPass) {
+    const char* src = "long a = 1L; long b = 1;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, LongToIntAssignmentFails) {
+    const char* src = "long a = 1L; int b = a;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, PostfixOperatorAllowsLong) {
+    const char* src = "long x = 1L; x++; x--;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
 TEST(SemanticTest, PostfixOperatorThrowsErrorWhenNotOnInt) {
     const char* src = "string s = \"hello\"; s++;";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, LongArrayIndexAllowed) {
+    const char* src = "int[] a = {1,2}; long i = 1L; a[i] = 3;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
 TEST(SemanticTest, QubitArrayCannotBeInitialised) {

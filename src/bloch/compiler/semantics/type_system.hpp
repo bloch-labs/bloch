@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,10 +19,22 @@
 #include <unordered_map>
 #include <vector>
 
-namespace bloch::core {
+namespace bloch::compiler {
 
     // A compact type universe for semantic checks and runtime hints.
-    enum class ValueType { Int, Float, String, Char, Qubit, Bit, Null, Void, Unknown };
+    enum class ValueType {
+        Int,
+        Long,
+        Float,
+        String,
+        Char,
+        Qubit,
+        Bit,
+        Boolean,
+        Null,
+        Void,
+        Unknown
+    };
 
     ValueType typeFromString(const std::string& name);
     std::string typeToString(ValueType type);
@@ -54,4 +66,4 @@ namespace bloch::core {
        private:
         std::vector<std::unordered_map<std::string, SymbolInfo>> m_scopes;
     };
-}  // namespace bloch::core
+}  // namespace bloch::compiler

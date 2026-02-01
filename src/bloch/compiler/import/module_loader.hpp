@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "bloch/core/ast/ast.hpp"
+#include "bloch/compiler/ast/ast.hpp"
 
-namespace bloch::core {
+namespace bloch::compiler {
 
     // Resolves and loads imports starting from an entry file, producing a single
     // aggregated Program ready for semantic analysis and execution. Imports are
@@ -55,4 +55,4 @@ namespace bloch::core {
         static std::string joinQualified(const std::vector<std::string>& parts);
     };
 
-}  // namespace bloch::core
+}  // namespace bloch::compiler

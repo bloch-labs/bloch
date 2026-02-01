@@ -1,4 +1,4 @@
-// Copyright 2025 Akshay Pal (https://bloch-labs.com)
+// Copyright 2025-2026 Akshay Pal (https://bloch-labs.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bloch/core/semantics/type_system.hpp"
+#include "bloch/compiler/semantics/type_system.hpp"
 
-namespace bloch::core {
+namespace bloch::compiler {
 
     ValueType typeFromString(const std::string& name) {
         // Map source-level type names to our compact enum.
         if (name == "int")
             return ValueType::Int;
+        if (name == "long")
+            return ValueType::Long;
         if (name == "float")
             return ValueType::Float;
         if (name == "string")
@@ -30,6 +32,8 @@ namespace bloch::core {
             return ValueType::Qubit;
         if (name == "bit")
             return ValueType::Bit;
+        if (name == "boolean")
+            return ValueType::Boolean;
         if (name == "null")
             return ValueType::Null;
         if (name == "void")
@@ -42,6 +46,8 @@ namespace bloch::core {
         switch (type) {
             case ValueType::Int:
                 return "int";
+            case ValueType::Long:
+                return "long";
             case ValueType::Float:
                 return "float";
             case ValueType::String:
@@ -52,6 +58,8 @@ namespace bloch::core {
                 return "qubit";
             case ValueType::Bit:
                 return "bit";
+            case ValueType::Boolean:
+                return "boolean";
             case ValueType::Null:
                 return "null";
             case ValueType::Void:
@@ -138,4 +146,4 @@ namespace bloch::core {
         }
     }
 
-}  // namespace bloch::core
+}  // namespace bloch::compiler
