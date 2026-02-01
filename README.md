@@ -20,14 +20,14 @@ You can self-update later with `bloch --update`; major version jumps prompt for 
 Syntax highlighting: https://github.com/bloch-labs/bloch-vscode
 
 ## 📚 Documentation 
-- User guides: `docs/user/README.md`
-- Contributor docs: `docs/reference/README.md`
+- User docs: `docs/README.md`
+- Contributor docs: `engineering/reference/README.md`
 
 ## 📝 Cite 
 Use `CITATION.cff` (GitHub’s “Cite this repository” button) for BibTeX/metadata.
 
 ## 🤝 Contributing 
-Thanks for your interest in contributing! Check the issues tab and read `CONTRIBUTING.md` plus the reference docs before raising a PR.
+Thanks for your interest in contributing! Check the issues tab and read `CONTRIBUTING.md` plus the contributor docs before raising a PR.
 
 ## 🌐 Community
 You can follow along our journey via the following community links:

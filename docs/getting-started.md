@@ -1,42 +1,46 @@
----
-title: Getting Started
----
 # Getting Started
 
-This quick guide shows how to write and run your first Bloch program, emit OpenQASM, and iterate with multi-shot execution.
+This quick guide helps you install Bloch and run your first program.
 
 ## Install
 
-Download a release and install per README instructions, or build from source. Verify:
+Linux/macOS:
+```
+curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- latest
+```
 
+Windows (PowerShell):
+```
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.ps1 -UseBasicParsing -OutFile $env:TEMP\\bloch-install.ps1; & $env:TEMP\\bloch-install.ps1 -Version latest"
+```
+
+From source:
+```
+git clone https://github.com/bloch-labs/bloch.git
+cd bloch
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
+
+Verify the install:
 ```
 bloch --version
 ```
 
 ## Hello, Bloch
-
 Create `hello.bloch`:
-
 ```
 function main() -> void {
   echo("Hello, Bloch!");
 }
 ```
-
 Run it:
-
 ```
 bloch hello.bloch
 ```
 
-Output:
-
-```
-Hello, Bloch!
-```
-
 ## First quantum program
-
 ```
 @quantum
 function flip() -> bit {
@@ -51,17 +55,13 @@ function main() -> void {
 }
 ```
 
-Run and emit QASM:
-
+Emit OpenQASM:
 ```
 bloch --emit-qasm flip.bloch
 ```
 
-The interpreter writes `<file>.qasm` alongside your source and prints to stdout when `--emit-qasm` is set.
-
-## Multi-shot runs and @tracked
-
-Annotate qubits or qubit registers with `@tracked` to collect outcome counts across runs:
+## Multi-shot runs and tracking
+Annotate qubits with `@tracked` and run multiple shots to aggregate outcomes.
 
 ```
 function main() -> void {
@@ -71,21 +71,14 @@ function main() -> void {
 }
 ```
 
-Run 100 shots and show an aggregate table:
-
+Run 100 shots:
 ```
 bloch --shots=100 tracked.bloch
-
-[INFO]: suppressing echo; to view them use --echo=all
-Shots: 100
-Backend: Bloch Ideal Simulator
-Elapsed: 0.004s
-
-qubit q
-outcome | count |  prob
---------+-------+-----
-0       |    53 | 0.530
-1       |    47 | 0.470
 ```
 
-Use `--echo=all` to print `echo()` output every shot (suppressed by default when shots > 1).
+You can also use `@shots(100)` on `main()` if you prefer to keep the shot count in code.
+
+## Next steps
+- Read the [Language Tour](./language-tour.md).
+- Use the [Language Specification](./language-spec.md) as the authoritative reference.
+- Explore [Examples](./examples.md).
