@@ -11,6 +11,18 @@ This page documents compile-time rules enforced by the semantic analyser (`src/b
 - No shadowing: redeclaring a variable in any active scope is an error.
 - Parameters live in the function scope and may not be redeclared.
 
+## Packages and imports
+
+- `package` is optional but must appear before any `import` or declarations.
+- `import` statements load additional modules before semantic analysis.
+- `import foo.bar.Baz;` resolves to `foo/bar/Baz.bloch` relative to the importing file's
+  directory, then the current working directory. The imported file must declare
+  `package foo.bar;`.
+- `import foo.bar.*;` loads all `.bloch` files in `foo/bar/`, and each must declare
+  `package foo.bar;`.
+- `import Baz;` targets `Baz.bloch` in the default package.
+- Names are still global, so duplicate class names across packages are treated as errors.
+
 ## Variables
 
 - `final` variables cannot be assigned to after declaration.
@@ -68,4 +80,3 @@ This page documents compile-time rules enforced by the semantic analyser (`src/b
 
 - `@tracked` qubits and registers accumulate outcome counts at scope exit. If not measured, an outcome of `"?"` is recorded.
 - With `--shots=N`, the runtime executes the program `N` times and aggregates tracked outcomes across runs.
-

@@ -43,6 +43,35 @@ namespace bloch::compiler {
         return oss.str();
     }
 
+    namespace {
+        std::string formatPackageName(const std::vector<std::string>& parts) {
+            if (parts.empty())
+                return "default package";
+            return ModuleLoader::joinQualified(parts);
+        }
+
+        std::string formatImportName(const ImportDeclaration& imp) {
+            std::ostringstream oss;
+            if (!imp.packageParts.empty()) {
+                oss << ModuleLoader::joinQualified(imp.packageParts);
+                if (imp.isWildcard) {
+                    oss << ".*";
+                    return oss.str();
+                }
+                if (imp.symbol) {
+                    oss << "." << *imp.symbol;
+                    return oss.str();
+                }
+                return oss.str();
+            }
+            if (imp.isWildcard)
+                return "*";
+            if (imp.symbol)
+                return *imp.symbol;
+            return "";
+        }
+    }  // namespace
+
     std::string ModuleLoader::canonicalize(const std::string& path) const {
         std::error_code ec;
         fs::path p(path);
@@ -90,6 +119,51 @@ namespace bloch::compiler {
         return "";
     }
 
+    std::vector<std::string> ModuleLoader::resolvePackageModules(
+        const std::vector<std::string>& packageParts, const std::string& fromDir) const {
+        fs::path relative;
+        for (const auto& p : packageParts) relative /= p;
+
+        std::vector<fs::path> bases;
+        bases.push_back(fromDir);
+        for (const auto& p : m_searchPaths) bases.emplace_back(p);
+        bases.push_back(fs::current_path());
+
+        for (const auto& base : bases) {
+            std::error_code ec;
+            fs::path candidate = fs::weakly_canonical(base / relative, ec);
+            if (ec)
+                continue;
+            if (!fs::exists(candidate, ec) || !fs::is_directory(candidate, ec))
+                continue;
+
+            std::vector<std::string> modules;
+            for (const auto& entry : fs::directory_iterator(candidate, ec)) {
+                if (ec)
+                    break;
+                if (!entry.is_regular_file(ec))
+                    continue;
+                fs::path p = entry.path();
+                if (p.extension() == ".bloch")
+                    modules.push_back(p.string());
+            }
+            if (!modules.empty()) {
+                std::sort(modules.begin(), modules.end());
+                return modules;
+            }
+        }
+
+        return {};
+    }
+
+    std::vector<std::string> ModuleLoader::packagePartsFor(
+        const std::string& canonicalPath) const {
+        auto it = m_cache.find(canonicalPath);
+        if (it == m_cache.end() || !it->second || !it->second->packageDecl)
+            return {};
+        return it->second->packageDecl->nameParts;
+    }
+
     void ModuleLoader::loadModule(const std::string& path) {
         std::string canon = canonicalize(path);
         auto cyc = std::find(m_stack.begin(), m_stack.end(), canon);
@@ -108,12 +182,52 @@ namespace bloch::compiler {
 
         fs::path parent = fs::path(canon).parent_path();
         for (auto& imp : program->imports) {
-            std::string target = resolveImportPath(imp->path, parent.string());
-            if (target.empty()) {
+            if (!imp)
+                continue;
+            if (imp->isWildcard) {
+                std::vector<std::string> targets =
+                    resolvePackageModules(imp->packageParts, parent.string());
+                if (targets.empty()) {
+                    throw BlochError(ErrorCategory::Semantic, imp->line, imp->column,
+                                     "import '" + formatImportName(*imp) + "' not found");
+                }
+                for (const auto& target : targets) {
+                    std::string canonTarget = canonicalize(target);
+                    if (canonTarget == canon)
+                        continue;
+                    loadModule(target);
+                    std::vector<std::string> actualPackage = packagePartsFor(canonTarget);
+                    if (actualPackage != imp->packageParts) {
+                        throw BlochError(
+                            ErrorCategory::Semantic, imp->line, imp->column,
+                            "import '" + formatImportName(*imp) + "' resolved to package '" +
+                                formatPackageName(actualPackage) + "', expected '" +
+                                formatPackageName(imp->packageParts) + "'");
+                    }
+                }
+            } else if (imp->symbol) {
+                std::vector<std::string> parts = imp->packageParts;
+                parts.push_back(*imp->symbol);
+                std::string target = resolveImportPath(parts, parent.string());
+                if (target.empty()) {
+                    throw BlochError(ErrorCategory::Semantic, imp->line, imp->column,
+                                     "import '" + formatImportName(*imp) + "' not found");
+                }
+                loadModule(target);
+                std::string canonTarget = canonicalize(target);
+                std::vector<std::string> actualPackage = packagePartsFor(canonTarget);
+                if (actualPackage != imp->packageParts) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, imp->line, imp->column,
+                        "import '" + formatImportName(*imp) + "' resolved to package '" +
+                            formatPackageName(actualPackage) + "', expected '" +
+                            formatPackageName(imp->packageParts) + "'");
+                }
+            } else {
                 throw BlochError(ErrorCategory::Semantic, imp->line, imp->column,
-                                 "import '" + joinQualified(imp->path) + "' not found");
+                                 "import '" + formatImportName(*imp) +
+                                     "' is missing a symbol or wildcard");
             }
-            loadModule(target);
         }
 
         program->imports.clear();

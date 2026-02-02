@@ -16,6 +16,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -422,9 +423,19 @@ namespace bloch::compiler {
         void accept(ASTVisitor& visitor) override;
     };
 
-    // Import declaration
+    // Package declaration at the top of a file: package foo.bar;
+    struct PackageDeclaration : public ASTNode {
+        std::vector<std::string> nameParts;
+
+        PackageDeclaration() = default;
+        void accept(ASTVisitor& visitor) override;
+    };
+
+    // Import declaration: import foo.bar.Baz; or import foo.bar.*;
     struct ImportDeclaration : public ASTNode {
-        std::vector<std::string> path;
+        std::vector<std::string> packageParts;
+        std::optional<std::string> symbol;
+        bool isWildcard = false;
 
         ImportDeclaration() = default;
         void accept(ASTVisitor& visitor) override;
@@ -514,6 +525,7 @@ namespace bloch::compiler {
 
     // Program
     struct Program : public ASTNode {
+        std::unique_ptr<PackageDeclaration> packageDecl;
         std::vector<std::unique_ptr<ImportDeclaration>> imports;
         std::vector<std::unique_ptr<ClassDeclaration>> classes;
         std::vector<std::unique_ptr<FunctionDeclaration>> functions;
@@ -572,6 +584,7 @@ namespace bloch::compiler {
 
         virtual void visit(Parameter& node) = 0;
         virtual void visit(AnnotationNode& node) = 0;
+        virtual void visit(PackageDeclaration& node) = 0;
         virtual void visit(ImportDeclaration& node) = 0;
         virtual void visit(FieldDeclaration& node) = 0;
         virtual void visit(MethodDeclaration& node) = 0;
@@ -622,6 +635,7 @@ namespace bloch::compiler {
     inline void Parameter::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void TypeParameter::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void AnnotationNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+    inline void PackageDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void ImportDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void FieldDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }
     inline void MethodDeclaration::accept(ASTVisitor& visitor) { visitor.visit(*this); }

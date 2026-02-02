@@ -87,6 +87,7 @@ namespace bloch::compiler {
         void visit(Parameter& node) override;
         void visit(TypeParameter& node) override;
         void visit(AnnotationNode& node) override;
+        void visit(PackageDeclaration& node) override;
         void visit(ImportDeclaration& node) override;
         void visit(FieldDeclaration& node) override;
         void visit(MethodDeclaration& node) override;
