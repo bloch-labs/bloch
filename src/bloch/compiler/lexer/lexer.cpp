@@ -287,6 +287,7 @@ namespace bloch::compiler {
             {"super", TokenType::Super},
             {"this", TokenType::This},
             {"import", TokenType::Import},
+            {"package", TokenType::Package},
             {"new", TokenType::New},
             {"constructor", TokenType::Constructor},
             {"destructor", TokenType::Destructor},

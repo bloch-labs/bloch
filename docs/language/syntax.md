@@ -3,16 +3,26 @@ title: Syntax & Operators
 ---
 # Syntax & Operators
 
-This page summarizes tokens, literals, operators, precedence, and common statement forms as implemented by the v1.0.0 RC parser.
+This page summarizes tokens, literals, operators, precedence, and common statement forms as implemented by the v1.1.x parser.
 
 ## Tokens
 
 - Identifiers: `[A-Za-z_][A-Za-z0-9_]*`
-- Keywords: `function, return, if, else, for, while, measure, reset, final, void`
+- Keywords: `package, import, function, return, if, else, for, while, measure, reset, final, void`
 - Types: `int, float, char, string, bit, qubit`
 - Built-ins: `echo` and quantum gate names (`h, x, y, z, rx, ry, rz, cx`)
 - Annotations: `@quantum`, `@tracked`
 - Comments: `//` to end of line
+
+## File header (packages and imports)
+
+Package and import declarations must appear before any other declarations.
+
+```
+package com.example;
+import com.example.QuantumMath;
+import com.example.physics.*;
+```
 
 ## Literals
 
@@ -140,4 +150,3 @@ expr ? statement : statement
 ```
 
 Statement-level conditional; unlike many languages, this is not an expression in Bloch. Both branches must be statements.
-

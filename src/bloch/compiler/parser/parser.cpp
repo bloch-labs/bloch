@@ -140,13 +140,30 @@ namespace bloch::compiler {
     // Main parse function
     std::unique_ptr<Program> Parser::parse() {
         std::unique_ptr<Program> program = std::make_unique<Program>();
-        // We alternate between function declarations and top-level statements.
-        // Extra statements generated from multi-declarations are flushed as we go.
+        bool seenPackage = false;
+        bool seenTopLevelDeclaration = false;
+
+        // Package (optional, at most one) and imports (zero or more) must appear
+        // before any other top-level declarations/statements.
         while (!isAtEnd()) {
-            if (match(TokenType::Import)) {
+            if (!seenTopLevelDeclaration && match(TokenType::Package)) {
+                if (seenPackage) {
+                    reportError("Only one package declaration is allowed per file");
+                }
+                program->packageDecl = parsePackageDeclaration();
+                seenPackage = true;
+                continue;
+            }
+
+            if (!seenTopLevelDeclaration && match(TokenType::Import)) {
                 program->imports.push_back(parseImport());
-            } else if (check(TokenType::Static) || check(TokenType::Abstract) ||
-                       check(TokenType::Class)) {
+                continue;
+            }
+
+            // From here on we are in the "body" of the file; no more package/imports allowed.
+            seenTopLevelDeclaration = true;
+
+            if (check(TokenType::Static) || check(TokenType::Abstract) || check(TokenType::Class)) {
                 program->classes.push_back(parseClassDeclaration());
             } else if (check(TokenType::Function) || checkFunctionAnnotation()) {
                 program->functions.push_back(parseFunction());
@@ -161,12 +178,52 @@ namespace bloch::compiler {
 
     // Top level
 
+    std::unique_ptr<PackageDeclaration> Parser::parsePackageDeclaration() {
+        std::unique_ptr<PackageDeclaration> pkg = std::make_unique<PackageDeclaration>();
+        const Token& pkgTok = previous();
+        pkg->line = pkgTok.line;
+        pkg->column = pkgTok.column;
+        pkg->nameParts = parseQualifiedName();
+        (void)expect(TokenType::Semicolon, "Expected ';' after package declaration");
+        return pkg;
+    }
+
     std::unique_ptr<ImportDeclaration> Parser::parseImport() {
         std::unique_ptr<ImportDeclaration> import = std::make_unique<ImportDeclaration>();
         const Token& importTok = previous();
         import->line = importTok.line;
         import->column = importTok.column;
-        import->path = parseQualifiedName();
+
+        std::vector<std::string> parts;
+        const Token& first = expect(TokenType::Identifier, "Expected identifier after 'import'");
+        parts.push_back(first.value);
+
+        bool isWildcard = false;
+        while (match(TokenType::Dot)) {
+            if (match(TokenType::Star)) {
+                isWildcard = true;
+                break;
+            }
+            const Token& part = expect(TokenType::Identifier, "Expected identifier after '.'");
+            parts.push_back(part.value);
+        }
+
+        if (isWildcard) {
+            import->packageParts = std::move(parts);
+            import->isWildcard = true;
+        } else {
+            if (parts.empty()) {
+                reportError("Expected identifier after 'import'");
+            }
+            if (parts.size() == 1) {
+                import->symbol = parts[0];
+            } else {
+                import->symbol = parts.back();
+                parts.pop_back();
+                import->packageParts = std::move(parts);
+            }
+        }
+
         (void)expect(TokenType::Semicolon, "Expected ';' after import statement");
         return import;
     }

@@ -839,6 +839,7 @@ TEST(RuntimeTest, DottedImportResolvesNestedPath) {
     auto dir = makeTempDir("nested");
     std::filesystem::create_directories(dir / "pkg");
     writeFile(dir / "pkg" / "Utils.bloch",
+              "package pkg;\n"
               "class Utils { public constructor() -> Utils = default; public function value() -> "
               "int { return 7; } }\n");
     writeFile(dir / "main.bloch",
@@ -856,6 +857,34 @@ TEST(RuntimeTest, DottedImportResolvesNestedPath) {
     std::cout.rdbuf(oldBuf);
     std::filesystem::remove_all(dir);
     EXPECT_EQ("7\n", output.str());
+}
+
+TEST(RuntimeTest, WildcardImportLoadsPackageModules) {
+    auto dir = makeTempDir("wildcard");
+    std::filesystem::create_directories(dir / "pkg");
+    writeFile(dir / "pkg" / "Greeter.bloch",
+              "package pkg;\n"
+              "class Greeter { public constructor() -> Greeter = default; public function "
+              "hello() -> string { return \"hi\"; } }\n");
+    writeFile(dir / "pkg" / "Util.bloch",
+              "package pkg;\n"
+              "class Util { public constructor() -> Util = default; public function value() -> "
+              "int { return 3; } }\n");
+    writeFile(dir / "main.bloch",
+              "import pkg.*; function main() -> void { Greeter g = new Greeter(); Util u = new "
+              "Util(); echo(g.hello()); echo(u.value()); }\n");
+
+    ModuleLoader loader({dir.string()});
+    auto program = loader.load((dir / "main.bloch").string());
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    std::filesystem::remove_all(dir);
+    EXPECT_EQ("hi\n3\n", output.str());
 }
 
 TEST(RuntimeTest, ImportRespectsPrivateMembersAcrossModules) {

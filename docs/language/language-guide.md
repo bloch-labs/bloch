@@ -13,6 +13,32 @@ This guide tours the Bloch language: types, variables, functions, control flow, 
 - Types: `void, int, long, float, char, string, bit, boolean, qubit` and arrays `T[]` or `T[N]`
 - Literals: `123`, `3.14f`, `42L`, `1b`, `'c'`, `"text"`, `{1,2,3}`, `true`, `false`
 
+## Packages and imports
+
+Bloch supports optional Java-style packages without forcing every file into a package.
+Package and import declarations must appear before any other declarations.
+
+```
+package com.example;
+import com.example.QuantumMath;
+import com.example.physics.*;
+
+function main() -> void { ... }
+```
+
+Rules:
+- `package` is optional. Files without a package are in the default package.
+- `import foo.bar.Baz;` loads `foo/bar/Baz.bloch` and requires that file to declare
+  `package foo.bar;`.
+- `import foo.bar.*;` loads all `.bloch` files in `foo/bar/`, and each must declare
+  `package foo.bar;`.
+- `import Baz;` targets `Baz.bloch` in the default package.
+- When running `bloch`, imports are resolved relative to the importing file's directory,
+  then the current working directory.
+
+Current limitation: names are still global, so two classes with the same name in different
+packages are treated as duplicates.
+
 ## Variables
 
 ```

@@ -23,6 +23,7 @@ Behavior:
 Notes
 - When `--shots > 1`, `echo()` output is suppressed unless `--echo=all` is set.
 - The interpreter exits non-zero on lexical, parse, semantic, or runtime errors and prints a formatted error with line/column.
+- Imports are resolved relative to the importing file's directory, then the current working directory.
 
 See also: [Quantum Model](../language/quantum) for how measurement and reset behave.
 
@@ -31,4 +32,3 @@ See also: [Quantum Model](../language/quantum) for how measurement and reset beh
 ```
 bloch --shots=100 examples/entangled_tracked.bloch
 ```
-

@@ -1,4 +1,4 @@
-import QuantumMath;
+import com.example.QuantumMath;
 
 function main() -> void {
     // 20 MHz transition (radio-frequency regime for some spin systems)

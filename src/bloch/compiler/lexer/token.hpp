@@ -74,6 +74,7 @@ namespace bloch::compiler {
         Super,
         This,
         Import,
+        Package,
         New,
         Constructor,
         Destructor,

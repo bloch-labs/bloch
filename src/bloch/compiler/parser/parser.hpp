@@ -61,6 +61,7 @@ namespace bloch::compiler {
         void reportError(const std::string& msg);
 
         // Top level
+        [[nodiscard]] std::unique_ptr<PackageDeclaration> parsePackageDeclaration();
         [[nodiscard]] std::unique_ptr<ImportDeclaration> parseImport();
         [[nodiscard]] std::unique_ptr<ClassDeclaration> parseClassDeclaration();
         [[nodiscard]] std::unique_ptr<FunctionDeclaration> parseFunction();
