@@ -575,7 +575,7 @@ TEST(ParserTest, ParseArrayElementAssignment) {
 
 TEST(ParserTest, ParsesImportsAndClasses) {
     const char* src = R"(
-import foo.bar;
+import foo.bar.Base;
 class Base {
     public virtual function ping() -> void;
 }
@@ -590,9 +590,12 @@ class Derived extends foo.bar.Base {
     auto program = parser.parse();
 
     ASSERT_EQ(program->imports.size(), 1u);
-    EXPECT_EQ(program->imports[0]->path.size(), 2u);
-    EXPECT_EQ(program->imports[0]->path[0], "foo");
-    EXPECT_EQ(program->imports[0]->path[1], "bar");
+    EXPECT_EQ(program->imports[0]->packageParts.size(), 2u);
+    EXPECT_EQ(program->imports[0]->packageParts[0], "foo");
+    EXPECT_EQ(program->imports[0]->packageParts[1], "bar");
+    ASSERT_TRUE(program->imports[0]->symbol.has_value());
+    EXPECT_EQ(program->imports[0]->symbol.value(), "Base");
+    EXPECT_FALSE(program->imports[0]->isWildcard);
 
     ASSERT_EQ(program->classes.size(), 2u);
     auto* base = program->classes[0].get();
@@ -625,6 +628,71 @@ class Derived extends foo.bar.Base {
     auto* thisAccess = dynamic_cast<MemberAccessExpression*>(thisCall->callee.get());
     ASSERT_NE(thisAccess, nullptr);
     ASSERT_NE(dynamic_cast<ThisExpression*>(thisAccess->object.get()), nullptr);
+}
+
+TEST(ParserTest, ParsesOptionalPackageAndImports) {
+    const char* src = R"(
+package foo.bar;
+import baz.qux.Util;
+function main() -> void { }
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_NE(program->packageDecl, nullptr);
+    ASSERT_EQ(program->packageDecl->nameParts.size(), 2u);
+    EXPECT_EQ(program->packageDecl->nameParts[0], "foo");
+    EXPECT_EQ(program->packageDecl->nameParts[1], "bar");
+
+    ASSERT_EQ(program->imports.size(), 1u);
+    EXPECT_EQ(program->imports[0]->packageParts.size(), 2u);
+    EXPECT_EQ(program->imports[0]->packageParts[0], "baz");
+    EXPECT_EQ(program->imports[0]->packageParts[1], "qux");
+    ASSERT_TRUE(program->imports[0]->symbol.has_value());
+    EXPECT_EQ(program->imports[0]->symbol.value(), "Util");
+    EXPECT_FALSE(program->imports[0]->isWildcard);
+}
+
+TEST(ParserTest, ParsesWildcardImport) {
+    const char* src = R"(
+import foo.bar.*;
+function main() -> void { }
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->imports.size(), 1u);
+    EXPECT_EQ(program->imports[0]->packageParts.size(), 2u);
+    EXPECT_EQ(program->imports[0]->packageParts[0], "foo");
+    EXPECT_EQ(program->imports[0]->packageParts[1], "bar");
+    EXPECT_FALSE(program->imports[0]->symbol.has_value());
+    EXPECT_TRUE(program->imports[0]->isWildcard);
+}
+
+TEST(ParserTest, MultiplePackageDeclarationsAreRejected) {
+    const char* src = R"(
+package foo;
+package bar;
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochError);
+}
+
+TEST(ParserTest, PackageMustPrecedeOtherDeclarations) {
+    const char* src = R"(
+function main() -> void { }
+package foo;
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW((void)parser.parse(), BlochError);
 }
 
 TEST(ParserTest, RejectsMultipleExtends) {

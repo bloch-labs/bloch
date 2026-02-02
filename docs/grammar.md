@@ -4,9 +4,11 @@ This grammar reflects the current parser. Some constraints (such as valid type c
 placement, or `super(...)` rules) are enforced semantically; see `language-spec.md`.
 
 ```
-program          = { importDecl | classDecl | functionDecl | statement } ;
+program          = [ packageDecl ] { importDecl }
+                   { classDecl | functionDecl | statement } ;
 
-importDecl       = "import" qualifiedName ";" ;
+packageDecl      = "package" qualifiedName ";" ;
+importDecl       = "import" qualifiedName [ "." "*" ] ";" ;
 qualifiedName    = identifier { "." identifier } ;
 
 classDecl        = { "static" | "abstract" } "class" identifier

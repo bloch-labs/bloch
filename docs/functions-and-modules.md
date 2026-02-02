@@ -14,11 +14,21 @@ initialisation. Top-level functions are not overloadable.
 
 `@quantum` may not decorate `main()`.
 
-## Modules and imports
-Imports use dotted paths and are resolved by the module loader:
+## Packages and imports
+Files may declare a package once, before any imports or other declarations:
 ```bloch
-import math.LinearAlgebra;
+package com.example.math;
 ```
+
+Imports use dotted paths. You can import a symbol or an entire package directory:
+```bloch
+import com.example.QuantumMath;
+import com.example.*;
+```
+
+Imports are resolved relative to the importing file first, then any configured search paths,
+then the current working directory. Wildcard imports load all `.bloch` files in that directory
+in sorted order.
 
 All modules are merged into a single program. Exactly one `main()` must exist across all
 imports.

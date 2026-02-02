@@ -12,7 +12,7 @@ The repository ships with runnable programs you can tweak. Try these in order: *
 - `examples/06_maxcut_c4_class.bloch` — MaxCut on 4 nodes.
 - `examples/07_null_demo.bloch` — Using `null` with class references.
 - `examples/08_generics.bloch` — Generic classes and type bounds.
-- `examples/multifile/*` — Imports across modules (see [Multifile](#multifile) below).
+- `examples/multifile/com/example/QuantumMath.bloch` + `examples/multifile/main.bloch` — Imports across modules (see [Multifile](#multifile) below).
 
 ## Try these in order
 
@@ -91,13 +91,13 @@ The `examples/multifile/` directory shows imports across modules.
 
 **Layout:**
 
-- `main.bloch` — Entry point; imports `QuantumMath` and calls its static functions.
-- `QuantumMath.bloch` — A `static class` with constants and helper functions (e.g. `PI`, `energyFromFrequency`, `phaseAccumulation`).
+- `main.bloch` — Entry point; imports `com.example.QuantumMath` and calls its static functions.
+- `com/example/QuantumMath.bloch` — Declares `package com.example` and defines a `static class` with constants and helpers (e.g. `PI`, `energyFromFrequency`, `phaseAccumulation`).
 
 **Import in `main.bloch`:**
 
 ```bloch
-import QuantumMath;
+import com.example.QuantumMath;
 
 function main() -> void {
     float freqHz = 20000000.0f;

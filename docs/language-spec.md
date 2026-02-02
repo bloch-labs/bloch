@@ -24,8 +24,8 @@ The following tokens are reserved keywords and may not be used as identifiers:
 
 `abstract`, `bit`, `boolean`, `char`, `class`, `constructor`, `default`, `destroy`, `else`,
 `extends`, `false`, `final`, `float`, `for`, `function`, `if`, `import`, `int`, `long`,
-`measure`, `new`, `null`, `override`, `private`, `protected`, `public`, `qubit`, `reset`,
-`return`, `static`, `string`, `super`, `this`, `true`, `virtual`, `void`, `while`.
+`measure`, `new`, `null`, `override`, `package`, `private`, `protected`, `public`, `qubit`,
+`reset`, `return`, `static`, `string`, `super`, `this`, `true`, `virtual`, `void`, `while`.
 
 The built-in function `echo` and the quantum gate names (`h`, `x`, `y`, `z`, `rx`, `ry`, `rz`,
 `cx`) are also reserved.
@@ -68,14 +68,25 @@ The built-in function `echo` and the quantum gate names (`h`, `x`, `y`, `z`, `rx
 - Only `qubit` variables may be multi-declared: `qubit q0, q1;`.
 
 ## Modules and imports
-`import` statements appear at the top level:
+`package` and `import` statements appear at the top level. A file may declare at most one
+package, and it must come before any imports or declarations:
 
 ```bloch
-import math.LinearAlgebra;
+package com.example.math;
 ```
 
-Imports are resolved by the module loader and merged into a single program. Exactly one
-`main()` function must exist across all modules.
+Imports use dotted names. You can import a symbol or a package wildcard:
+
+```bloch
+import com.example.QuantumMath;
+import com.example.*;
+```
+
+Imports are resolved relative to the importing file first, then any configured search paths,
+then the current working directory. Wildcard imports load all `.bloch` files in the directory,
+and the loader validates that imported files declare the expected package (or no package for
+the default package). Imports are merged into a single program. Exactly one `main()` function
+must exist across all modules.
 
 ## Functions
 Function declarations use explicit parameter and return types:

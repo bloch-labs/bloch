@@ -1,3 +1,5 @@
+package com.example;
+
 // Static helper class for simple quantum calculations (ħ set to 1 for clarity)
 static class QuantumMath {
     public static final float PI = 3.14159265f;
