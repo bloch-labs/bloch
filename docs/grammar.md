@@ -3,10 +3,16 @@ title: Bloch Grammar (EBNF)
 ---
 # Bloch Grammar (EBNF)
 
-This grammar reflects the v1.0.0 release candidate as implemented in the parser and validated by the semantic analyser. Comments use `// ...` and are ignored by the lexer.
+This grammar reflects the v1.1.x parser for core statement and expression syntax. Class and
+annotation details are documented separately. Comments use `// ...` and are ignored by the lexer.
 
 ```
-program            = { function | statement } ;
+program            = [ packageDecl ] { importDecl }
+                     { classDecl | function | statement } ;
+
+packageDecl        = "package" qualifiedName ";" ;
+importDecl         = "import" qualifiedName [ "." "*" ] ";" ;
+qualifiedName      = identifier { "." identifier } ;
 
 function           = { annotation } "function" identifier
                       "(" [ parameterList ] ")" "->" type block ;
@@ -83,3 +89,4 @@ Notes:
 - The `? :` conditional in Bloch is a statement form: `expr ? statement : statement`.
 - Arrays use `{ ... }` literals; `qubit[]` cannot be initialised.
 - Float literals require an `f` suffix, e.g. `3.14f`. Bit literals require `b`, e.g. `1b`.
+- `classDecl` is omitted here; see `docs/bloch_class_system.md` for class grammar details.

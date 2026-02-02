@@ -26,7 +26,7 @@ bloch examples/01_hadamard.bloch --shots=1024
 - `04_grover_search.bloch` — Grover search over 2 qubits, marking `11` as the winner
 - `05_teleport_class.bloch` — class-based single-qubit teleportation (entangle + corrections)
 - `06_maxcut_c4_class.bloch` — class-based QAOA p=1 for MaxCut on a 4-node cycle
-- `multifile/QuantumMath.bloch` + `multifile/main.bloch` — multi-file import demo with a static helper
+- `multifile/com/example/QuantumMath.bloch` + `multifile/main.bloch` — multi-file import demo with a static helper
 
 ## 01 Hadamard on |0⟩
 
@@ -169,9 +169,9 @@ This demonstrates the usage of generics in user classes.
 
 ## Multi-file import: static QuantumMath helper
 
-**Files:** `examples/multifile/QuantumMath.bloch`, `examples/multifile/main.bloch`
+**Files:** `examples/multifile/com/example/QuantumMath.bloch`, `examples/multifile/main.bloch`
 
-Shows how to split code across files: `main.bloch` imports the static `QuantumMath` helper and uses it to estimate a two-level system’s energy gap and phase accumulation.  
+Shows how to split code across files: `main.bloch` imports the static `QuantumMath` helper from `package com.example` and uses it to estimate a two-level system’s energy gap and phase accumulation.  
 **Try:**
 ```bash
 bloch examples/multifile/main.bloch

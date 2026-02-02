@@ -2295,7 +2295,7 @@ namespace bloch::compiler {
     void SemanticAnalyser::visit(TypeParameter&) {}
 
     void SemanticAnalyser::visit(AnnotationNode&) {}
-
+    void SemanticAnalyser::visit(PackageDeclaration&) {}
     void SemanticAnalyser::visit(ImportDeclaration&) {}
     void SemanticAnalyser::visit(FieldDeclaration& node) {
         for (const auto& ann : node.annotations) {

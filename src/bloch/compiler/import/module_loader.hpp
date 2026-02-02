@@ -45,6 +45,9 @@ namespace bloch::compiler {
         void loadModule(const std::string& path);
         std::string resolveImportPath(const std::vector<std::string>& parts,
                                       const std::string& fromDir) const;
+        std::vector<std::string> resolvePackageModules(const std::vector<std::string>& packageParts,
+                                                       const std::string& fromDir) const;
+        std::vector<std::string> packagePartsFor(const std::string& canonicalPath) const;
         std::string canonicalize(const std::string& path) const;
         static std::string joinQualified(const std::vector<std::string>& parts);
     };
