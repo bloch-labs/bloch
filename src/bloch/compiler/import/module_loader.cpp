@@ -44,16 +44,26 @@ namespace bloch::compiler {
     }
 
     namespace {
+        std::string joinQualifiedLocal(const std::vector<std::string>& parts) {
+            std::ostringstream oss;
+            for (size_t i = 0; i < parts.size(); ++i) {
+                if (i)
+                    oss << ".";
+                oss << parts[i];
+            }
+            return oss.str();
+        }
+
         std::string formatPackageName(const std::vector<std::string>& parts) {
             if (parts.empty())
                 return "default package";
-            return ModuleLoader::joinQualified(parts);
+            return joinQualifiedLocal(parts);
         }
 
         std::string formatImportName(const ImportDeclaration& imp) {
             std::ostringstream oss;
             if (!imp.packageParts.empty()) {
-                oss << ModuleLoader::joinQualified(imp.packageParts);
+                oss << joinQualifiedLocal(imp.packageParts);
                 if (imp.isWildcard) {
                     oss << ".*";
                     return oss.str();
@@ -156,8 +166,7 @@ namespace bloch::compiler {
         return {};
     }
 
-    std::vector<std::string> ModuleLoader::packagePartsFor(
-        const std::string& canonicalPath) const {
+    std::vector<std::string> ModuleLoader::packagePartsFor(const std::string& canonicalPath) const {
         auto it = m_cache.find(canonicalPath);
         if (it == m_cache.end() || !it->second || !it->second->packageDecl)
             return {};
@@ -198,11 +207,11 @@ namespace bloch::compiler {
                     loadModule(target);
                     std::vector<std::string> actualPackage = packagePartsFor(canonTarget);
                     if (actualPackage != imp->packageParts) {
-                        throw BlochError(
-                            ErrorCategory::Semantic, imp->line, imp->column,
-                            "import '" + formatImportName(*imp) + "' resolved to package '" +
-                                formatPackageName(actualPackage) + "', expected '" +
-                                formatPackageName(imp->packageParts) + "'");
+                        throw BlochError(ErrorCategory::Semantic, imp->line, imp->column,
+                                         "import '" + formatImportName(*imp) +
+                                             "' resolved to package '" +
+                                             formatPackageName(actualPackage) + "', expected '" +
+                                             formatPackageName(imp->packageParts) + "'");
                     }
                 }
             } else if (imp->symbol) {
@@ -217,16 +226,16 @@ namespace bloch::compiler {
                 std::string canonTarget = canonicalize(target);
                 std::vector<std::string> actualPackage = packagePartsFor(canonTarget);
                 if (actualPackage != imp->packageParts) {
-                    throw BlochError(
-                        ErrorCategory::Semantic, imp->line, imp->column,
-                        "import '" + formatImportName(*imp) + "' resolved to package '" +
-                            formatPackageName(actualPackage) + "', expected '" +
-                            formatPackageName(imp->packageParts) + "'");
+                    throw BlochError(ErrorCategory::Semantic, imp->line, imp->column,
+                                     "import '" + formatImportName(*imp) +
+                                         "' resolved to package '" +
+                                         formatPackageName(actualPackage) + "', expected '" +
+                                         formatPackageName(imp->packageParts) + "'");
                 }
             } else {
-                throw BlochError(ErrorCategory::Semantic, imp->line, imp->column,
-                                 "import '" + formatImportName(*imp) +
-                                     "' is missing a symbol or wildcard");
+                throw BlochError(
+                    ErrorCategory::Semantic, imp->line, imp->column,
+                    "import '" + formatImportName(*imp) + "' is missing a symbol or wildcard");
             }
         }
 
