@@ -34,7 +34,8 @@ Run the compiler against an example:
 4. Open a PR with a clear summary and test coverage notes.
 
 ## PR checklist
-- Tests pass locally (or explain failures).
+- Tests pass locally (use `./scripts/build_and_test.sh`).
+- Code is formatted (use `./scripts/format.sh`).
 - New behavior is covered by tests.
 - Docs updated when user-facing behavior changes.
 - Follow the [Coding Standards](./coding-standards.md).
