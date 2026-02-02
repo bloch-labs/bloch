@@ -1,0 +1,5 @@
+class Object {
+
+    public virtual function equals(Object) -> boolean {}
+    
+}
