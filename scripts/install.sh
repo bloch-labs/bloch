@@ -42,6 +42,7 @@ Usage:
 
 Environment variables:
   INSTALL_DIR   Destination directory (default: /usr/local/bin or ~/.local/bin fallback)
+  BLOCH_LIBRARY_DIR  Override stdlib install root (default: platform data dir + /bloch/library)
 
 Examples:
   $0 v1.0.0-rc.1
@@ -233,6 +234,26 @@ install -m 0755 "$BLOCH_BIN" "$DEST/bloch"
 
 success "Installed: $DEST/bloch"
 note "You can verify with: bloch --version"
+
+STDLIB_SRC=$(find "$TMPDIR" -type d -path '*/share/bloch/library' | head -n1 || true)
+if [[ -n "${STDLIB_SRC:-}" ]]; then
+  if [[ -n "${BLOCH_LIBRARY_DIR:-}" ]]; then
+    LIB_ROOT="$BLOCH_LIBRARY_DIR"
+  elif [[ "$OS" == "macOS" ]]; then
+    LIB_ROOT="$HOME/Library/Application Support/Bloch/library"
+  else
+    DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+    LIB_ROOT="$DATA_HOME/bloch/library"
+  fi
+
+  VERSION_ROOT="$LIB_ROOT/$TAG"
+  mkdir -p "$LIB_ROOT" "$VERSION_ROOT"
+  cp -R "$STDLIB_SRC/." "$LIB_ROOT/"
+  cp -R "$STDLIB_SRC/." "$VERSION_ROOT/"
+  success "Installed stdlib: $VERSION_ROOT"
+else
+  warn "Bundled stdlib not found in archive; falling back to runtime built-ins only"
+fi
 
 # Offer to add DEST to PATH if not already there
 path_has_dest=0

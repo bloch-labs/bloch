@@ -40,7 +40,7 @@ Bloch is available as source plus manually produced release archives until the a
 curl -fsSL https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.sh | bash -s -- latest
 ```
 
-Swap `latest` for a specific tag (eg `v1.0.0`). The script downloads the matching archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `bash` to override the destination.
+Swap `latest` for a specific tag (eg `v1.0.0`). The script downloads the matching archive for your platform, verifies its checksum, installs the `bloch` binary into a writable directory, installs the bundled stdlib to your user data directory (for immediate `bloch.lang` usage), and updates your shell profile if needed. Add `INSTALL_DIR=/custom/path` before `bash` to override the binary destination.
 You can also self-update later with `bloch --update`; major version jumps will prompt for confirmation and link the changelog.
 
 #### Windows
@@ -48,7 +48,7 @@ You can also self-update later with `bloch --update`; major version jumps will p
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/bloch-labs/bloch/HEAD/scripts/install.ps1 -UseBasicParsing -OutFile $env:TEMP\\bloch-install.ps1; & $env:TEMP\\bloch-install.ps1 -Version latest"
 ```
 
-Swap `-Version latest` for any tag you want. The script downloads the Windows ZIP, verifies its checksum, installs `bloch.exe` into `%LOCALAPPDATA%\Programs\Bloch` by default, and adds that directory to your user `PATH` (opens in new shells).
+Swap `-Version latest` for any tag you want. The script downloads the Windows ZIP, verifies its checksum, installs `bloch.exe` into `%LOCALAPPDATA%\Programs\Bloch` by default, installs stdlib files to `%LOCALAPPDATA%\Bloch\library`, and adds the binary directory to your user `PATH` (opens in new shells).
 You can self-update later with `bloch --update`; major version jumps prompt for confirmation and show the changelog link.
 
 ### Build from source

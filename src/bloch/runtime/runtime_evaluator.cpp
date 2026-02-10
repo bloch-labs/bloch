@@ -19,9 +19,11 @@
 #include <cmath>
 #include <functional>
 #include <iomanip>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include "bloch/compiler/semantics/built_ins.hpp"
@@ -732,85 +734,179 @@ namespace bloch::runtime {
         return oss.str();
     }
 
+    int RuntimeEvaluator::runtimeInheritanceDistance(const std::string& derived,
+                                                     const std::string& base) const {
+        if (derived.empty() || base.empty())
+            return -1;
+        if (derived == base)
+            return 0;
+        int distance = 0;
+        RuntimeClass* cur = findClass(derived);
+        while (cur) {
+            if (cur->name == base)
+                return distance;
+            cur = cur->base;
+            ++distance;
+        }
+        return -1;
+    }
+
+    bool RuntimeEvaluator::isRuntimeSubclassOf(const std::string& derived,
+                                               const std::string& base) const {
+        return runtimeInheritanceDistance(derived, base) >= 0;
+    }
+
+    std::optional<int> RuntimeEvaluator::valueConversionCost(const RuntimeTypeInfo& expected,
+                                                             const Value& actual) const {
+        switch (expected.kind) {
+            case Value::Type::Int:
+                return actual.type == Value::Type::Int ? std::optional<int>(0) : std::nullopt;
+            case Value::Type::Long:
+                if (actual.type == Value::Type::Long)
+                    return 0;
+                if (actual.type == Value::Type::Int)
+                    return 1;
+                return std::nullopt;
+            case Value::Type::Float:
+                return actual.type == Value::Type::Float ? std::optional<int>(0) : std::nullopt;
+            case Value::Type::Bit:
+                return actual.type == Value::Type::Bit ? std::optional<int>(0) : std::nullopt;
+            case Value::Type::Boolean:
+                return actual.type == Value::Type::Boolean ? std::optional<int>(0)
+                                                           : std::nullopt;
+            case Value::Type::String:
+                return actual.type == Value::Type::String ? std::optional<int>(0)
+                                                          : std::nullopt;
+            case Value::Type::Char:
+                return actual.type == Value::Type::Char ? std::optional<int>(0) : std::nullopt;
+            case Value::Type::Qubit:
+                return actual.type == Value::Type::Qubit ? std::optional<int>(0) : std::nullopt;
+            case Value::Type::Object: {
+                if (isNullReference(actual))
+                    return 3;
+                if (actual.type != Value::Type::Object)
+                    return std::nullopt;
+                if (expected.className.empty())
+                    return 0;
+                std::string actualClass = actual.className;
+                if (actualClass.empty() && actual.objectValue && actual.objectValue->cls)
+                    actualClass = actual.objectValue->cls->name;
+                if (actualClass.empty())
+                    return std::nullopt;
+                int distance = runtimeInheritanceDistance(actualClass, expected.className);
+                return distance >= 0 ? std::optional<int>(distance) : std::nullopt;
+            }
+            case Value::Type::ObjectArray:
+                if (actual.type != Value::Type::ObjectArray)
+                    return std::nullopt;
+                if (expected.className.empty())
+                    return 0;
+                return actual.className == expected.className ? std::optional<int>(0)
+                                                              : std::nullopt;
+            default:
+                return actual.type == expected.kind ? std::optional<int>(0) : std::nullopt;
+        }
+    }
+
+    std::optional<int> RuntimeEvaluator::argumentsConversionCost(
+        const std::vector<RuntimeTypeInfo>& expected, const std::vector<Value>& actual) const {
+        if (expected.size() != actual.size())
+            return std::nullopt;
+        int total = 0;
+        for (size_t i = 0; i < expected.size(); ++i) {
+            auto cost = valueConversionCost(expected[i], actual[i]);
+            if (!cost)
+                return std::nullopt;
+            total += *cost;
+        }
+        return total;
+    }
+
+    bool RuntimeEvaluator::valueMatchesType(const RuntimeTypeInfo& expected,
+                                            const Value& actual) const {
+        return valueConversionCost(expected, actual).has_value();
+    }
+
+    bool RuntimeEvaluator::argumentsMatchConstructor(const std::vector<Value>& args,
+                                                     const RuntimeConstructor& candidate) const {
+        return argumentsConversionCost(candidate.params, args).has_value();
+    }
+
     RuntimeMethod* RuntimeEvaluator::findMethod(RuntimeClass* cls, const std::string& name,
                                                 const std::vector<Value>* args) {
-        auto matches = [&](const RuntimeMethod& cand, const std::vector<Value>& actuals) {
-            if (cand.params.size() != actuals.size())
-                return false;
-            for (size_t i = 0; i < cand.params.size(); ++i) {
-                const auto& exp = cand.params[i];
-                const auto& act = actuals[i];
-                switch (exp.kind) {
-                    case Value::Type::Int:
-                        if (act.type != Value::Type::Int)
-                            return false;
-                        break;
-                    case Value::Type::Float:
-                        if (act.type != Value::Type::Float)
-                            return false;
-                        break;
-                    case Value::Type::Bit:
-                        if (act.type != Value::Type::Bit)
-                            return false;
-                        break;
-                    case Value::Type::String:
-                        if (act.type != Value::Type::String)
-                            return false;
-                        break;
-                    case Value::Type::Char:
-                        if (act.type != Value::Type::Char)
-                            return false;
-                        break;
-                    case Value::Type::Qubit:
-                        if (act.type != Value::Type::Qubit)
-                            return false;
-                        break;
-                    case Value::Type::Object:
-                        if (isNullReference(act))
-                            break;
-                        if (act.type != Value::Type::Object)
-                            return false;
-                        if (!exp.className.empty() && act.className != exp.className)
-                            return false;
-                        break;
-                    case Value::Type::ObjectArray:
-                        if (act.type != Value::Type::ObjectArray)
-                            return false;
-                        if (!exp.className.empty() && act.className != exp.className)
-                            return false;
-                        break;
-                    default:
-                        return false;
-                }
-            }
-            return true;
-        };
-
         RuntimeClass* cur = cls;
+        if (!args) {
+            while (cur) {
+                auto mit = cur->methods.find(name);
+                if (mit != cur->methods.end())
+                    return mit->second.empty() ? nullptr : &mit->second.front();
+                cur = cur->base;
+            }
+            return nullptr;
+        }
+
+        struct Candidate {
+            RuntimeMethod* method = nullptr;
+            int cost = 0;
+        };
+        std::unordered_set<std::string> hiddenSignatures;
+        std::vector<Candidate> matches;
         while (cur) {
             auto mit = cur->methods.find(name);
             if (mit != cur->methods.end()) {
-                if (!args)
-                    return mit->second.empty() ? nullptr : &mit->second.front();
-                RuntimeMethod* found = nullptr;
                 for (auto& cand : mit->second) {
-                    if (matches(cand, *args)) {
-                        if (found)
-                            return nullptr;  // ambiguous
-                        found = &cand;
-                    }
+                    if (hiddenSignatures.count(cand.signature))
+                        continue;
+                    hiddenSignatures.insert(cand.signature);
+                    auto cost = argumentsConversionCost(cand.params, *args);
+                    if (!cost)
+                        continue;
+                    matches.push_back({&cand, *cost});
                 }
-                if (found)
-                    return found;
             }
             cur = cur->base;
         }
-        return nullptr;
+        if (matches.empty())
+            return nullptr;
+
+        int bestCost = std::numeric_limits<int>::max();
+        RuntimeMethod* best = nullptr;
+        bool ambiguous = false;
+        for (const auto& candidate : matches) {
+            if (candidate.cost < bestCost) {
+                bestCost = candidate.cost;
+                best = candidate.method;
+                ambiguous = false;
+            } else if (candidate.cost == bestCost) {
+                ambiguous = true;
+            }
+        }
+        return ambiguous ? nullptr : best;
     }
 
     void RuntimeEvaluator::buildClassTable(Program& program) {
         m_classTable.clear();
         m_genericTemplates.clear();
+
+        bool hasExplicitObjectClass = false;
+        for (const auto& clsNode : program.classes) {
+            if (clsNode && clsNode->name == "Object") {
+                hasExplicitObjectClass = true;
+                break;
+            }
+        }
+        if (!hasExplicitObjectClass) {
+            auto root = std::make_shared<RuntimeClass>();
+            root->name = "Object";
+            root->isStatic = false;
+            root->isAbstract = false;
+            RuntimeConstructor ctor;
+            ctor.decl = nullptr;
+            ctor.isDefault = true;
+            root->constructors.push_back(std::move(ctor));
+            m_classTable[root->name] = std::move(root);
+        }
+
         for (auto& clsNode : program.classes) {
             if (!clsNode)
                 continue;
@@ -818,6 +914,8 @@ namespace bloch::runtime {
                 m_genericTemplates[clsNode->name] = clsNode.get();
                 continue;
             }
+            if (m_classTable.count(clsNode->name))
+                continue;
             auto rc = std::make_shared<RuntimeClass>();
             rc->name = clsNode->name;
             rc->isStatic = clsNode->isStatic;
@@ -842,6 +940,8 @@ namespace bloch::runtime {
                 }
             } else if (!clsNode->baseName.empty()) {
                 rc->base = findClass(clsNode->baseName.back());
+            } else if (!rc->isStatic && rc->name != "Object") {
+                rc->base = findClass("Object");
             }
             if (rc->base) {
                 rc->instanceFields = rc->base->instanceFields;
@@ -916,6 +1016,12 @@ namespace bloch::runtime {
                     rc->destructorDecl = dtor;
                 }
             }
+            if (!rc->isStatic && rc->constructors.empty()) {
+                RuntimeConstructor c;
+                c.decl = nullptr;
+                c.isDefault = true;
+                rc->constructors.push_back(std::move(c));
+            }
             if (rc->staticStorage.size() < rc->staticFields.size())
                 rc->staticStorage.resize(rc->staticFields.size());
         }
@@ -962,6 +1068,8 @@ namespace bloch::runtime {
             }
         } else if (!tmpl->baseName.empty()) {
             rc->base = findClass(tmpl->baseName.back());
+        } else if (!rc->isStatic && rc->name != "Object") {
+            rc->base = findClass("Object");
         }
         if (rc->base) {
             rc->instanceFields = rc->base->instanceFields;
@@ -1037,6 +1145,12 @@ namespace bloch::runtime {
                 rc->hasDestructor = true;
                 rc->destructorDecl = dtor;
             }
+        }
+        if (!rc->isStatic && rc->constructors.empty()) {
+            RuntimeConstructor c;
+            c.decl = nullptr;
+            c.isDefault = true;
+            rc->constructors.push_back(std::move(c));
         }
         if (rc->staticStorage.size() < rc->staticFields.size())
             rc->staticStorage.resize(rc->staticFields.size());
@@ -1289,34 +1403,6 @@ namespace bloch::runtime {
         }
     }
 
-    namespace {
-        bool argumentsMatchCtor(const std::vector<Value>& args,
-                                const RuntimeConstructor& candidate) {
-            if (candidate.params.size() != args.size())
-                return false;
-            for (size_t i = 0; i < args.size(); ++i) {
-                const auto& expected = candidate.params[i];
-                const auto& actual = args[i];
-                if (expected.kind == Value::Type::Object) {
-                    if (isNullReference(actual))
-                        continue;
-                    if (actual.type != Value::Type::Object)
-                        return false;
-                    if (!expected.className.empty() && actual.className != expected.className)
-                        return false;
-                } else if (expected.kind == Value::Type::ObjectArray) {
-                    if (actual.type != Value::Type::ObjectArray)
-                        return false;
-                    if (!expected.className.empty() && actual.className != expected.className)
-                        return false;
-                } else if (expected.kind != actual.type) {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }  // namespace
-
     void RuntimeEvaluator::runConstructorChain(RuntimeClass* cls,
                                                const std::shared_ptr<Object>& obj,
                                                ConstructorDeclaration* ctor,
@@ -1369,16 +1455,31 @@ namespace bloch::runtime {
         // Dispatch to base constructor (explicit or default).
         if (cls->base) {
             if (hasExplicitSuper) {
+                bool matchedSuperCtor = false;
+                bool ambiguousSuperCtor = false;
+                int bestCost = std::numeric_limits<int>::max();
                 for (auto& c : cls->base->constructors) {
-                    if (argumentsMatchCtor(superArgs, c)) {
+                    auto cost = argumentsConversionCost(c.params, superArgs);
+                    if (!cost)
+                        continue;
+                    if (*cost < bestCost) {
+                        bestCost = *cost;
                         superCtorDecl = c.decl;
-                        break;
+                        matchedSuperCtor = true;
+                        ambiguousSuperCtor = false;
+                    } else if (*cost == bestCost) {
+                        ambiguousSuperCtor = true;
                     }
                 }
-                if (!superCtorDecl) {
+                if (!matchedSuperCtor) {
                     throw BlochError(ErrorCategory::Runtime, ctor ? ctor->line : 0,
                                      ctor ? ctor->column : 0,
                                      "no matching base constructor for 'super(...)'");
+                }
+                if (ambiguousSuperCtor) {
+                    throw BlochError(ErrorCategory::Runtime, ctor ? ctor->line : 0,
+                                     ctor ? ctor->column : 0,
+                                     "ambiguous base constructor for 'super(...)'");
                 }
             } else {
                 // Implicit default base constructor
@@ -2173,15 +2274,29 @@ namespace bloch::runtime {
             std::vector<Value> args;
             for (auto& a : newExpr->arguments) args.push_back(eval(a.get()));
             ConstructorDeclaration* ctorDecl = nullptr;
+            bool matchedCtor = false;
+            bool ambiguousCtor = false;
+            int bestCost = std::numeric_limits<int>::max();
             for (auto& c : cls->constructors) {
-                if (argumentsMatchCtor(args, c)) {
+                auto cost = argumentsConversionCost(c.params, args);
+                if (!cost)
+                    continue;
+                if (*cost < bestCost) {
+                    bestCost = *cost;
                     ctorDecl = c.decl;
-                    break;
+                    matchedCtor = true;
+                    ambiguousCtor = false;
+                } else if (*cost == bestCost) {
+                    ambiguousCtor = true;
                 }
             }
-            if (!ctorDecl) {
+            if (!matchedCtor) {
                 throw BlochError(ErrorCategory::Runtime, newExpr->line, newExpr->column,
                                  "no constructor matches provided arguments");
+            }
+            if (ambiguousCtor) {
+                throw BlochError(ErrorCategory::Runtime, newExpr->line, newExpr->column,
+                                 "ambiguous constructor matches provided arguments");
             }
             if (kTraceConstructors) {
                 std::cerr << "[new] " << cls->name << " selected ctor params=" << args.size()

@@ -19,7 +19,7 @@ Planned for v1.2.0
   - `Set<T>`
   - `Map<K, V>`
   - `Pair<A, B>`
-- Type arguments are reference-only (boxed primitives or user classes); primitives themselves are not accepted.
+- Type arguments are reference-oriented (boxed primitives or user classes); with implicit `Object` inheritance, explicit `T extends Object` bounds are unnecessary in API signatures. Primitives themselves are not accepted.
 - No concurrent collections, no iterators/generators in v1.2.0; APIs are strict and eager.
 - Align with the explicit boxing model and avoid primitive specialisation complexity.
 - Keep API surface small yet cover common needs (ordered list, uniqueness set, key/value map, simple pair tuple).

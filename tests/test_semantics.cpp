@@ -804,11 +804,11 @@ TEST(SemanticTest, OverrideStaticMethodFails) {
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
-TEST(SemanticTest, SuperWithoutBaseCtorFails) {
+TEST(SemanticTest, SuperWithoutExplicitBaseCtorUsesImplicitObject) {
     const char* src = "class A { public constructor() -> A { super(); return this; } }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochError);
+    EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
 TEST(SemanticTest, ThisDisallowedInStaticMethod) {
@@ -963,11 +963,37 @@ TEST(SemanticTest, CallingFieldAsFunctionFails) {
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
-TEST(SemanticTest, MissingConstructorFails) {
-    const char* src = "class A { int x; }";
+TEST(SemanticTest, MissingConstructorGetsImplicitDefault) {
+    const char* src = "class A { int x; } function main() -> void { A a = new A(); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_THROW(analyser.analyse(*program), BlochError);
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, OmittedExtendsUsesImplicitObjectRoot) {
+    const char* src =
+        "class Animal { } "
+        "class Dog extends Animal { } "
+        "class Cat extends Animal { } "
+        "function main() -> void { Animal a = new Dog(); Animal b = new Cat(); Object r = a; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, ConstructorOverloadPrefersMostSpecificReferenceType) {
+    const char* src =
+        "class Animal { } "
+        "class Dog extends Animal { } "
+        "class Shelter { "
+        "  public int which = 0; "
+        "  public constructor(Animal a) -> Shelter { this.which = 1; return this; } "
+        "  public constructor(Dog d) -> Shelter { this.which = 2; return this; } "
+        "} "
+        "function main() -> void { Shelter s = new Shelter(new Dog()); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
 TEST(SemanticTest, PrivateConstructorNotAccessible) {

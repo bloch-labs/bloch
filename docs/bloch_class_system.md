@@ -2,6 +2,16 @@
 
 Bloch includes a full OO model with single inheritance, virtual dispatch, and generic classes. This guide is user-facing: how to declare, inherit, construct, and use classes safely.
 
+## Java-Style Root Object Model
+Model:
+```bloch
+class Animal {}
+class Dog extends Animal {}
+class Cat extends Animal {}
+```
+- `class Animal {}` is treated as `class Animal extends Object {}`.
+- `extends Object` is optional.
+
 ## Declaring Classes
 ```bloch
 class Point {
@@ -12,6 +22,7 @@ class Point {
 ```
 - Modifiers: `abstract` (not instantiable), `static` (type-only container).
 - Visibility on members: `public | private | protected`.
+- Root base class: all classes implicitly inherit from `Object`; writing `extends Object` is optional.
 
 ## Inheritance & Dispatch
 ```bloch
@@ -20,12 +31,13 @@ class Derived extends Base {
     public override function get() -> int { return 1; }
 }
 ```
-- Single inheritance only (`extends Base`).
+- Single inheritance only (`extends Base`). If `extends` is omitted, the class implicitly extends `Object`.
 - `virtual` enables override; `override` required to replace a virtual base method.
 - `abstract` classes or classes with bodyless virtual methods cannot be instantiated.
 
 ## Constructors & Destructors
 - Syntax: `constructor(params) -> ClassName { ... }`
+- If omitted, a public no-arg constructor is implicitly provided.
 - `super(...)` only as the first statement.
 - `= default` form allowed; static classes cannot have ctors/dtors.
 - One destructor max; `destructor() -> ClassName` (optional `= default`).
@@ -49,6 +61,7 @@ Box<int> b = new Box<int>(1);
 - Class type parameters with optional bounds: `class Foo<T extends Bar>`.
 - Type arguments on use: `Foo<Baz>`; `extends` accepts type args.
 - Runtime monomorphisation: first use of each type-argument set creates and caches a concrete specialisation.
+- Not included: wildcard generics (`?`, `? extends`, `? super`), method generics, raw types, constructor inference.
 
 ## Method Overloading
 ```bloch
@@ -59,7 +72,7 @@ class Adder {
 }
 ```
 - Overloads share a name but must differ in parameter types/arity. Exact duplicates are rejected at compile time.
-- Resolution is static & unambiguous: the call’s argument types must match exactly after generic substitution; otherwise you’ll get “method not found” or “ambiguous call”.
+- Resolution is static with Java-style assignability (`Dog` can satisfy `Animal` parameters) and picks the most specific applicable overload. Ambiguous calls are rejected.
 - Overrides are per-overload: to override, match the same parameter list as the virtual in the base.
 
 ## Nullability
@@ -75,6 +88,13 @@ class Adder {
 - Top-level functions: `function name(params) -> type { ... }`.
 - `@quantum` functions must return `bit`, `bit[]`, or `void`.
 - `@shots(N)` allowed on `main` only.
+
+## Strictly Out of Scope (v1.1.x)
+- Multiple inheritance.
+- Interfaces/traits.
+- Wildcard generics.
+- Method-level generics.
+- Reflection/runtime annotation processing.
 
 ## Quick Reference
 - Non-nullable: `int`, `float`, `bit`, `char`, `string`, `qubit`, primitive/complex arrays.

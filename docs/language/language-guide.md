@@ -33,8 +33,12 @@ Rules:
 - `import foo.bar.*;` loads all `.bloch` files in `foo/bar/`, and each must declare
   `package foo.bar;`.
 - `import Baz;` targets `Baz.bloch` in the default package.
-- When running `bloch`, imports are resolved relative to the importing file's directory,
-  then the current working directory.
+- When running `bloch`, default import resolution is:
+  - importing file directory,
+  - configured search paths (including installed stdlib roots),
+  - current working directory.
+- `bloch.*` imports are resolved from configured search paths first so stdlib
+  modules are not shadowed by project-local files.
 
 Current limitation: names are still global, so two classes with the same name in different
 packages are treated as duplicates.

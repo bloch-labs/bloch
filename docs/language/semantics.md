@@ -16,11 +16,13 @@ This page documents compile-time rules enforced by the semantic analyser (`src/b
 - `package` is optional but must appear before any `import` or declarations.
 - `import` statements load additional modules before semantic analysis.
 - `import foo.bar.Baz;` resolves to `foo/bar/Baz.bloch` relative to the importing file's
-  directory, then the current working directory. The imported file must declare
-  `package foo.bar;`.
+  directory, then configured search paths, then the current working directory.
+  The imported file must declare `package foo.bar;`.
 - `import foo.bar.*;` loads all `.bloch` files in `foo/bar/`, and each must declare
   `package foo.bar;`.
 - `import Baz;` targets `Baz.bloch` in the default package.
+- `bloch.*` imports resolve from configured search paths first, so stdlib modules
+  are preferred over project-local shadows.
 - Names are still global, so duplicate class names across packages are treated as errors.
 
 ## Variables
@@ -32,6 +34,8 @@ This page documents compile-time rules enforced by the semantic analyser (`src/b
 
 ## Class fields and constructors
 
+- Non-static classes implicitly inherit from `Object` when `extends` is omitted.
+- Non-static classes with no declared constructor receive an implicit public no-arg constructor.
 - Field initialisers are type-checked with the same null/type rules as variable initialisers.
 - In static fields, the initialiser executes in static context (`this`/`super` are invalid).
 - `final static` fields must be initialised at declaration.

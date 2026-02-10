@@ -18,6 +18,7 @@
 #include <array>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -36,6 +37,7 @@
 
 namespace bloch::cli {
     namespace {
+        namespace fs = std::filesystem;
 
         struct CliOption {
             std::string_view flag;
@@ -93,6 +95,89 @@ namespace bloch::cli {
 
         void printVersion(const Context& ctx) { std::cout << formattedVersion(ctx) << std::endl; }
 
+        std::string normaliseVersion(std::string_view version) {
+            std::string v(version);
+            if (!v.empty() && v.front() == 'v')
+                v.erase(v.begin());
+            return v;
+        }
+
+        void addPathCandidate(std::vector<std::string>& paths, const fs::path& candidate) {
+            if (candidate.empty())
+                return;
+            std::error_code ec;
+            fs::path canonical = fs::weakly_canonical(candidate, ec);
+            std::string normalised = (ec ? candidate.lexically_normal() : canonical).string();
+            if (normalised.empty())
+                return;
+            if (std::find(paths.begin(), paths.end(), normalised) == paths.end())
+                paths.push_back(normalised);
+        }
+
+        void addVersionedRoots(std::vector<std::string>& paths, const fs::path& root,
+                               const std::string& version) {
+            if (root.empty())
+                return;
+            if (!version.empty()) {
+                addPathCandidate(paths, root / version);
+                addPathCandidate(paths, root / ("v" + version));
+            }
+            addPathCandidate(paths, root);
+        }
+
+        std::vector<std::string> resolveStdlibSearchPaths(const Context& ctx, const char* argv0) {
+            std::vector<std::string> paths;
+            std::string version = normaliseVersion(ctx.version);
+
+            if (const char* overridePath = std::getenv("BLOCH_STDLIB_PATH");
+                overridePath && *overridePath) {
+                addVersionedRoots(paths, fs::path(overridePath), version);
+            } else {
+#if defined(_WIN32)
+                if (const char* localAppData = std::getenv("LOCALAPPDATA");
+                    localAppData && *localAppData) {
+                    addVersionedRoots(paths, fs::path(localAppData) / "Bloch" / "library", version);
+                }
+#elif defined(__APPLE__)
+                if (const char* home = std::getenv("HOME"); home && *home) {
+                    addVersionedRoots(paths,
+                                      fs::path(home) / "Library" / "Application Support" / "Bloch" /
+                                          "library",
+                                      version);
+                }
+#else
+                fs::path dataRoot;
+                if (const char* xdgDataHome = std::getenv("XDG_DATA_HOME");
+                    xdgDataHome && *xdgDataHome) {
+                    dataRoot = fs::path(xdgDataHome);
+                } else if (const char* home = std::getenv("HOME"); home && *home) {
+                    dataRoot = fs::path(home) / ".local" / "share";
+                }
+                if (!dataRoot.empty())
+                    addVersionedRoots(paths, dataRoot / "bloch" / "library", version);
+#endif
+            }
+
+            if (argv0 && *argv0) {
+                std::error_code ec;
+                fs::path exePath = fs::weakly_canonical(fs::path(argv0), ec);
+                if (ec)
+                    exePath = fs::absolute(fs::path(argv0), ec);
+                if (!exePath.empty()) {
+                    fs::path shareRoot = exePath.parent_path() / ".." / "share" / "bloch";
+                    addVersionedRoots(paths, shareRoot / "library", version);
+                    addPathCandidate(paths, shareRoot / "stdlib");
+                    // Development tree fallback (e.g. ./build/bin/bloch from source checkout).
+                    addPathCandidate(paths, exePath.parent_path() / ".." / ".." / "library");
+                }
+            }
+
+            addPathCandidate(paths, fs::current_path() / "library");
+            addPathCandidate(paths, fs::current_path() / "stdlib");
+
+            return paths;
+        }
+
         int runImpl(int argc, char** argv, const Context& ctx) {
             const std::string version(ctx.version);
             if (argc < 2) {
@@ -144,7 +229,8 @@ namespace bloch::cli {
             bloch::update::checkForUpdatesIfDue(version);
 
             try {
-                bloch::compiler::ModuleLoader loader;
+                auto stdlibPaths = resolveStdlibSearchPaths(ctx, argc > 0 ? argv[0] : nullptr);
+                bloch::compiler::ModuleLoader loader(stdlibPaths);
                 std::unique_ptr<bloch::compiler::Program> program = loader.load(file);
                 bool isAnnotationShots = program->shots.first;
 

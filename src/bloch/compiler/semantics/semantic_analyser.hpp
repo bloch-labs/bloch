@@ -195,6 +195,13 @@ namespace bloch::compiler {
         FieldInfo* findFieldInHierarchy(const TypeInfo& classType, const std::string& field) const;
         const FieldInfo* resolveField(const std::string& name, int line, int column) const;
         bool isSubclassOf(const std::string& derived, const std::string& base) const;
+        int inheritanceDistance(const std::string& derived, const std::string& base) const;
+        bool isAssignableType(const TypeInfo& expected, const TypeInfo& actual) const;
+        bool paramsAssignable(const std::vector<TypeInfo>& expected,
+                              const std::vector<TypeInfo>& actual) const;
+        std::optional<int> conversionCost(const TypeInfo& expected, const TypeInfo& actual) const;
+        std::optional<int> paramsConversionCost(const std::vector<TypeInfo>& expected,
+                                                const std::vector<TypeInfo>& actual) const;
         void validateOverrides(ClassInfo& info);
         void validateAbstractness(ClassInfo& info);
         bool isAccessible(Visibility visibility, const std::string& owner,

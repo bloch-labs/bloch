@@ -1,0 +1,13 @@
+package bloch.lang;
+
+class Object {
+    public constructor() -> Object = default;
+
+    public virtual function equals(Object other) -> boolean {
+        return this == other;
+    }
+
+    public virtual function toString() -> string {
+        return "bloch.lang.Object";
+    }
+}
