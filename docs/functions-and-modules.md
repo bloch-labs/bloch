@@ -20,15 +20,16 @@ Files may optionally declare a package once, before any imports or other declara
 package com.example.math;
 ```
 
-Imports use dotted paths. You can import a symbol or an entire package directory:
+Imports can target the default package, a dotted symbol path, or a package wildcard:
 ```bloch
+import QuantumMath;
 import com.example.QuantumMath;
 import com.example.*;
 ```
 
 Imports are resolved relative to the importing file first, then any configured search paths,
 then the current working directory. Wildcard imports load all `.bloch` files in that directory
-in sorted order.
+in sorted order. Imported modules are validated against the expected package declaration.
 
 All modules are merged into a single program. Exactly one `main()` must exist across all
 imports.

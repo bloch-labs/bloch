@@ -5,7 +5,10 @@ If you hit a roadblock, start with the quick checks below and the [Common issues
 ## Quick checks
 
 - Pass a `.bloch` file as the last argument to `bloch`.
-- Confirm imports point to existing files (e.g. `import QuantumMath;` expects `QuantumMath.bloch` in the expected path).
+- Confirm imports point to existing files and matching packages (for example,
+  `import QuantumMath;` -> `QuantumMath.bloch`, or
+  `import com.example.QuantumMath;` -> `com/example/QuantumMath.bloch` with
+  `package com.example;` in that file).
 - Verify there is only one `main()` across all modules.
 - Gate-after-measurement errors mean you need to `reset` or reallocate a qubit before applying more gates.
 - `qubit[]` cannot be initialised with literals.
@@ -21,7 +24,7 @@ If problems persist, reduce shots to simplify debugging, add `echo` statements t
 | Symptom | Cause | Fix |
 |--------|--------|-----|
 | "expected .bloch file" or wrong file run | No file passed or wrong path | Pass the path to your `.bloch` file as the last argument: `bloch path/to/file.bloch`. |
-| Import / module not found | Import path doesn’t resolve to a file | Ensure the imported module exists (e.g. `QuantumMath.bloch` for `import QuantumMath;`) and the loader can find it (e.g. same directory or configured path). |
+| Import / module not found | Import path doesn’t resolve to a file | Ensure the imported module exists at the expected path, package declarations match the import path, and the loader can find it (importing-file directory, configured search paths, or working directory). |
 | Duplicate definition of main | More than one `main()` in the program | Keep exactly one `main()` across all files that are imported or run. |
 | Gate-after-measurement error | Gate applied to a qubit that was already measured | Call `reset q;` before applying more gates to `q`, or use a new qubit. See [Quantum Programming](./quantum-programming.md). |
 | `qubit[]` initialisation error | Literal used for qubit array | `qubit[]` cannot be initialised with `{ ... }`; declare and use qubits individually or with `qubit[N] name;`. |

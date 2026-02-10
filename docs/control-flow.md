@@ -25,4 +25,4 @@ Bloch does not currently support `break` or `continue`, so structure loops accor
 function f() -> int { return 1; }
 ```
 
-Non-void functions must return a value along all paths.
+Non-void functions must contain at least one `return` with a value.

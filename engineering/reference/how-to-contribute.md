@@ -30,14 +30,14 @@ Run the compiler against an example:
 ## Workflow
 1. Create a feature branch.
 2. Make focused changes with tests.
-3. Update docs in `docs/` or `engineering/reference/` when behavior changes.
+3. Update docs in `docs/` or `engineering/reference/` when behaviour changes.
 4. Open a PR with a clear summary and test coverage notes.
 
 ## PR checklist
 - Tests pass locally (use `./scripts/build_and_test.sh`).
 - Code is formatted (use `./scripts/format.sh`).
-- New behavior is covered by tests.
-- Docs updated when user-facing behavior changes.
+- New behaviour is covered by tests.
+- Docs updated when user-facing behaviour changes.
 - Follow the [Coding Standards](./coding-standards.md).
 
 ## Where to look next

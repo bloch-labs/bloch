@@ -29,6 +29,7 @@ Invariants/Guarantees:
 Edge Cases/Errors:
 - Casts are only allowed between `int`, `long`, `float`, and `bit`; all other casts are rejected.
 - Control-flow conditions must be `boolean` or `bit` (numeric truthiness is rejected).
+- Non-`void` top-level functions must contain at least one `return` with a value.
 - Methods currently do not enforce “must return a value” for non-void return types (open issue).
 
 Extension points:

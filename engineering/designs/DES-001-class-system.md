@@ -134,7 +134,7 @@ Note:
 
 ### Resolution Requirements
 - After Bloch installation, stdlib must work without extra flags.
-- Loader behavior:
+- Loader behaviour:
   - Default imports: importing file directory → configured search paths → current working directory.
   - `bloch.*` imports (including implicit `bloch.lang.Object` bootstrap): configured
     search paths first, then importing directory/current working directory.

@@ -72,18 +72,19 @@ package, and it must come before any imports or declarations:
 package com.example.math;
 ```
 
-Imports use dotted names. You can import a symbol or a package wildcard:
+Imports can target a default-package symbol, a dotted symbol path, or a package wildcard:
 
 ```bloch
+import QuantumMath;
 import com.example.QuantumMath;
 import com.example.*;
 ```
 
 Imports are resolved relative to the importing file first, then any configured search paths,
-then the current working directory. Wildcard imports load all `.bloch` files in the directory,
-and the loader validates that imported files declare the expected package (or no package for
-the default package). Imports are merged into a single program. Exactly one `main()` function
-must exist across all modules.
+then the current working directory. `bloch.*` imports prefer configured search paths first.
+Wildcard imports load all `.bloch` files in the directory, and the loader validates that imported
+files declare the expected package (or no package for the default package). Imports are merged
+into a single program. Exactly one `main()` function must exist across all modules.
 
 ## Functions
 Function declarations use explicit parameter and return types:
@@ -94,6 +95,7 @@ function add(int a, int b) -> int { return a + b; }
 
 - Parameters may not be `void`.
 - Top-level functions are not overloadable; method overloading is supported in classes.
+- Non-`void` functions must contain at least one `return expr;` statement.
 - `main()` is the program entry point and must be unique.
 
 ## Classes

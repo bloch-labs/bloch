@@ -23,8 +23,8 @@ This document gives a high-level map of the Bloch codebase and the execution pip
 - `engineering/` — contributor docs, ADRs, and designs.
 
 ## Key entry points
-- `src/main.cpp` — CLI parsing and program execution.
-- `src/bloch/cli/cli.*` — CLI parsing and execution flow.
+- `src/main.cpp` — Thin process entry point that forwards to CLI runtime.
+- `src/bloch/cli/cli.*` — CLI parsing, update checks, stdlib path resolution, and execution flow.
 - `src/bloch/compiler/import/module_loader.*` — import resolution and merge.
 - `src/bloch/compiler/semantics/semantic_analyser.*` — compile-time rules.
 - `src/bloch/runtime/runtime_evaluator.*` — interpreter and simulator integration.

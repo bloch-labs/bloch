@@ -9,7 +9,13 @@ Outputs:
 - `BlochError` with `Parse` category on syntax errors.
 
 Behaviour:
-Parsing is a hand-written recursive descent pass with light lookahead for types and an overflow queue to expand multi-declared qubits. It constructs the AST defined in `ast/ast.hpp` and stamps every node with its source position. The parser enforces correct placement of annotations, static-class restrictions, constructor/destructor syntax (including `= default`), and rejects obviously invalid forms like negative array index literals. Deeper meaning (types, visibility, override correctness) is left to the semantic analyser.
+Parsing is a hand-written recursive descent pass with light lookahead for types and an overflow
+queue to expand multi-declared qubits. It constructs the AST defined in `ast/ast.hpp` and stamps
+every node with its source position. The parser enforces file-header ordering (`package` then
+imports, both only at top level), supports both default-package and dotted imports, enforces
+annotation placement, static-class restrictions, constructor/destructor syntax (including
+`= default`), and rejects obviously invalid forms like negative array index literals. Deeper
+meaning (types, visibility, override correctness) is left to the semantic analyser.
 
 Invariants/Guarantees:
 - Always consumes to `Eof` or throws; no partial trees.

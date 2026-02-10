@@ -118,7 +118,8 @@ Or with a built-from-source binary:
 ./build/bin/bloch examples/multifile/main.bloch
 ```
 
-The module loader resolves `import QuantumMath;` to `QuantumMath.bloch` in the same directory (or as per your project layout). Exactly one `main()` must exist across all imported modules.
+The module loader resolves imports relative to the importing file first, then configured search
+paths, then the working directory. Exactly one `main()` must exist across all imported modules.
 
 ## Building and running from source
 

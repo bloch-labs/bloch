@@ -39,5 +39,5 @@ You can follow along our journey via the following community links:
 - X/Twitter: https://x.com/blochlabs
 - Email: hello@bloch-labs.com
 
-## 📄 License 
+## 📄 Licence 
 Apache 2.0 (see `LICENSE`).

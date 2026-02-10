@@ -31,3 +31,10 @@ ctest --test-dir build --config Release --output-on-failure
 
 This produces a `build/Bloch.sln` you can open directly in Visual Studio for editing and
 debugging. The `bloch.exe` binary is placed in `build/bin/Release/`.
+
+## Documentation expectations
+
+When behaviour changes, update the matching docs in the same pull request:
+- User docs: `docs/`
+- Contributor references: `engineering/reference/`
+- Design/decision records when architecture intent changes: `engineering/designs/` and `engineering/adrs/`
