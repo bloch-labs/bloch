@@ -3,7 +3,7 @@ title: Syntax & Operators
 ---
 # Syntax & Operators
 
-This page summarizes tokens, literals, operators, precedence, and common statement forms as implemented by the v1.1.x parser.
+This page summarises tokens, literals, operators, precedence, and common statement forms as implemented by the v1.1.x parser.
 
 ## Tokens
 
@@ -66,7 +66,9 @@ qubit q0, q1; // ok
 int a, b;     // error
 ```
 
-- `final` variables cannot be reassigned.
+- `final` variables must be initialised at declaration and cannot be reassigned.
+- For class fields, `final static` must be initialised at declaration; `final` instance fields must
+  be initialised at declaration or assigned exactly once per constructor as a top-level statement.
 - `@tracked` is allowed on `qubit` or `qubit[]` only.
 
 ### Assignment

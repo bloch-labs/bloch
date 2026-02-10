@@ -36,7 +36,7 @@ Planned for v1.2.0
 ## Consequences
 - Stdlib surface expands with boxed classes; documentation and examples updated.
 - Runtime unchanged; boxes are ordinary classes.
-- Slight verbosity for users (must call `valueOf` / `toPrimitive`) but predictable behavior.
+- Slight verbosity for users (must call `valueOf` / `toPrimitive`) but predictable behaviour.
 
 ## References
 - ADR-001 Class System

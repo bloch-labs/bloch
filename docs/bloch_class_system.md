@@ -29,11 +29,14 @@ class Derived extends Base {
 - `super(...)` only as the first statement.
 - `= default` form allowed; static classes cannot have ctors/dtors.
 - One destructor max; `destructor() -> ClassName` (optional `= default`).
-- Final fields: assignable only inside constructors.
+- `final` fields are single-assignment: declaration initialiser or constructor assignment, not both.
 
 ## Fields
 - Modifiers: `static`, `final`, `tracked`.
-- `final` instance fields assignable only inside constructors.
+- `final static` fields must be initialised at declaration.
+- `final` instance fields may be assigned in constructors only when they do not already have a declaration initialiser.
+- Every constructor in the declaring class must initialise each uninitialised `final` instance field exactly once, via a top-level constructor assignment.
+- Constructors cannot assign inherited `final` fields.
 - Arrays allowed; qubit arrays cannot be initialised with literals.
 - Access via `this.field` or `Type.field` (if static).
 
@@ -45,7 +48,7 @@ Box<int> b = new Box<int>(1);
 ```
 - Class type parameters with optional bounds: `class Foo<T extends Bar>`.
 - Type arguments on use: `Foo<Baz>`; `extends` accepts type args.
-- Runtime monomorphization: first use of each type-argument set creates and caches a concrete specialization.
+- Runtime monomorphisation: first use of each type-argument set creates and caches a concrete specialisation.
 
 ## Method Overloading
 ```bloch

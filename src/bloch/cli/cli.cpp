@@ -85,7 +85,7 @@ namespace bloch::cli {
                 std::cout << std::left << std::setw(static_cast<int>(width + 4)) << line.str()
                           << opt.description << "\n";
             }
-            std::cout << "\nBehavior:\n"
+            std::cout << "\nBehaviour:\n"
                       << "  - Writes <file>.qasm alongside the input file.\n"
                       << "  - When --shots is used, prints an aggregate table of tracked values.\n"
                       << std::endl;
