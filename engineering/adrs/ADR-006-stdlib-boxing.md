@@ -24,19 +24,19 @@ Planned for v1.2.0
   - `String` (`string`)
   - The `qubit` primitive is deliberately excluded from boxing; quantum state is not safely encapsulated as an object. `bit` remains unboxed; use `Boolean` for classical logic.
 - Each boxed class extends `Object` and provides at least:
-  - Static `valueOf(<prim>)`
+  - Static `of(<prim>)`
   - `override function toPrimitive() -> <prim>` (Object declares `virtual function toPrimitive() -> void` placeholder)
   - `equals` override for **value equality** with same-kind boxes
-  - `toString` rendering the contained value
+  - `toString` override for rendering the contained value
 - No automatic boxing/unboxing in v1.2.0; conversions are explicit via constructors/accessors.
 
 ## Alternatives Considered
-- Auto-boxing/unboxing like Java — **rejected** to preserve explicit semantics, avoid hidden allocations, and keep runtime simpler for v1.2.0.
+- Auto-boxing/unboxing  — **rejected** to preserve explicit semantics, avoid hidden allocations, and keep runtime simpler for v1.2.0.
 
 ## Consequences
 - Stdlib surface expands with boxed classes; documentation and examples updated.
 - Runtime unchanged; boxes are ordinary classes.
-- Slight verbosity for users (must call `valueOf` / `toPrimitive`) but predictable behaviour.
+- Slight verbosity for users (must call `of` / `toPrimitive`) but predictable behaviour.
 
 ## References
 - ADR-001 Class System

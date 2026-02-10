@@ -365,6 +365,9 @@ namespace bloch::compiler {
     struct NamedType : public Type {
         std::vector<std::string> nameParts;
         std::vector<std::unique_ptr<Type>> typeArguments;
+        // True when the source contained an explicit '<...>' list.
+        // This lets semantics distinguish `Foo` (raw/omitted args) from `Foo<>` (diamond).
+        bool hasTypeArgumentList = false;
 
         explicit NamedType(std::vector<std::string> parts) : nameParts(std::move(parts)) {}
         void accept(ASTVisitor& visitor) override;

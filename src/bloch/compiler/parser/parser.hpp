@@ -119,13 +119,14 @@ namespace bloch::compiler {
         [[nodiscard]] std::unique_ptr<Expression> parseLiteral();
 
         // Types
-        [[nodiscard]] std::unique_ptr<Type> parseType();
+        [[nodiscard]] std::unique_ptr<Type> parseType(bool allowEmptyTypeArguments = false);
         [[nodiscard]] std::unique_ptr<Type> parsePrimitiveType();
         [[nodiscard]] std::unique_ptr<Type> parseArrayType(
             std::unique_ptr<Type> elementType, int size = -1,
             std::unique_ptr<Expression> sizeExpr = nullptr);
         [[nodiscard]] std::vector<std::unique_ptr<TypeParameter>> parseTypeParameters();
-        [[nodiscard]] std::vector<std::unique_ptr<Type>> parseTypeArgumentList();
+        [[nodiscard]] std::vector<std::unique_ptr<Type>> parseTypeArgumentList(
+            bool allowEmpty = false);
 
         // Parameters and Arguments
         [[nodiscard]] std::vector<std::unique_ptr<Parameter>> parseParameterList();

@@ -20,6 +20,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -300,6 +301,15 @@ namespace bloch::runtime {
         RuntimeClass* instantiateGeneric(
             const NamedType* typeNode,
             const std::unordered_map<std::string, RuntimeTypeInfo>& subst);
+        int runtimeInheritanceDistance(const std::string& derived, const std::string& base) const;
+        bool isRuntimeSubclassOf(const std::string& derived, const std::string& base) const;
+        std::optional<int> valueConversionCost(const RuntimeTypeInfo& expected,
+                                               const Value& actual) const;
+        std::optional<int> argumentsConversionCost(const std::vector<RuntimeTypeInfo>& expected,
+                                                   const std::vector<Value>& actual) const;
+        bool valueMatchesType(const RuntimeTypeInfo& expected, const Value& actual) const;
+        bool argumentsMatchConstructor(const std::vector<Value>& args,
+                                       const RuntimeConstructor& candidate) const;
         RuntimeMethod* findMethod(RuntimeClass* cls, const std::string& name,
                                   const std::vector<Value>* args = nullptr);
         RuntimeField* findInstanceField(RuntimeClass* cls, const std::string& name);

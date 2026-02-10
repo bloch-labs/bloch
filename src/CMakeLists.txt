@@ -126,6 +126,11 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bloch
     FILES_MATCHING PATTERN "*.hpp"
 )
 
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/library/
+    DESTINATION share/bloch/library
+    OPTIONAL
+)
+
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/stdlib/
     DESTINATION share/bloch/stdlib
     OPTIONAL

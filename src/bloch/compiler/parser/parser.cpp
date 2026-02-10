@@ -1261,7 +1261,7 @@ namespace bloch::compiler {
 
         if (match(TokenType::New)) {
             const Token& newTok = previous();
-            std::unique_ptr<Type> type = parseType();
+            std::unique_ptr<Type> type = parseType(true);
             (void)expect(TokenType::LParen, "Expected '(' after type in 'new' expression");
             std::vector<std::unique_ptr<Expression>> args = parseArgumentList();
             (void)expect(TokenType::RParen, "Expected ')' after arguments");
@@ -1358,7 +1358,7 @@ namespace bloch::compiler {
 
     // Types
 
-    std::unique_ptr<Type> Parser::parseType() {
+    std::unique_ptr<Type> Parser::parseType(bool allowEmptyTypeArguments) {
         std::unique_ptr<Type> baseType;
         if (check(TokenType::Void)) {
             (void)advance();
@@ -1371,7 +1371,8 @@ namespace bloch::compiler {
             std::vector<std::string> parts = parseQualifiedName();
             auto named = std::make_unique<NamedType>(parts);
             if (match(TokenType::Less)) {
-                named->typeArguments = parseTypeArgumentList();
+                named->hasTypeArgumentList = true;
+                named->typeArguments = parseTypeArgumentList(allowEmptyTypeArguments);
             }
             baseType = std::move(named);
         } else {
@@ -1443,8 +1444,15 @@ namespace bloch::compiler {
         return params;
     }
 
-    std::vector<std::unique_ptr<Type>> Parser::parseTypeArgumentList() {
+    std::vector<std::unique_ptr<Type>> Parser::parseTypeArgumentList(bool allowEmpty) {
         std::vector<std::unique_ptr<Type>> args;
+        if (check(TokenType::Greater)) {
+            if (!allowEmpty) {
+                reportError("Expected type argument before '>'");
+            }
+            (void)advance();
+            return args;
+        }
         do {
             args.push_back(parseType());
         } while (match(TokenType::Comma));
@@ -1675,6 +1683,7 @@ namespace bloch::compiler {
             return std::make_unique<PrimitiveType>(prim->name);
         if (auto named = dynamic_cast<const NamedType*>(&type)) {
             std::unique_ptr<NamedType> clone = std::make_unique<NamedType>(named->nameParts);
+            clone->hasTypeArgumentList = named->hasTypeArgumentList;
             for (const auto& arg : named->typeArguments) {
                 clone->typeArguments.push_back(cloneType(*arg));
             }

@@ -1,6 +1,7 @@
 Param(
     [string]$Version = "latest",
-    [string]$InstallDir = "$env:LOCALAPPDATA\Programs\Bloch"
+    [string]$InstallDir = "$env:LOCALAPPDATA\Programs\Bloch",
+    [string]$LibraryDir = "$env:LOCALAPPDATA\Bloch\library"
 )
 
 $ErrorActionPreference = "Stop"
@@ -88,6 +89,20 @@ try {
     $probe = & $targetExe --version 2>$null
     if ($LASTEXITCODE -ne 0) { Fail "Downloaded binary failed to run. Output: $probe" }
     Ok $probe
+
+    $stdlibDir = Get-ChildItem -LiteralPath $extractDir -Directory -Recurse |
+        Where-Object { $_.FullName -match '[\\/]share[\\/]bloch[\\/]library$' } |
+        Select-Object -First 1
+    if ($stdlibDir) {
+        $versionLibraryDir = Join-Path $LibraryDir $Tag
+        New-Item -ItemType Directory -Path $LibraryDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $versionLibraryDir -Force | Out-Null
+        Copy-Item -Path (Join-Path $stdlibDir.FullName "*") -Destination $LibraryDir -Recurse -Force
+        Copy-Item -Path (Join-Path $stdlibDir.FullName "*") -Destination $versionLibraryDir -Recurse -Force
+        Ok "Installed stdlib: $versionLibraryDir"
+    } else {
+        Warn "Bundled stdlib not found in archive; falling back to runtime built-ins only"
+    }
 
     # Add to user PATH if needed
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")

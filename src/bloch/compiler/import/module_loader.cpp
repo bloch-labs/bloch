@@ -112,11 +112,21 @@ namespace bloch::compiler {
         for (const auto& p : parts) relative /= p;
         relative += ".bloch";
 
-        // Search order: importing file's directory, provided search paths, current working dir.
+        bool preferSearchPaths = !parts.empty() && parts.front() == "bloch";
+
+        // Search order:
+        // - default: importing file dir, configured search paths, current working dir.
+        // - bloch.* imports: configured search paths first to avoid project shadowing stdlib.
         std::vector<fs::path> bases;
-        bases.push_back(fromDir);
-        for (const auto& p : m_searchPaths) bases.emplace_back(p);
-        bases.push_back(fs::current_path());
+        if (preferSearchPaths) {
+            for (const auto& p : m_searchPaths) bases.emplace_back(p);
+            bases.emplace_back(fromDir);
+            bases.push_back(fs::current_path());
+        } else {
+            bases.emplace_back(fromDir);
+            for (const auto& p : m_searchPaths) bases.emplace_back(p);
+            bases.push_back(fs::current_path());
+        }
 
         for (const auto& base : bases) {
             std::error_code ec;
@@ -134,10 +144,18 @@ namespace bloch::compiler {
         fs::path relative;
         for (const auto& p : packageParts) relative /= p;
 
+        bool preferSearchPaths = !packageParts.empty() && packageParts.front() == "bloch";
+
         std::vector<fs::path> bases;
-        bases.push_back(fromDir);
-        for (const auto& p : m_searchPaths) bases.emplace_back(p);
-        bases.push_back(fs::current_path());
+        if (preferSearchPaths) {
+            for (const auto& p : m_searchPaths) bases.emplace_back(p);
+            bases.emplace_back(fromDir);
+            bases.push_back(fs::current_path());
+        } else {
+            bases.emplace_back(fromDir);
+            for (const auto& p : m_searchPaths) bases.emplace_back(p);
+            bases.push_back(fs::current_path());
+        }
 
         for (const auto& base : bases) {
             std::error_code ec;
@@ -249,6 +267,16 @@ namespace bloch::compiler {
         m_cache.clear();
         m_loadOrder.clear();
         m_stack.clear();
+
+        // Load implicit root Object first when available. This keeps class inheritance
+        // rooted even when user code omits an explicit import.
+        std::string entryCanonical = canonicalize(entryFile);
+        fs::path entryParent = fs::path(entryCanonical).parent_path();
+        std::string stdlibObject =
+            resolveImportPath({"bloch", "lang", "Object"}, entryParent.string());
+        if (!stdlibObject.empty()) {
+            loadModule(stdlibObject);
+        }
 
         loadModule(entryFile);
 

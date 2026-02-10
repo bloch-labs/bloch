@@ -10,20 +10,51 @@ Accepted
 v1.1.0
 
 ## Context
-Defines the overall class model for Bloch, covering inheritance, dispatch, construction, visibility, and interaction with nullability, generics, and entry semantics. Detailed sub-decisions can be found in ADR-002 (Null) and ADR-003 (Generics).
+This ADR defines the core class system of Bloch including inheritance, dispatch,
+construction, visibility, and the relationship to nullability and generics.
+Detailed sub-decisions: ADR-002 (null), ADR-003 (generics), ADR-009 (imports).
 
 ## Decision
-- Single inheritance (`extends Base`, optional type args on the base).
-- Modifiers: `abstract` (non-instantiable), `static` (type-only container).
-- Members: visibility `public` (accessible everywhere), `protected` (class + subclasses), `private` (declaring class only); methods may be `virtual`/`override`; overloading by arity/types allowed; static cannot be virtual/override.
-- Construction/destruction: non-static classes must declare a ctor; `super(...)` only first statement; one destructor max; static classes cannot have ctors/dtors/instance fields.
-- Nullability and generics behaviours are governed by ADR-002/003.
+- Single inheritance only: one optional `extends` clause.
+- Every non-static class has implicit root base `Object`.
+  - `class Animal` is semantically treated as `class Animal extends Object`.
+- Root `Object` is provided by stdlib module `bloch.lang.Object`, auto-loaded by
+  the module loader when available (with a synthetic fallback root for minimal runtime safety).
+- Subclass families must remain valid:
+  - `class Animal { public constructor() -> Animal = default; }`
+  - `class Dog extends Animal { public constructor() -> Dog { super(); return this; } }`
+  - `class Cat extends Animal { public constructor() -> Cat { super(); return this; } }`
+- Modifiers: `abstract` and `static` at class level.
+- Members: `public`, `protected`, `private`; methods may be `virtual`/`override`.
+- Construction/destruction:
+  - Every non-static class must declare at least one constructor.
+  - `super(...)` only as first constructor statement.
+  - If `super(...)` is omitted, an accessible zero-arg base constructor is required.
+  - At most one destructor per class.
+  - Static classes cannot have instance fields/constructors/destructors.
+- Nullability and generics behaviour are governed by ADR-002 and ADR-003.
+
+## Included
+- Single inheritance hierarchy rooted at `Object`.
+- Virtual dispatch through an override chain.
+- Static and instance members with visibility rules.
+- Class-level generics and bounded type parameters.
+- Generic diamond inference for constructor calls when assignment target type is known.
+
+## Explicitly Not Included
+- Multiple inheritance.
+- Interfaces and traits.
+- Method-level generics.
+- Wildcard generics (`?`, `? extends`, `? super`).
+- Raw types and method-argument-driven generic inference.
+- Reflection and runtime annotation processing.
 
 ## Alternatives Considered
 - Multiple inheritance or mixins — **rejected** due to increased layout/vtable complexity and ambiguity resolution cost.
-- Implicit/default ctors for all classes — **rejected** due to hidden initialisation semantics; explicit ctors keep field binding clear.
 - Allow static virtual/override — **rejected** due to dispatch model mismatch; static members have no runtime receiver/vtable.
 
 ## Consequences
-- Predictable, Java-like OO model; easy to reason about layout and dispatch.
-- Scope-limited features reduce runtime complexity while permitting generics and null checks via referenced ADRs.
+- Predictable  OO surface for v2.0.0 execution goals.
+- A strict "in-scope/out-of-scope" boundary for language users and implementers.
+- Consistent semantic/runtime behaviour for implicit `Object`, explicit constructor
+  requirements, and subtype assignability.

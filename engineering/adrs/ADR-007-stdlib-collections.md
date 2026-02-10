@@ -11,7 +11,7 @@ Planned for v1.2.0
 
 ## Context
 - With boxing (ADR-006), primitives can be represented as objects. We need a coherent collections surface that operates on reference types (boxed primitives and user classes).
-- Goal: provide familiar, minimal, deterministic collections akin to Java’s core types while keeping runtime/simple semantics.
+- Goal: provide familiar, minimal, deterministic collections while keeping runtime/simple semantics.
 
 ## Decision
 - Introduce the following collections packages:
@@ -19,7 +19,7 @@ Planned for v1.2.0
   - `Set<T>`
   - `Map<K, V>`
   - `Pair<A, B>`
-- Type arguments are reference-only (boxed primitives or user classes); primitives themselves are not accepted.
+- Type arguments are reference-oriented (boxed primitives or user classes); with implicit `Object` inheritance, explicit `T extends Object` bounds are unnecessary in API signatures. Primitives themselves are not accepted.
 - No concurrent collections, no iterators/generators in v1.2.0; APIs are strict and eager.
 - Align with the explicit boxing model and avoid primitive specialisation complexity.
 - Keep API surface small yet cover common needs (ordered list, uniqueness set, key/value map, simple pair tuple).
