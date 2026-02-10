@@ -43,7 +43,7 @@ packages are treated as duplicates.
 
 ```
 int a = 1;
-final float pi = 3.1415f; // cannot be reassigned
+final float pi = 3.1415f; // must be initialised and cannot be reassigned
 long big = 9000000000L;   // 64-bit signed integer
 string msg = "hello";
 bit b = 1b;               // measurement bit (0b/1b)
@@ -59,6 +59,11 @@ Multi-declare only applies to qubits:
 qubit q0, q1; // ok
 int a, b;     // error
 ```
+
+Immutability rules:
+- `final` locals/top-level variables must be initialised at declaration.
+- `final static` fields must be initialised at declaration.
+- `final` instance fields may be initialised at declaration, or assigned exactly once in each constructor as a top-level statement.
 
 ## Functions
 

@@ -545,6 +545,122 @@ namespace bloch::compiler {
         return dynamic_cast<SuperExpression*>(call->callee.get()) != nullptr;
     }
 
+    void SemanticAnalyser::validateTypedInitializer(const std::string& name, Type* declaredType,
+                                                    Expression* initializer, int line, int column) {
+        if (!declaredType || !initializer)
+            return;
+
+        TypeInfo targetInfo = typeFromAst(declaredType);
+        TypeInfo initInfo = inferTypeInfo(initializer);
+
+        if (auto arr = dynamic_cast<ArrayType*>(declaredType)) {
+            if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
+                if (elem->name == "qubit") {
+                    throw BlochError(ErrorCategory::Semantic, line, column,
+                                     "qubit[] cannot be initialised");
+                }
+            }
+            if (initInfo.value == ValueType::Null) {
+                throw BlochError(ErrorCategory::Semantic, line, column,
+                                 "initialiser for '" + name + "' cannot be null");
+            }
+        }
+
+        if (auto call = dynamic_cast<CallExpression*>(initializer)) {
+            if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
+                if (returnsVoid(callee->name)) {
+                    throw BlochError(ErrorCategory::Semantic, line, column,
+                                     "cannot assign result of 'void' function");
+                }
+            }
+        }
+
+        // Validate initializer expression first so cast errors surface before type checks.
+        initializer->accept(*this);
+
+        if (auto primType = targetInfo.value; primType != ValueType::Unknown) {
+            ValueType initT = initInfo.value;
+            if (!matchesPrimitive(primType, initT)) {
+                if (primType == ValueType::Bit) {
+                    if (auto lit = dynamic_cast<LiteralExpression*>(initializer)) {
+                        if (lit->literalType == "int") {
+                            throw BlochError(ErrorCategory::Semantic, line, column,
+                                             "bit literals must be 0b or 1b");
+                        }
+                    }
+                } else if (primType == ValueType::Float) {
+                    if (auto lit = dynamic_cast<LiteralExpression*>(initializer)) {
+                        if (lit->literalType == "int") {
+                            throw BlochError(ErrorCategory::Semantic, line, column,
+                                             "float literals must end with 'f'");
+                        }
+                    }
+                }
+                throw BlochError(ErrorCategory::Semantic, line, column,
+                                 "initialiser for '" + name + "' expected '" +
+                                     typeToString(primType) + "' but got '" + typeToString(initT) +
+                                     "'");
+            }
+        } else if (!targetInfo.className.empty()) {
+            bool targetIsArray =
+                targetInfo.className.size() >= 2 &&
+                targetInfo.className.rfind("[]") == targetInfo.className.size() - 2;
+            if (initInfo.value == ValueType::Null) {
+                if (targetIsArray) {
+                    throw BlochError(ErrorCategory::Semantic, line, column,
+                                     "initialiser for '" + name + "' cannot be null");
+                }
+            } else if (!initInfo.className.empty()) {
+                if (!typeEquals(initInfo, targetInfo)) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, line, column,
+                        "initialiser for '" + name + "' expected '" + typeLabel(targetInfo) + "'");
+                }
+            } else if (initInfo.value != ValueType::Unknown) {
+                throw BlochError(
+                    ErrorCategory::Semantic, line, column,
+                    "initialiser for '" + name + "' expected '" + typeLabel(targetInfo) + "'");
+            }
+        }
+    }
+
+    void SemanticAnalyser::recordFinalFieldAssignment(const FieldInfo& field,
+                                                      const std::string& fieldName, int line,
+                                                      int column) {
+        if (!field.isFinal)
+            return;
+
+        bool isConstructorFieldWrite = m_inConstructor && !field.isStatic;
+        bool allowed = isConstructorFieldWrite && m_constructorFinalAssignmentDepth == 0;
+        if (!allowed) {
+            if (isConstructorFieldWrite && m_constructorFinalAssignmentDepth > 0) {
+                throw BlochError(ErrorCategory::Semantic, line, column,
+                                 "final field '" + fieldName +
+                                     "' must be assigned as a top-level constructor statement");
+            }
+            throw BlochError(ErrorCategory::Semantic, line, column,
+                             "cannot assign to final field '" + fieldName + "'");
+        }
+        if (field.owner != m_currentClass) {
+            throw BlochError(ErrorCategory::Semantic, line, column,
+                             "cannot assign inherited final field '" + fieldName + "'");
+        }
+        if (field.hasInitializer) {
+            throw BlochError(
+                ErrorCategory::Semantic, line, column,
+                "cannot reassign final field '" + fieldName + "' with a declaration initialiser");
+        }
+
+        std::string key = field.owner + "::" + fieldName;
+        int& assignmentCount = m_constructorFinalAssignments[key];
+        assignmentCount += 1;
+        if (assignmentCount > 1) {
+            throw BlochError(
+                ErrorCategory::Semantic, line, column,
+                "final field '" + fieldName + "' may only be assigned once in a constructor");
+        }
+    }
+
     void SemanticAnalyser::buildClassRegistry(Program& program) {
         m_classes.clear();
         m_inClassRegistryBuild = true;
@@ -592,6 +708,11 @@ namespace bloch::compiler {
                         throw BlochError(
                             ErrorCategory::Semantic, field->line, field->column,
                             "static class '" + info.name + "' cannot declare instance fields");
+                    }
+                    if (field->isFinal && field->isStatic && !field->initializer) {
+                        throw BlochError(
+                            ErrorCategory::Semantic, field->line, field->column,
+                            "final static field '" + field->name + "' must be initialised");
                     }
                     FieldInfo f;
                     f.visibility = field->visibility;
@@ -702,6 +823,11 @@ namespace bloch::compiler {
                         throw BlochError(ErrorCategory::Semantic, p->line, p->column,
                                          "default constructor parameter '" + p->name +
                                              "' cannot bind to static field");
+                    }
+                    if (f.isFinal && f.hasInitializer) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor cannot bind final field '" + p->name +
+                                             "' because it already has a declaration initialiser");
                     }
                     if (f.type.value == ValueType::Qubit ||
                         (!f.type.className.empty() && f.type.value == ValueType::Unknown &&
@@ -1185,75 +1311,13 @@ namespace bloch::compiler {
                                  "array size must be non-negative");
             }
         }
-        if (node.initializer) {
-            TypeInfo initInfo = inferTypeInfo(node.initializer.get());
-            // Disallow initialisation of qubit arrays
-            if (auto arr = dynamic_cast<ArrayType*>(node.varType.get())) {
-                if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
-                    if (elem->name == "qubit") {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "qubit[] cannot be initialised");
-                    }
-                }
-                if (initInfo.value == ValueType::Null) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "initializer for '" + node.name + "' cannot be null");
-                }
-            }
-            if (auto call = dynamic_cast<CallExpression*>(node.initializer.get())) {
-                if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
-                    if (returnsVoid(callee->name)) {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "cannot assign result of 'void' function");
-                    }
-                }
-            }
-            // Validate initializer expression first so cast errors surface before type checks.
-            node.initializer->accept(*this);
-            if (auto primType = tinfo.value; primType != ValueType::Unknown) {
-                ValueType initT = initInfo.value;
-                if (!matchesPrimitive(primType, initT)) {
-                    if (primType == ValueType::Bit) {
-                        if (auto lit = dynamic_cast<LiteralExpression*>(node.initializer.get())) {
-                            if (lit->literalType == "int") {
-                                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                                 "bit literals must be 0b or 1b");
-                            }
-                        }
-                    } else if (primType == ValueType::Float) {
-                        if (auto lit = dynamic_cast<LiteralExpression*>(node.initializer.get())) {
-                            if (lit->literalType == "int") {
-                                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                                 "float literals must end with 'f'");
-                            }
-                        }
-                    }
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "initializer for '" + node.name + "' expected '" +
-                                         typeToString(primType) + "' but got '" +
-                                         typeToString(initT) + "'");
-                }
-            } else if (!tinfo.className.empty()) {
-                bool targetIsArray = tinfo.className.size() >= 2 &&
-                                     tinfo.className.rfind("[]") == tinfo.className.size() - 2;
-                if (initInfo.value == ValueType::Null) {
-                    if (targetIsArray) {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "initializer for '" + node.name + "' cannot be null");
-                    }
-                } else if (!initInfo.className.empty()) {
-                    if (!typeEquals(initInfo, tinfo)) {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "initializer for '" + node.name + "' expected '" +
-                                             typeLabel(tinfo) + "'");
-                    }
-                } else if (initInfo.value != ValueType::Unknown) {
-                    throw BlochError(
-                        ErrorCategory::Semantic, node.line, node.column,
-                        "initializer for '" + node.name + "' expected '" + typeLabel(tinfo) + "'");
-                }
-            }
+        if (node.isFinal && !node.initializer) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "final variable '" + node.name + "' must be initialised");
         }
+        if (node.initializer)
+            validateTypedInitializer(node.name, node.varType.get(), node.initializer.get(),
+                                     node.line, node.column);
         if (node.isFinal) {
             if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {
                 if (prim->name == "int" && node.initializer) {
@@ -1266,9 +1330,14 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::visit(BlockStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         beginScope();
         for (auto& stmt : node.statements) stmt->accept(*this);
         endScope();
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(ExpressionStatement& node) {
@@ -1314,6 +1383,9 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::visit(IfStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         if (node.condition) {
             node.condition->accept(*this);
             auto condType = inferTypeInfo(node.condition.get());
@@ -1328,9 +1400,14 @@ namespace bloch::compiler {
             node.thenBranch->accept(*this);
         if (node.elseBranch)
             node.elseBranch->accept(*this);
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(TernaryStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         if (node.condition) {
             node.condition->accept(*this);
             auto condType = inferTypeInfo(node.condition.get());
@@ -1345,9 +1422,14 @@ namespace bloch::compiler {
             node.thenBranch->accept(*this);
         if (node.elseBranch)
             node.elseBranch->accept(*this);
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(ForStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         beginScope();
         if (node.initializer)
             node.initializer->accept(*this);
@@ -1366,9 +1448,14 @@ namespace bloch::compiler {
         if (node.body)
             node.body->accept(*this);
         endScope();
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(WhileStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         if (node.condition) {
             node.condition->accept(*this);
             auto condType = inferTypeInfo(node.condition.get());
@@ -1381,6 +1468,8 @@ namespace bloch::compiler {
         }
         if (node.body)
             node.body->accept(*this);
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(EchoStatement& node) {
@@ -1445,13 +1534,7 @@ namespace bloch::compiler {
             return;
         }
         if (auto field = resolveField(node.name, node.line, node.column)) {
-            if (field->isFinal) {
-                bool allowed = m_inConstructor && !field->isStatic;
-                if (!allowed) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "cannot assign to final field '" + node.name + "'");
-                }
-            }
+            recordFinalFieldAssignment(*field, node.name, node.line, node.column);
             if (node.value) {
                 auto valType = inferTypeInfo(node.value.get());
                 TypeInfo targetType = field->type;
@@ -2117,13 +2200,7 @@ namespace bloch::compiler {
             return;
         }
         if (auto field = resolveField(node.name, node.line, node.column)) {
-            if (field->isFinal) {
-                bool allowed = m_inConstructor && !field->isStatic;
-                if (!allowed) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "cannot assign to final field '" + node.name + "'");
-                }
-            }
+            recordFinalFieldAssignment(*field, node.name, node.line, node.column);
             if (node.value) {
                 auto valType = inferTypeInfo(node.value.get());
                 TypeInfo targetType = field->type;
@@ -2201,6 +2278,7 @@ namespace bloch::compiler {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "cannot assign to final field '" + node.member + "'");
             }
+            recordFinalFieldAssignment(*field, node.member, node.line, node.column);
         }
         if (node.value) {
             auto valType = inferTypeInfo(node.value.get());
@@ -2310,6 +2388,23 @@ namespace bloch::compiler {
                                  "'@shots(N)' can only decorate the main() function.");
             }
         }
+        TypeInfo tinfo = typeFromAst(node.fieldType.get());
+        if (tinfo.value == ValueType::Void) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "fields cannot have type 'void'");
+        }
+
+        bool savedStatic = m_inStaticContext;
+        m_inStaticContext = node.isStatic;
+        if (node.isFinal && node.isStatic && !node.initializer) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "final static field '" + node.name + "' must be initialised");
+        }
+        if (node.initializer) {
+            validateTypedInitializer(node.name, node.fieldType.get(), node.initializer.get(),
+                                     node.line, node.column);
+        }
+        m_inStaticContext = savedStatic;
     }
 
     void SemanticAnalyser::visit(MethodDeclaration& node) {
@@ -2386,6 +2481,10 @@ namespace bloch::compiler {
         auto savedReturn = m_currentReturn;
         bool savedFoundReturn = m_foundReturn;
         bool savedAllowSuper = m_allowSuperConstructorCall;
+        auto savedCtorFinalAssignments = m_constructorFinalAssignments;
+        int savedCtorAssignmentDepth = m_constructorFinalAssignmentDepth;
+        m_constructorFinalAssignments.clear();
+        m_constructorFinalAssignmentDepth = 0;
         m_inStaticContext = false;
         m_inConstructor = true;
         m_inDestructor = false;
@@ -2404,6 +2503,30 @@ namespace bloch::compiler {
             }
             declare(p->name, false, pt);
             p->accept(*this);
+        }
+        const ClassInfo* ctorClassInfo = findClass(savedClass);
+        if (ctorClassInfo && node.isDefault) {
+            for (auto& p : node.params) {
+                auto it = ctorClassInfo->fields.find(p->name);
+                if (it == ctorClassInfo->fields.end())
+                    continue;
+                const FieldInfo& f = it->second;
+                if (f.isStatic || !f.isFinal)
+                    continue;
+                if (f.hasInitializer) {
+                    throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                     "default constructor cannot bind final field '" + p->name +
+                                         "' because it already has a declaration initialiser");
+                }
+                std::string key = f.owner + "::" + p->name;
+                int& assignmentCount = m_constructorFinalAssignments[key];
+                assignmentCount += 1;
+                if (assignmentCount > 1) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, p->line, p->column,
+                        "final field '" + p->name + "' may only be assigned once in a constructor");
+                }
+            }
         }
         if (node.body) {
             bool superSeen = false;
@@ -2426,6 +2549,23 @@ namespace bloch::compiler {
                     m_allowSuperConstructorCall = false;
                 } else {
                     stmts[i]->accept(*this);
+                    if (dynamic_cast<ReturnStatement*>(stmts[i].get()))
+                        break;
+                }
+            }
+        }
+        if (ctorClassInfo) {
+            for (const auto& entry : ctorClassInfo->fields) {
+                const std::string& fieldName = entry.first;
+                const FieldInfo& field = entry.second;
+                if (field.isStatic || !field.isFinal || field.hasInitializer)
+                    continue;
+                std::string key = field.owner + "::" + fieldName;
+                auto it = m_constructorFinalAssignments.find(key);
+                if (it == m_constructorFinalAssignments.end() || it->second == 0) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, node.line, node.column,
+                        "final field '" + fieldName + "' must be initialised in every constructor");
                 }
             }
         }
@@ -2439,6 +2579,8 @@ namespace bloch::compiler {
         m_currentReturn = savedReturn;
         m_foundReturn = savedFoundReturn;
         m_allowSuperConstructorCall = savedAllowSuper;
+        m_constructorFinalAssignments = std::move(savedCtorFinalAssignments);
+        m_constructorFinalAssignmentDepth = savedCtorAssignmentDepth;
     }
 
     void SemanticAnalyser::visit(DestructorDeclaration& node) {

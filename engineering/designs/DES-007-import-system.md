@@ -61,14 +61,14 @@ Conceptual flow:
   - `src/bloch/compiler/semantics/semantic_analyser.{hpp,cpp}`
   - `src/bloch/compiler/import/module_loader.{hpp,cpp}`
 
-- **Current behavior (v1.1.x)**
+- **Current behaviour (v1.1.x)**
   - `ModuleLoader` resolves and loads imports before semantic analysis.
   - The semantic analyser operates on a **merged AST** and does not use `ImportDeclaration`
     for name resolution.
   - Names are effectively global; duplicate class names across packages are reported as errors.
   - Package declarations are kept for diagnostics and to validate filesystem layout.
 
-- **Planned behavior (future ADR/DES)**
+- **Planned behaviour (future ADR/DES)**
   - Introduce a package-level symbol table and import scoping rules
     (explicit vs wildcard, local vs imported).
 

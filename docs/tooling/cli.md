@@ -15,7 +15,7 @@ Options:
   --shots=N       Run the program N times and aggregate @tracked counts
   --echo=all|none Control echo statements (default: auto)
 
-Behavior:
+Behaviour:
   - Writes <file>.qasm alongside the input file.
   - When --shots is used, prints an aggregate table of tracked values.
 ```

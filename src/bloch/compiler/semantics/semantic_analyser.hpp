@@ -202,6 +202,10 @@ namespace bloch::compiler {
         bool isTypeReference(Expression* expr) const;
         bool isThisReference(Expression* expr) const;
         bool isSuperConstructorCall(Statement* stmt) const;
+        void validateTypedInitializer(const std::string& name, Type* declaredType,
+                                      Expression* initializer, int line, int column);
+        void recordFinalFieldAssignment(const FieldInfo& field, const std::string& fieldName,
+                                        int line, int column);
 
         // Type inference
         std::optional<int> evaluateConstInt(Expression* expr) const;
@@ -217,6 +221,10 @@ namespace bloch::compiler {
                                              const std::vector<TypeInfo>& args) const;
         void validateTypeApplication(const TypeInfo& t, int line, int column) const;
         std::optional<TypeInfo> getTypeParamBound(const std::string& name) const;
+
+        // Tracks final-field assignments in the constructor currently being analysed.
+        std::unordered_map<std::string, int> m_constructorFinalAssignments;
+        int m_constructorFinalAssignmentDepth = 0;
     };
 
 }  // namespace bloch::compiler
