@@ -1,7 +1,7 @@
 # Casting
 
 Bloch supports explicit casts using parentheses and performs implicit float promotion for
-division (for example, `1/2` yields `0.5`).
+division (for example, `1/2` yields `0.5f`).
 
 ## Syntax
 - Cast: `(target_type) expression`

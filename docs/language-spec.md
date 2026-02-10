@@ -33,7 +33,7 @@ The built-in function `echo` and the quantum gate names (`h`, `x`, `y`, `z`, `rx
 ### Literals
 - Integer: `123`
 - Long: `123L`
-- Float: `3.14f` or `3f` (must include the `f` suffix)
+- Float: `3.14f`
 - Bit: `0b` or `1b`
 - Boolean: `true` or `false`
 - Char: `'a'` (exactly one character; no escapes)
@@ -45,9 +45,6 @@ The built-in function `echo` and the quantum gate names (`h`, `x`, `y`, `z`, `rx
 
 ### Primitive types
 `void`, `int`, `long`, `float`, `bit`, `boolean`, `char`, `string`, `qubit`.
-
-`long` is a signed 64-bit integer. `bit` represents measurement outcomes and bitwise values.
-`boolean` represents logical truth values and is produced by comparisons and logical operators.
 
 ### Array types
 - Dynamic arrays: `T[]`

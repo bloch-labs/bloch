@@ -1,6 +1,6 @@
 # Classes and Objects
 
-Bloch includes a class system with single inheritance, visibility, virtual dispatch, and generics.
+Bloch v1.1.x includes a class system with single inheritance, visibility, virtual dispatch, and generics.
 
 ## Declaring classes
 ```bloch
@@ -12,8 +12,8 @@ class Counter {
 }
 ```
 
-Visibility can be `public`, `private`, or `protected`. A `static class` is a namespace for
-static members only (no instances or constructors).
+Visibility can be `public` (accessible from anywhere), `private` (accesible only within the declaring class), or `protected` (accessible within declaring class and it;s subclasses). A `static class` is a
+namespace for static members only (no instances or constructors).
 
 ## Constructors and destructors
 Constructors use `constructor(params) -> ClassName { ... }` or `= default` to bind parameters
@@ -22,15 +22,25 @@ by name and type:
 class Point {
     public int x;
     public int y;
+
     public constructor(int x, int y) -> Point = default;
+    // Compiler resolves this to
+    public constructor(int x, int y) -> Point {
+        this.x = x;
+        this.y = y;
+        return this;
+    }
 }
 ```
 
-Destructors are optional and declared as `destructor() -> void { ... }` (at most one per class).
+Destructors are optional (if you want custom destructor logic) and declared as `destructor() -> void { ... }` (at most one per class).
 
 ## Inheritance and overrides
 ```bloch
-class Base { public virtual function get() -> int { return 0; } }
+class Base { 
+    public virtual function get() -> int {} 
+}
+
 class Derived extends Base {
     public override function get() -> int { return 1; }
 }
@@ -43,7 +53,11 @@ statement in a constructor, and only when a base class exists.
 ```bloch
 class Box<T> {
     public T value;
-    public constructor(T value) -> Box<T> { this.value = value; return this; }
+
+    public constructor(T value) -> Box<T> { 
+        this.value = value; 
+        return this; 
+    }
 }
 
 Box<int> b = new Box<int>(1);
@@ -54,7 +68,14 @@ Type parameters may be bounded: `class Pair<T extends Base> { ... }`.
 ## Null and destroy
 Only class references may be `null`:
 ```bloch
-class Node { public Node next; public constructor() -> Node { this.next = null; return this; } }
+class Node { 
+    public Node next; 
+    
+    public constructor() -> Node { 
+        this.next = null; 
+        return this; 
+    } 
+}
 ```
 
 Use `destroy obj;` to explicitly release an object and run its destructor chain.

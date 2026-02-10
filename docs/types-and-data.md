@@ -1,7 +1,6 @@
 # Types and Data
 
-Bloch has a compact set of primitives plus arrays and class references. Long literals use an
-`L` suffix (for example, `123L`).
+Bloch has a compact set of primitives plus arrays and class references.
 
 ## Primitives
 - `int`, `long`, `float`
@@ -27,14 +26,20 @@ qubit[2] qreg;
 Array element types can be primitives or `qubit`. Class arrays are not supported. The runtime
 supports one-dimensional arrays only.
 
-## Class references and null
+Arrays and primitives are non-nullable.
+
+## Classes
 Class types are named types such as `Point` or `Box<int>`. Only class references may be `null`:
 
 ```bloch
-class Node { public Node next; public constructor() -> Node { this.next = null; return this; } }
+class Node { 
+    public Node next; 
+    public constructor() -> Node { 
+        this.next = null; 
+        return this;
+        } 
+    }
 ```
-
-Arrays and primitives are non-nullable.
 
 ## Defaults
 Uninitialised values default predictably:
@@ -44,4 +49,4 @@ Uninitialised values default predictably:
 - `qubit` -> `|0>`
 - arrays -> filled with the element default
 
-Tracked values (`@tracked`) record qubit outcomes; see `annotations-and-tracking.md`.
+Tracked `qubit` primitives (annotated with `@tracked`) record qubit outcomes; see `annotations-and-tracking.md`.

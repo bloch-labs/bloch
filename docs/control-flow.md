@@ -1,6 +1,6 @@
 # Control Flow
 
-Bloch uses familiar C-style control flow. Conditions must be `boolean` or `bit`.
+Bloch uses familiar C-style control flow. Conditions must be `boolean` or `bit` (official recommendation is to always use `boolean` for conditional logic).
 
 ## Branching
 ```bloch

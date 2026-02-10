@@ -1,6 +1,6 @@
 # Bloch Documentation
 
-See [CHANGELOG](../CHANGELOG.md) for release history and version-specific changes. These docs may include features from upcoming releases (e.g. class features in v1.1.0). For contributor references, see `engineering/reference/README.md`.
+See [CHANGELOG](../CHANGELOG.md) for release history and version-specific changes. For contributor references, see `engineering/reference/README.md`.
 
 ## Start here
 - [Overview: What is Bloch?](./overview.md)

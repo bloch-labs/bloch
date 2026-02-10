@@ -14,7 +14,7 @@ If you hit a roadblock, start with the quick checks below and the [Common issues
 
 During multi-shot runs, echo defaults to off; pass `--echo=all` if you need output.
 
-If problems persist, reduce shots to simplify debugging, add `echo` statements to inspect state, and pay attention to line/column numbers in error messages.
+If problems persist, reduce shots to simplify debugging, add `echo` statements to inspect state, and pay attention to line/column numbers in error messages. If you have found a bug please raise an issue on GitHub (https://github.com/bloch-labs/bloch) or email hello@bloch-labs.com.
 
 ## Common issues
 

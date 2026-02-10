@@ -4,8 +4,8 @@ This quick guide helps you install Bloch and run your first program. **About 5 m
 
 ## Prerequisites
 
-- **Supported platforms:** Linux, macOS (Windows via PowerShell install script).
-- **Optional:** [VS Code](https://code.visualstudio.com/) with the [Bloch extension](https://github.com/bloch-labs/bloch-vscode) for syntax highlighting.
+- **Supported platforms:** Linux, macOS and Windows.
+- **Optional:** [VS Code](https://code.visualstudio.com/) is the recommended IDE with the [Bloch extension](https://github.com/bloch-labs/bloch-vscode) for syntax highlighting.
 - **From source only:** [CMake](https://cmake.org/) and a C++17-capable toolchain (e.g. GCC, Clang).
 
 ## Install
@@ -99,6 +99,7 @@ bloch --emit-qasm flip.bloch
 Annotate qubits with `@tracked` and run multiple shots to aggregate outcomes.
 
 ```bloch
+@shots(100)
 function main() -> void {
   @tracked qubit q;
   h(q);
@@ -106,13 +107,12 @@ function main() -> void {
 }
 ```
 
-Run 100 shots:
-
+Run:
 ```bash
-bloch --shots=100 tracked.bloch
+bloch tracked.bloch
 ```
 
-You can also use `@shots(100)` on `main()` if you prefer to keep the shot count in code. See [Annotations & Tracking](./annotations-and-tracking.md).
+You can also use the CLI flag `--shots=100` if you prefer (however this will be deprecated in v2.0.0).
 
 ## Next steps
 
