@@ -160,6 +160,16 @@ namespace bloch::compiler {
             return combine(typeFromString(prim->name), "");
         if (auto named = dynamic_cast<NamedType*>(typeNode)) {
             std::string cls = named->nameParts.empty() ? "" : named->nameParts.back();
+            if (!m_inClassRegistryBuild && named->hasTypeArgumentList &&
+                named->typeArguments.empty()) {
+                const ClassInfo* info = findClass(cls);
+                if (info && info->typeParams.empty()) {
+                    throw BlochError(ErrorCategory::Semantic, named->line, named->column,
+                                     "type '" + cls + "' is not generic");
+                }
+                throw BlochError(ErrorCategory::Semantic, named->line, named->column,
+                                 "cannot infer type arguments for '" + cls + "' in this context");
+            }
             for (const auto& tp : m_currentTypeParams) {
                 if (tp.name == cls) {
                     TypeInfo t = combine(ValueType::Unknown, cls);
@@ -411,7 +421,8 @@ namespace bloch::compiler {
         return -1;
     }
 
-    bool SemanticAnalyser::isAssignableType(const TypeInfo& expected, const TypeInfo& actual) const {
+    bool SemanticAnalyser::isAssignableType(const TypeInfo& expected,
+                                            const TypeInfo& actual) const {
         bool expectedIsArray = isArrayType(expected);
         bool expectedIsClassRef = isClassRefType(expected);
 
@@ -679,12 +690,99 @@ namespace bloch::compiler {
         return dynamic_cast<SuperExpression*>(call->callee.get()) != nullptr;
     }
 
+    std::unique_ptr<Type> SemanticAnalyser::typeFromTypeInfo(const TypeInfo& typeInfo) const {
+        if (typeInfo.isTypeParam) {
+            auto named = std::make_unique<NamedType>(std::vector<std::string>{typeInfo.className});
+            return named;
+        }
+        if (isArrayType(typeInfo) && !typeInfo.typeArgs.empty()) {
+            auto elementType = typeFromTypeInfo(typeInfo.typeArgs.front());
+            if (!elementType)
+                return nullptr;
+            return std::make_unique<ArrayType>(std::move(elementType));
+        }
+        if (!typeInfo.className.empty()) {
+            auto named = std::make_unique<NamedType>(std::vector<std::string>{typeInfo.className});
+            for (const auto& arg : typeInfo.typeArgs) {
+                auto argType = typeFromTypeInfo(arg);
+                if (!argType)
+                    return nullptr;
+                named->typeArguments.push_back(std::move(argType));
+            }
+            return named;
+        }
+        switch (typeInfo.value) {
+            case ValueType::Int:
+                return std::make_unique<PrimitiveType>("int");
+            case ValueType::Long:
+                return std::make_unique<PrimitiveType>("long");
+            case ValueType::Float:
+                return std::make_unique<PrimitiveType>("float");
+            case ValueType::Bit:
+                return std::make_unique<PrimitiveType>("bit");
+            case ValueType::Boolean:
+                return std::make_unique<PrimitiveType>("boolean");
+            case ValueType::String:
+                return std::make_unique<PrimitiveType>("string");
+            case ValueType::Char:
+                return std::make_unique<PrimitiveType>("char");
+            case ValueType::Qubit:
+                return std::make_unique<PrimitiveType>("qubit");
+            case ValueType::Void:
+                return std::make_unique<VoidType>();
+            default:
+                return nullptr;
+        }
+    }
+
+    void SemanticAnalyser::inferDiamondTypeArguments(Expression* initializer,
+                                                     const TypeInfo& expectedType, int line,
+                                                     int column) {
+        auto* newExpr = dynamic_cast<NewExpression*>(initializer);
+        if (!newExpr)
+            return;
+        auto* named = dynamic_cast<NamedType*>(newExpr->classType.get());
+        if (!named || !named->hasTypeArgumentList || !named->typeArguments.empty() ||
+            named->nameParts.empty())
+            return;
+
+        const std::string& className = named->nameParts.back();
+        const ClassInfo* info = findClass(className);
+        if (!info)
+            return;
+        if (info->typeParams.empty()) {
+            throw BlochError(ErrorCategory::Semantic, line, column,
+                             "type '" + className + "' is not generic");
+        }
+        if (expectedType.className.empty() || expectedType.className != className ||
+            expectedType.typeArgs.empty()) {
+            throw BlochError(
+                ErrorCategory::Semantic, line, column,
+                "cannot infer type arguments for '" + className + "' from assignment target");
+        }
+        if (info->typeParams.size() != expectedType.typeArgs.size()) {
+            throw BlochError(
+                ErrorCategory::Semantic, line, column,
+                "cannot infer type arguments for '" + className + "' from assignment target");
+        }
+
+        for (const auto& typeArg : expectedType.typeArgs) {
+            auto inferred = typeFromTypeInfo(typeArg);
+            if (!inferred) {
+                throw BlochError(ErrorCategory::Semantic, line, column,
+                                 "cannot infer type arguments for '" + className + "'");
+            }
+            named->typeArguments.push_back(std::move(inferred));
+        }
+    }
+
     void SemanticAnalyser::validateTypedInitializer(const std::string& name, Type* declaredType,
                                                     Expression* initializer, int line, int column) {
         if (!declaredType || !initializer)
             return;
 
         TypeInfo targetInfo = typeFromAst(declaredType);
+        inferDiamondTypeArguments(initializer, targetInfo, line, column);
         TypeInfo initInfo = inferTypeInfo(initializer);
 
         if (auto arr = dynamic_cast<ArrayType*>(declaredType)) {
@@ -964,25 +1062,8 @@ namespace bloch::compiler {
                 }
             }
             if (!info.isStatic && info.constructors.empty()) {
-                MethodInfo ctorInfo;
-                ctorInfo.visibility = Visibility::Public;
-                ctorInfo.hasBody = true;
-                ctorInfo.isDefault = true;
-                ctorInfo.owner = info.name;
-                ctorInfo.line = info.line;
-                ctorInfo.column = info.column;
-                ctorInfo.returnType = combine(ValueType::Unknown, info.name);
-                info.constructors.push_back(std::move(ctorInfo));
-
-                for (const auto& entry : info.fields) {
-                    const auto& field = entry.second;
-                    if (!field.isStatic && field.isFinal && !field.hasInitializer) {
-                        throw BlochError(
-                            ErrorCategory::Semantic, info.line, info.column,
-                            "final field '" + entry.first +
-                                "' must be initialised in every constructor");
-                    }
-                }
+                throw BlochError(ErrorCategory::Semantic, info.line, info.column,
+                                 "class '" + info.name + "' must declare a constructor");
             }
             m_classes[info.name] = std::move(info);
         }
@@ -1546,6 +1627,7 @@ namespace bloch::compiler {
                              "Non-void function must return a value");
         }
         if (node.value) {
+            inferDiamondTypeArguments(node.value.get(), m_currentReturn, node.line, node.column);
             auto actual = inferTypeInfo(node.value.get());
             if (!isVoid) {
                 bool expectedIsArray =
@@ -1706,6 +1788,7 @@ namespace bloch::compiler {
             }
             if (node.value) {
                 TypeInfo targetType = getVariableType(node.name);
+                inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
                 auto valType = inferTypeInfo(node.value.get());
                 if (valType.value == ValueType::Null) {
                     bool targetIsArray =
@@ -1729,8 +1812,9 @@ namespace bloch::compiler {
         if (auto field = resolveField(node.name, node.line, node.column)) {
             recordFinalFieldAssignment(*field, node.name, node.line, node.column);
             if (node.value) {
-                auto valType = inferTypeInfo(node.value.get());
                 TypeInfo targetType = field->type;
+                inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
+                auto valType = inferTypeInfo(node.value.get());
                 bool fieldIsArray =
                     targetType.className.size() >= 2 &&
                     targetType.className.rfind("[]") == targetType.className.size() - 2;
@@ -2301,9 +2385,8 @@ namespace bloch::compiler {
                     "no accessible constructor found for class '" + cls.className + "'");
             }
             if (ambiguous) {
-                throw BlochError(
-                    ErrorCategory::Semantic, node.line, node.column,
-                    "ambiguous constructor call for class '" + cls.className + "'");
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "ambiguous constructor call for class '" + cls.className + "'");
             }
         }
         for (auto& arg : node.arguments)
@@ -2374,6 +2457,7 @@ namespace bloch::compiler {
             }
             if (node.value) {
                 TypeInfo targetType = getVariableType(node.name);
+                inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
                 auto valType = inferTypeInfo(node.value.get());
                 if (valType.value == ValueType::Null) {
                     bool targetIsArray =
@@ -2397,8 +2481,9 @@ namespace bloch::compiler {
         if (auto field = resolveField(node.name, node.line, node.column)) {
             recordFinalFieldAssignment(*field, node.name, node.line, node.column);
             if (node.value) {
-                auto valType = inferTypeInfo(node.value.get());
                 TypeInfo targetType = field->type;
+                inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
+                auto valType = inferTypeInfo(node.value.get());
                 bool fieldIsArray =
                     targetType.className.size() >= 2 &&
                     targetType.className.rfind("[]") == targetType.className.size() - 2;
@@ -2413,13 +2498,13 @@ namespace bloch::compiler {
                     throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                      "assignment to field '" + node.name + "' expects '" +
                                          typeLabel(targetType) + "'");
-            } else if (field->type.value != ValueType::Unknown &&
-                       valType.value != ValueType::Unknown &&
-                       !matchesPrimitive(targetType.value, valType.value)) {
-                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                 "assignment to field '" + node.name + "' expects '" +
-                                     typeToString(targetType.value) + "'");
-            }
+                } else if (field->type.value != ValueType::Unknown &&
+                           valType.value != ValueType::Unknown &&
+                           !matchesPrimitive(targetType.value, valType.value)) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "assignment to field '" + node.name + "' expects '" +
+                                         typeToString(targetType.value) + "'");
+                }
                 node.value->accept(*this);
             }
             return;
@@ -2475,10 +2560,11 @@ namespace bloch::compiler {
             recordFinalFieldAssignment(*field, node.member, node.line, node.column);
         }
         if (node.value) {
-            auto valType = inferTypeInfo(node.value.get());
             TypeInfo targetType = field->type;
             if (!searchType.typeArgs.empty() && cls)
                 targetType = substituteTypeParams(targetType, cls->typeParams, searchType.typeArgs);
+            inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
+            auto valType = inferTypeInfo(node.value.get());
             bool fieldIsArray = targetType.className.size() >= 2 &&
                                 targetType.className.rfind("[]") == targetType.className.size() - 2;
             if (valType.value == ValueType::Null) {
@@ -2722,8 +2808,8 @@ namespace bloch::compiler {
                 }
             }
         }
+        bool superSeen = false;
         if (node.body) {
-            bool superSeen = false;
             auto& stmts = node.body->statements;
             for (size_t i = 0; i < stmts.size(); ++i) {
                 bool isSuper = isSuperConstructorCall(stmts[i].get());
@@ -2746,6 +2832,37 @@ namespace bloch::compiler {
                     if (dynamic_cast<ReturnStatement*>(stmts[i].get()))
                         break;
                 }
+            }
+        }
+        if (ctorClassInfo && !superSeen && !ctorClassInfo->base.empty()) {
+            const ClassInfo* base = findClass(ctorClassInfo->base);
+            bool matched = false;
+            bool ambiguous = false;
+            int bestCost = std::numeric_limits<int>::max();
+            const std::vector<TypeInfo> noArgs;
+            if (base) {
+                for (const auto& ctor : base->constructors) {
+                    if (!isAccessible(ctor.visibility, base->name, m_currentClass))
+                        continue;
+                    auto cost = paramsConversionCost(ctor.paramTypes, noArgs);
+                    if (!cost)
+                        continue;
+                    if (*cost < bestCost) {
+                        bestCost = *cost;
+                        matched = true;
+                        ambiguous = false;
+                    } else if (*cost == bestCost) {
+                        ambiguous = true;
+                    }
+                }
+            }
+            if (!matched) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "no accessible base constructor matches implicit super()");
+            }
+            if (ambiguous) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "ambiguous implicit super() constructor call");
             }
         }
         if (ctorClassInfo) {

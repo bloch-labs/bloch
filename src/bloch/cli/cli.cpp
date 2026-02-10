@@ -140,10 +140,10 @@ namespace bloch::cli {
                 }
 #elif defined(__APPLE__)
                 if (const char* home = std::getenv("HOME"); home && *home) {
-                    addVersionedRoots(paths,
-                                      fs::path(home) / "Library" / "Application Support" / "Bloch" /
-                                          "library",
-                                      version);
+                    addVersionedRoots(
+                        paths,
+                        fs::path(home) / "Library" / "Application Support" / "Bloch" / "library",
+                        version);
                 }
 #else
                 fs::path dataRoot;

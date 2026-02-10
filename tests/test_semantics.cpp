@@ -759,6 +759,15 @@ TEST(SemanticTest, SuperCallFirstStatementAllowed) {
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
+TEST(SemanticTest, MissingImplicitSuperConstructorFails) {
+    const char* src =
+        "class A { public constructor(int x) -> A { return this; } } "
+        "class B extends A { public constructor() -> B { return this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
 TEST(SemanticTest, FinalFieldAssignmentOutsideConstructorFails) {
     const char* src =
         "class A { public final int x = 1; public function set() -> void { this.x = 2; } }";
@@ -963,18 +972,18 @@ TEST(SemanticTest, CallingFieldAsFunctionFails) {
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
-TEST(SemanticTest, MissingConstructorGetsImplicitDefault) {
+TEST(SemanticTest, MissingConstructorFails) {
     const char* src = "class A { int x; } function main() -> void { A a = new A(); }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
-    EXPECT_NO_THROW(analyser.analyse(*program));
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, OmittedExtendsUsesImplicitObjectRoot) {
     const char* src =
-        "class Animal { } "
-        "class Dog extends Animal { } "
-        "class Cat extends Animal { } "
+        "class Animal { public constructor() -> Animal = default; } "
+        "class Dog extends Animal { public constructor() -> Dog { super(); return this; } } "
+        "class Cat extends Animal { public constructor() -> Cat { super(); return this; } } "
         "function main() -> void { Animal a = new Dog(); Animal b = new Cat(); Object r = a; }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
@@ -983,8 +992,8 @@ TEST(SemanticTest, OmittedExtendsUsesImplicitObjectRoot) {
 
 TEST(SemanticTest, ConstructorOverloadPrefersMostSpecificReferenceType) {
     const char* src =
-        "class Animal { } "
-        "class Dog extends Animal { } "
+        "class Animal { public constructor() -> Animal = default; } "
+        "class Dog extends Animal { public constructor() -> Dog { super(); return this; } } "
         "class Shelter { "
         "  public int which = 0; "
         "  public constructor(Animal a) -> Shelter { this.which = 1; return this; } "
@@ -1048,4 +1057,31 @@ TEST(SemanticTest, GenericBoundSatisfiedPasses) {
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, GenericDiamondInferenceFromDeclarationType) {
+    const char* src =
+        "class Box<T> { public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int> b = new Box<>(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, GenericDiamondInferenceFromAssignmentTarget) {
+    const char* src =
+        "class Box<T> { public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int> b = new Box<int>(); b = new Box<>(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, GenericDiamondWithoutTargetTypeFails) {
+    const char* src =
+        "class Box<T> { public constructor() -> Box<T> = default; } "
+        "function main() -> void { new Box<>(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }

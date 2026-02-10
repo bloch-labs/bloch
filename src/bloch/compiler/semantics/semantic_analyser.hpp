@@ -209,6 +209,9 @@ namespace bloch::compiler {
         bool isTypeReference(Expression* expr) const;
         bool isThisReference(Expression* expr) const;
         bool isSuperConstructorCall(Statement* stmt) const;
+        std::unique_ptr<Type> typeFromTypeInfo(const TypeInfo& typeInfo) const;
+        void inferDiamondTypeArguments(Expression* initializer, const TypeInfo& expectedType,
+                                       int line, int column);
         void validateTypedInitializer(const std::string& name, Type* declaredType,
                                       Expression* initializer, int line, int column);
         void recordFinalFieldAssignment(const FieldInfo& field, const std::string& fieldName,

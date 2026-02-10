@@ -7,7 +7,7 @@
 * ADR-009
 
 ## Design Goals
-- Keep Bloch OO behaviour predictable and Java-aligned for the v2.0.0 execution model.
+- Keep Bloch OO behaviour predictable for the v2.0.0 execution model.
 - Preserve a strict single-inheritance tree rooted at `Object`.
 - Keep generic surface intentionally small and explicit.
 - Make stdlib `bloch.lang.Object` available out-of-the-box after install.
@@ -25,7 +25,7 @@
 - Interfaces/traits.
 - Method-level generics.
 - Wildcard generics (`?`, `? extends`, `? super`).
-- Raw types and constructor type inference.
+- Raw types and method-argument-driven generic inference.
 
 ## High-Level Flow
 <div align="center">
@@ -44,17 +44,15 @@ flowchart TD
 </div>
 
 ## Object Root Model
-Java-aligned model (language contract):
-
 ```bloch
-class Animal {}
-class Dog extends Animal {}
-class Cat extends Animal {}
+class Animal { public constructor() -> Animal = default; }
+class Dog extends Animal { public constructor() -> Dog { super(); return this; } }
+class Cat extends Animal { public constructor() -> Cat { super(); return this; } }
 ```
 
 Semantic desugaring target:
 - `Animal` becomes `Animal extends Object`.
-- If constructor is omitted, an implicit no-arg constructor exists.
+- Every non-static class must declare at least one constructor.
 - `Dog` and `Cat` remain direct subclasses of `Animal`.
 
 Required runtime consequence:
@@ -84,6 +82,12 @@ Required runtime consequence:
   - `override` must match virtual base signature.
   - Static methods cannot be `virtual`/`override`.
   - Bodyless `virtual` makes class abstract.
+- Constructor target:
+  - `super(...)` must be first when present.
+  - Omitted `super(...)` requires an accessible zero-arg base constructor.
+- Generics target:
+  - Diamond inference for `new T<>()` is applied only when target type is known.
+  - No raw types or wildcard syntax.
 - Null rules: only class refs nullable; null only in `==/!=`; member access on null rejected.
 - Generics: class-level only; bounds enforced; no wildcard support by design.
 - Overloading: per-name buckets; duplicate signatures rejected; resolution via
@@ -145,20 +149,21 @@ Note:
 ## Edge Cases That Must Be Covered
 - Inheritance cycle detection (`A extends B`, `B extends A`).
 - `super(...)` usage restricted to first constructor statement.
+- Implicit `super()` must resolve to a unique, accessible zero-arg base constructor.
 - `super`/`this` forbidden in static context.
 - Override mismatch errors: missing base, non-virtual base, signature drift.
 - Generic bound enforcement across inheritance chains.
 - No wildcard generics accepted anywhere in parser or semantic passes.
 - Root behaviour:
-  - `class Animal {}` is valid and inherits `Object`.
+  - `class Animal { public constructor() -> Animal = default; }` is valid and inherits `Object`.
   - `extends Object` is valid and equivalent to omission.
   - `super()` from direct `Object` subclasses is legal and no-op beyond `Object` ctor.
 
 ## Testing Requirements
 - Parser tests for no-wildcard generic rejection.
 - Semantic tests:
-  - `class Animal {}` accepted.
-  - `class A extends Object {}` accepted without user-defined `Object`.
+  - `class Animal { public constructor() -> Animal = default; }` accepted.
+  - `class A extends Object { public constructor() -> A { super(); return this; } }` accepted without user-defined `Object`.
   - `Animal a = new Dog();` accepted.
 - Runtime tests:
   - `Dog`/`Cat` hierarchy dispatch still works under implicit `Object`.

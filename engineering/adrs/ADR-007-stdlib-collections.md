@@ -11,7 +11,7 @@ Planned for v1.2.0
 
 ## Context
 - With boxing (ADR-006), primitives can be represented as objects. We need a coherent collections surface that operates on reference types (boxed primitives and user classes).
-- Goal: provide familiar, minimal, deterministic collections akin to Java’s core types while keeping runtime/simple semantics.
+- Goal: provide familiar, minimal, deterministic collections while keeping runtime/simple semantics.
 
 ## Decision
 - Introduce the following collections packages:

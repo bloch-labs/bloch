@@ -1,15 +1,15 @@
-# Bloch Class System (Introduced in v1.1.x)
+# Bloch Class System (Introduced in v1.1.0)
 
 Bloch includes a full OO model with single inheritance, virtual dispatch, and generic classes. This guide is user-facing: how to declare, inherit, construct, and use classes safely.
 
-## Java-Style Root Object Model
+## Root Object Model
 Model:
 ```bloch
-class Animal {}
-class Dog extends Animal {}
-class Cat extends Animal {}
+class Animal { public constructor() -> Animal = default; }
+class Dog extends Animal { public constructor() -> Dog { super(); return this; } }
+class Cat extends Animal { public constructor() -> Cat { super(); return this; } }
 ```
-- `class Animal {}` is treated as `class Animal extends Object {}`.
+- `class Animal` is treated as `class Animal extends Object`.
 - `extends Object` is optional.
 
 ## Declaring Classes
@@ -37,14 +37,15 @@ class Derived extends Base {
 
 ## Constructors & Destructors
 - Syntax: `constructor(params) -> ClassName { ... }`
-- If omitted, a public no-arg constructor is implicitly provided.
+- Every non-static class must declare at least one constructor.
 - `super(...)` only as the first statement.
+- If `super(...)` is omitted, an accessible zero-arg base constructor must exist.
 - `= default` form allowed; static classes cannot have ctors/dtors.
 - One destructor max; `destructor() -> ClassName` (optional `= default`).
 - `final` fields are single-assignment: declaration initialiser or constructor assignment, not both.
 
 ## Fields
-- Modifiers: `static`, `final`, `tracked`.
+- Modifiers: `static`, `final`.
 - `final static` fields must be initialised at declaration.
 - `final` instance fields may be assigned in constructors only when they do not already have a declaration initialiser.
 - Every constructor in the declaring class must initialise each uninitialised `final` instance field exactly once, via a top-level constructor assignment.
@@ -57,11 +58,15 @@ class Derived extends Base {
 class Box<T> { public T v; public constructor(T v) -> Box<T> { this.v = v; return this; } }
 class LabeledBox<T> extends Box<T> { public string label; public constructor(string l, T v) -> LabeledBox<T> { super(v); this.label = l; return this; } }
 Box<int> b = new Box<int>(1);
+Box<int> c = new Box<>();
 ```
 - Class type parameters with optional bounds: `class Foo<T extends Bar>`.
 - Type arguments on use: `Foo<Baz>`; `extends` accepts type args.
+- Diamond inference is supported for constructor calls when the target type is known
+  (typed declarations, assignments, and returns), e.g. `Box<int> c = new Box<>();`.
 - Runtime monomorphisation: first use of each type-argument set creates and caches a concrete specialisation.
-- Not included: wildcard generics (`?`, `? extends`, `? super`), method generics, raw types, constructor inference.
+- **Not included**: wildcard generics (`?`, `? extends`, `? super`), method generics, raw types,
+  and method-argument-driven generic inference.
 
 ## Method Overloading
 ```bloch
@@ -72,13 +77,13 @@ class Adder {
 }
 ```
 - Overloads share a name but must differ in parameter types/arity. Exact duplicates are rejected at compile time.
-- Resolution is static with Java-style assignability (`Dog` can satisfy `Animal` parameters) and picks the most specific applicable overload. Ambiguous calls are rejected.
+- Resolution is static with subclass assignability (`Dog` can satisfy `Animal` parameters) and picks the most specific applicable overload. Ambiguous calls are rejected.
 - Overrides are per-overload: to override, match the same parameter list as the virtual in the base.
 
 ## Nullability
 - Only class references (including generics) may be `null`. Primitives and arrays are non-nullable.
 - Null only in `==` / `!=` comparisons; member access on null raises `"null reference"`.
-- `destroy null` is a no-op.
+- `destroy null` is a valid no-op.
 
 ## Static Context Rules
 - Instance members require an object; static members accessed via the type.

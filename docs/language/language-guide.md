@@ -15,7 +15,7 @@ This guide tours the Bloch language: types, variables, functions, control flow, 
 
 ## Packages and imports
 
-Bloch supports optional Java-style packages without forcing every file into a package.
+Bloch supports optional packages without forcing every file into a package.
 Package and import declarations must appear before any other declarations.
 
 ```

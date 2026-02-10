@@ -35,17 +35,20 @@ This page documents compile-time rules enforced by the semantic analyser (`src/b
 ## Class fields and constructors
 
 - Non-static classes implicitly inherit from `Object` when `extends` is omitted.
-- Non-static classes with no declared constructor receive an implicit public no-arg constructor.
+- Every non-static class must declare at least one constructor.
+- If a constructor omits `super(...)`, the base class must expose an accessible zero-arg constructor.
 - Field initialisers are type-checked with the same null/type rules as variable initialisers.
 - In static fields, the initialiser executes in static context (`this`/`super` are invalid).
 - `final static` fields must be initialised at declaration.
 - `final` instance fields with a declaration initialiser cannot be reassigned in constructors.
 - `final` instance fields without a declaration initialiser must be assigned exactly once in every constructor of the declaring class, as a top-level constructor statement.
 - Constructors cannot assign inherited `final` fields.
+- Generic constructor diamond inference is supported when a target type is known
+  (e.g. `Box<int> b = new Box<>();` and `b = new Box<>();`).
 
 ## Functions
 
-- `@quantum` functions must return `bit` or `void`.
+- `@quantum` functions must return `bit`, `bit[]`, or `void`.
 - Non-void functions must have at least one `return` along all paths.
 - `void` functions may not `return` a value.
 - Calling an undefined function is an error. Built-in gates are recognised as functions for arity/type checks.

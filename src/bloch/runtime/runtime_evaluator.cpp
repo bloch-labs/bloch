@@ -772,11 +772,9 @@ namespace bloch::runtime {
             case Value::Type::Bit:
                 return actual.type == Value::Type::Bit ? std::optional<int>(0) : std::nullopt;
             case Value::Type::Boolean:
-                return actual.type == Value::Type::Boolean ? std::optional<int>(0)
-                                                           : std::nullopt;
+                return actual.type == Value::Type::Boolean ? std::optional<int>(0) : std::nullopt;
             case Value::Type::String:
-                return actual.type == Value::Type::String ? std::optional<int>(0)
-                                                          : std::nullopt;
+                return actual.type == Value::Type::String ? std::optional<int>(0) : std::nullopt;
             case Value::Type::Char:
                 return actual.type == Value::Type::Char ? std::optional<int>(0) : std::nullopt;
             case Value::Type::Qubit:
@@ -1016,12 +1014,6 @@ namespace bloch::runtime {
                     rc->destructorDecl = dtor;
                 }
             }
-            if (!rc->isStatic && rc->constructors.empty()) {
-                RuntimeConstructor c;
-                c.decl = nullptr;
-                c.isDefault = true;
-                rc->constructors.push_back(std::move(c));
-            }
             if (rc->staticStorage.size() < rc->staticFields.size())
                 rc->staticStorage.resize(rc->staticFields.size());
         }
@@ -1145,12 +1137,6 @@ namespace bloch::runtime {
                 rc->hasDestructor = true;
                 rc->destructorDecl = dtor;
             }
-        }
-        if (!rc->isStatic && rc->constructors.empty()) {
-            RuntimeConstructor c;
-            c.decl = nullptr;
-            c.isDefault = true;
-            rc->constructors.push_back(std::move(c));
         }
         if (rc->staticStorage.size() < rc->staticFields.size())
             rc->staticStorage.resize(rc->staticFields.size());
@@ -1483,11 +1469,22 @@ namespace bloch::runtime {
                 }
             } else {
                 // Implicit default base constructor
+                int zeroArgMatches = 0;
                 for (auto& c : cls->base->constructors) {
                     if (c.params.empty()) {
                         superCtorDecl = c.decl;
-                        break;
+                        zeroArgMatches += 1;
                     }
+                }
+                if (zeroArgMatches == 0) {
+                    throw BlochError(ErrorCategory::Runtime, ctor ? ctor->line : 0,
+                                     ctor ? ctor->column : 0,
+                                     "no matching base constructor for implicit super()");
+                }
+                if (zeroArgMatches > 1) {
+                    throw BlochError(ErrorCategory::Runtime, ctor ? ctor->line : 0,
+                                     ctor ? ctor->column : 0,
+                                     "ambiguous base constructor for implicit super()");
                 }
             }
             if (kTraceConstructors) {

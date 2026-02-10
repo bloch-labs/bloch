@@ -475,6 +475,36 @@ TEST(RuntimeTest, GenericInstantiationSpecialisesAtRuntime) {
     EXPECT_EQ("1\n", out.str());
 }
 
+TEST(RuntimeTest, GenericDiamondInferenceFromDeclarationType) {
+    const char* src =
+        "class Box<T> { public int marker = 7; public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int> b = new Box<>(); echo(b.marker); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream out;
+    auto* old = std::cout.rdbuf(out.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(old);
+    EXPECT_EQ("7\n", out.str());
+}
+
+TEST(RuntimeTest, GenericDiamondInferenceFromAssignmentTarget) {
+    const char* src =
+        "class Box<T> { public int marker = 7; public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int> b = new Box<int>(); b = new Box<>(); echo(b.marker); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream out;
+    auto* old = std::cout.rdbuf(out.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(old);
+    EXPECT_EQ("7\n", out.str());
+}
+
 TEST(RuntimeTest, UnmeasuredTrackedQubit) {
     const char* src = "function main() -> void { @tracked qubit q; }";
     auto program = parseProgram(src);
@@ -787,8 +817,8 @@ function main() -> void {
 
 TEST(RuntimeTest, ConstructorOverloadPrefersMostSpecificReferenceType) {
     const char* src = R"(
-class Animal { }
-class Dog extends Animal { }
+class Animal { public constructor() -> Animal = default; }
+class Dog extends Animal { public constructor() -> Dog { super(); return this; } }
 
 class Shelter {
     public int which = 0;
@@ -814,10 +844,11 @@ function main() -> void {
 
 TEST(RuntimeTest, MethodOverloadPrefersMostSpecificReferenceType) {
     const char* src = R"(
-class Animal { }
-class Dog extends Animal { }
+class Animal { public constructor() -> Animal = default; }
+class Dog extends Animal { public constructor() -> Dog { super(); return this; } }
 
 class Vet {
+    public constructor() -> Vet = default;
     public function label(Animal a) -> string { return "animal"; }
     public function label(Dog d) -> string { return "dog"; }
 }
@@ -838,11 +869,11 @@ function main() -> void {
     EXPECT_EQ("dog\n", output.str());
 }
 
-TEST(RuntimeTest, ImplicitObjectHierarchySupportsPolymorphismWithoutConstructors) {
+TEST(RuntimeTest, ImplicitObjectHierarchySupportsPolymorphism) {
     const char* src = R"(
-class Animal { }
-class Dog extends Animal { }
-class Cat extends Animal { }
+class Animal { public constructor() -> Animal = default; }
+class Dog extends Animal { public constructor() -> Dog { super(); return this; } }
+class Cat extends Animal { public constructor() -> Cat { super(); return this; } }
 
 function main() -> void {
     Animal a = new Dog();
@@ -899,9 +930,9 @@ TEST(RuntimeTest, ModuleLoaderAutoLoadsStdlibObjectRoot) {
               "package bloch.lang;\n"
               "class Object { public constructor() -> Object = default; }\n");
     writeFile(appDir / "main.bloch",
-              "class Animal { }\n"
-              "class Dog extends Animal { }\n"
-              "class Cat extends Animal { }\n"
+              "class Animal { public constructor() -> Animal = default; }\n"
+              "class Dog extends Animal { public constructor() -> Dog { super(); return this; } }\n"
+              "class Cat extends Animal { public constructor() -> Cat { super(); return this; } }\n"
               "function main() -> void { Animal a = new Dog(); Object root = a; echo(root != "
               "null); }\n");
 

@@ -305,9 +305,8 @@ namespace bloch::runtime {
         bool isRuntimeSubclassOf(const std::string& derived, const std::string& base) const;
         std::optional<int> valueConversionCost(const RuntimeTypeInfo& expected,
                                                const Value& actual) const;
-        std::optional<int> argumentsConversionCost(
-            const std::vector<RuntimeTypeInfo>& expected,
-            const std::vector<Value>& actual) const;
+        std::optional<int> argumentsConversionCost(const std::vector<RuntimeTypeInfo>& expected,
+                                                   const std::vector<Value>& actual) const;
         bool valueMatchesType(const RuntimeTypeInfo& expected, const Value& actual) const;
         bool argumentsMatchConstructor(const std::vector<Value>& args,
                                        const RuntimeConstructor& candidate) const;

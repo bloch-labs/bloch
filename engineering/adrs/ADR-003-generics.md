@@ -21,6 +21,8 @@ Bloch requires reusable, type-safe class components (e.g., containers) without r
 - Bounds are upper bounds against class types in the single-inheritance hierarchy.
 - Classes without explicit `extends` still participate in the implicit `Object`-rooted hierarchy.
 - Runtime uses monomorphisation with specialisation caching.
+- Constructor-call diamond inference is supported when the target type is known
+  (typed declarations, assignments, and returns).
 - Nullability unchanged: class references (including generic instantiations) are nullable;
   primitives/arrays are not.
 
@@ -29,7 +31,7 @@ Bloch requires reusable, type-safe class components (e.g., containers) without r
 - Wildcard generics: `?`, `? extends`, `? super`.
 - Declaration-site variance markers.
 - Raw types.
-- Constructor or diamond inference.
+- Method-argument-driven generic inference.
 - Generic arrays.
 
 ## Alternatives Considered
