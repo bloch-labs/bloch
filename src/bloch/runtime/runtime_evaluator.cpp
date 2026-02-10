@@ -1618,7 +1618,7 @@ namespace bloch::runtime {
                                 static_cast<int>(arrLit->elements.size()) != arrType->size) {
                                 throw BlochError(
                                     ErrorCategory::Runtime, var->line, var->column,
-                                    "array initializer length does not match declared size");
+                                    "array initialiser length does not match declared size");
                             }
                             if (elem->name == "bit") {
                                 v.type = Value::Type::BitArray;

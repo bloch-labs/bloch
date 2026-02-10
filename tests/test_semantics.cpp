@@ -334,6 +334,20 @@ TEST(SemanticTest, FinalVariableDeclarationOk) {
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
+TEST(SemanticTest, FinalVariableRequiresInitializer) {
+    const char* src = "final int x;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FinalClassVariableRequiresInitializer) {
+    const char* src = "class A { public constructor() -> A { return this; } } final A a;";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
 TEST(SemanticTest, AssignFromFunctionCall) {
     const char* src = "function foo() -> bit { return 0b; } bit b = foo();";
     auto program = parseProgram(src);
@@ -813,6 +827,102 @@ TEST(SemanticTest, FinalFieldAssignableInConstructor) {
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, FinalFieldWithInitializerCannotBeAssignedInConstructor) {
+    const char* src =
+        "class A { public final int x = 1; public constructor() -> A { this.x = 2; return this; } "
+        "}";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FinalFieldCannotBeAssignedTwiceInConstructor) {
+    const char* src =
+        "class A { public final int x; public constructor() -> A { this.x = 1; this.x = 2; return "
+        "this; } } function main() -> void { A a = new A(); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FinalFieldMustBeInitialisedInEveryConstructor) {
+    const char* src =
+        "class A { public final int x; public constructor() -> A { this.x = 1; return this; } "
+        "public constructor(int y) -> A { return this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FinalFieldConditionalConstructorAssignmentFails) {
+    const char* src =
+        "class A { public final int x; public constructor(boolean flag) -> A { if (flag) { this.x "
+        "= "
+        "1; } return this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FinalFieldAssignmentAfterReturnDoesNotCount) {
+    const char* src =
+        "class A { public final int x; public constructor() -> A { return this; this.x = 1; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, DefaultConstructorCanBindUninitialisedFinalField) {
+    const char* src =
+        "class A { public final int x; public constructor(int x) -> A = default; } "
+        "function main() -> void { A a = new A(1); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, DefaultConstructorCannotBindInitialisedFinalField) {
+    const char* src =
+        "class A { public final int x = 1; public constructor(int x) -> A = default; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FinalStaticFieldRequiresInitializer) {
+    const char* src = "class A { public static final int x; public constructor() -> A = default; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, DerivedConstructorCannotAssignInheritedFinalField) {
+    const char* src =
+        "class Base { protected final int x; public constructor() -> Base { this.x = 1; return "
+        "this; "
+        "} } class Child extends Base { public constructor() -> Child { this.x = 2; return this; } "
+        "}";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, FieldInitializerTypeMismatchFails) {
+    const char* src = "class A { public int x = \"bad\"; public constructor() -> A = default; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, StaticFieldInitializerCannotUseThis) {
+    const char* src =
+        "class A { public int x = 1; public static int y = this.x; public constructor() -> A = "
+        "default; }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
 TEST(SemanticTest, DefaultConstructorParameterChecks) {

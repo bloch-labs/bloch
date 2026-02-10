@@ -3,7 +3,7 @@ title: Annotations
 ---
 # Annotations
 
-Bloch uses annotations to mark functions or variables with special behavior. Annotations are prefixed with `@` and appear immediately before the item they modify.
+Bloch uses annotations to mark functions or variables with special behaviour. Annotations are prefixed with `@` and appear immediately before the item they modify.
 
 Available annotations in v1.0.0:
 
@@ -66,4 +66,3 @@ bloch --shots=100 entangle.bloch
 ```
 
 Tip: use `--echo=all` to print `echo()` output on every shot (otherwise suppressed when `--shots > 1`).
-

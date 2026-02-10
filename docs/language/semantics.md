@@ -25,10 +25,19 @@ This page documents compile-time rules enforced by the semantic analyser (`src/b
 
 ## Variables
 
-- `final` variables cannot be assigned to after declaration.
+- `final` variables must be initialised at declaration and cannot be assigned to after declaration.
 - A variable must be declared before use.
 - Only `qubit` may be declared with commas: `qubit q0, q1;`. Other types must be one per declaration.
 - `@tracked` may only annotate `qubit` or `qubit[]`; otherwise it is an error.
+
+## Class fields and constructors
+
+- Field initialisers are type-checked with the same null/type rules as variable initialisers.
+- In static fields, the initialiser executes in static context (`this`/`super` are invalid).
+- `final static` fields must be initialised at declaration.
+- `final` instance fields with a declaration initialiser cannot be reassigned in constructors.
+- `final` instance fields without a declaration initialiser must be assigned exactly once in every constructor of the declaring class, as a top-level constructor statement.
+- Constructors cannot assign inherited `final` fields.
 
 ## Functions
 

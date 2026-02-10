@@ -42,7 +42,7 @@ flowchart TD
 - Files: `src/bloch/runtime/runtime_evaluator.{hpp,cpp}`.
 - Data: `RuntimeClass` (layout, vtable, methods, ctors, typeArgs), `RuntimeTypeInfo` (kind, className, typeArgs).
 - Build: non-generic classes materialised eagerly; generic templates stored in `m_genericTemplates`; base layout/vtable copied before derived members.
-- Monomorphization: `instantiateGeneric` clones template, substitutes type params (including base), builds layout/vtable, caches by `typeKey`, runs static initialisers.
+- Monomorphisation: `instantiateGeneric` clones template, substitutes type params (including base), builds layout/vtable, caches by `typeKey`, runs static initialisers.
 - Dispatch: single vtable per class; overrides replace entries; overloads stored separately; runtime lookup matches parameter kinds.
 - Null handling: null has `objectValue == nullptr`; member access throws `"null reference"`; `destroy null` is a no-op.
 
