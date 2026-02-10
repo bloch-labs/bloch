@@ -475,6 +475,36 @@ TEST(RuntimeTest, GenericInstantiationSpecialisesAtRuntime) {
     EXPECT_EQ("1\n", out.str());
 }
 
+TEST(RuntimeTest, GenericDiamondInferenceFromDeclarationType) {
+    const char* src =
+        "class Box<T> { public int marker = 7; public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int> b = new Box<>(); echo(b.marker); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream out;
+    auto* old = std::cout.rdbuf(out.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(old);
+    EXPECT_EQ("7\n", out.str());
+}
+
+TEST(RuntimeTest, GenericDiamondInferenceFromAssignmentTarget) {
+    const char* src =
+        "class Box<T> { public int marker = 7; public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int> b = new Box<int>(); b = new Box<>(); echo(b.marker); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream out;
+    auto* old = std::cout.rdbuf(out.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(old);
+    EXPECT_EQ("7\n", out.str());
+}
+
 TEST(RuntimeTest, UnmeasuredTrackedQubit) {
     const char* src = "function main() -> void { @tracked qubit q; }";
     auto program = parseProgram(src);
@@ -785,6 +815,85 @@ function main() -> void {
     EXPECT_EQ("2\n", output.str());
 }
 
+TEST(RuntimeTest, ConstructorOverloadPrefersMostSpecificReferenceType) {
+    const char* src = R"(
+class Animal { public constructor() -> Animal = default; }
+class Dog extends Animal { public constructor() -> Dog { super(); return this; } }
+
+class Shelter {
+    public int which = 0;
+    public constructor(Animal a) -> Shelter { this.which = 1; return this; }
+    public constructor(Dog d) -> Shelter { this.which = 2; return this; }
+}
+
+function main() -> void {
+    Shelter s = new Shelter(new Dog());
+    echo(s.which);
+}
+)";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("2\n", output.str());
+}
+
+TEST(RuntimeTest, MethodOverloadPrefersMostSpecificReferenceType) {
+    const char* src = R"(
+class Animal { public constructor() -> Animal = default; }
+class Dog extends Animal { public constructor() -> Dog { super(); return this; } }
+
+class Vet {
+    public constructor() -> Vet = default;
+    public function label(Animal a) -> string { return "animal"; }
+    public function label(Dog d) -> string { return "dog"; }
+}
+
+function main() -> void {
+    Vet v = new Vet();
+    echo(v.label(new Dog()));
+}
+)";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("dog\n", output.str());
+}
+
+TEST(RuntimeTest, ImplicitObjectHierarchySupportsPolymorphism) {
+    const char* src = R"(
+class Animal { public constructor() -> Animal = default; }
+class Dog extends Animal { public constructor() -> Dog { super(); return this; } }
+class Cat extends Animal { public constructor() -> Cat { super(); return this; } }
+
+function main() -> void {
+    Animal a = new Dog();
+    Animal b = new Cat();
+    Object root = a;
+    echo(root != null);
+    echo(b != null);
+}
+)";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    EXPECT_EQ("true\ntrue\n", output.str());
+}
+
 TEST(RuntimeTest, CycleCollectorReclaimsClassicalCycle) {
     const char* src =
         "class Node { public Node next; public constructor() -> Node { } } function main() -> void "
@@ -811,6 +920,66 @@ TEST(RuntimeTest, CycleCollectorSkipsTrackedCycles) {
     RuntimeEvaluator eval;
     eval.execute(*program);
     EXPECT_GE(eval.heapObjectCount(), 2u);
+}
+
+TEST(RuntimeTest, ModuleLoaderAutoLoadsStdlibObjectRoot) {
+    auto appDir = makeTempDir("stdlib_auto_root_app");
+    auto stdlibDir = makeTempDir("stdlib_auto_root_lib");
+    std::filesystem::create_directories(stdlibDir / "bloch" / "lang");
+    writeFile(stdlibDir / "bloch" / "lang" / "Object.bloch",
+              "package bloch.lang;\n"
+              "class Object { public constructor() -> Object = default; }\n");
+    writeFile(appDir / "main.bloch",
+              "class Animal { public constructor() -> Animal = default; }\n"
+              "class Dog extends Animal { public constructor() -> Dog { super(); return this; } }\n"
+              "class Cat extends Animal { public constructor() -> Cat { super(); return this; } }\n"
+              "function main() -> void { Animal a = new Dog(); Object root = a; echo(root != "
+              "null); }\n");
+
+    ModuleLoader loader({stdlibDir.string()});
+    auto program = loader.load((appDir / "main.bloch").string());
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    std::filesystem::remove_all(appDir);
+    std::filesystem::remove_all(stdlibDir);
+    EXPECT_EQ("true\n", output.str());
+}
+
+TEST(RuntimeTest, BlochNamespaceImportUsesStdlibBeforeProjectShadow) {
+    auto appDir = makeTempDir("stdlib_shadow_app");
+    auto stdlibDir = makeTempDir("stdlib_shadow_lib");
+    std::filesystem::create_directories(appDir / "bloch" / "lang");
+    std::filesystem::create_directories(stdlibDir / "bloch" / "lang");
+
+    writeFile(appDir / "bloch" / "lang" / "Object.bloch",
+              "package bloch.lang;\n"
+              "class Object { public constructor() -> Object = default; public function "
+              "toString() -> string { return \"project\"; } }\n");
+    writeFile(stdlibDir / "bloch" / "lang" / "Object.bloch",
+              "package bloch.lang;\n"
+              "class Object { public constructor() -> Object = default; public function "
+              "toString() -> string { return \"stdlib\"; } }\n");
+    writeFile(appDir / "main.bloch",
+              "import bloch.lang.Object;\n"
+              "function main() -> void { Object o = new Object(); echo(o.toString()); }\n");
+
+    ModuleLoader loader({stdlibDir.string()});
+    auto program = loader.load((appDir / "main.bloch").string());
+    SemanticAnalyser analyser;
+    analyser.analyse(*program);
+    RuntimeEvaluator eval;
+    std::ostringstream output;
+    auto* oldBuf = std::cout.rdbuf(output.rdbuf());
+    eval.execute(*program);
+    std::cout.rdbuf(oldBuf);
+    std::filesystem::remove_all(appDir);
+    std::filesystem::remove_all(stdlibDir);
+    EXPECT_EQ("stdlib\n", output.str());
 }
 
 TEST(RuntimeTest, ImportsPublicClassAcrossModules) {

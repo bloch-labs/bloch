@@ -106,7 +106,6 @@ v1.1.0
 - **Alternative 3: Require every file to be in a named package**
   - Pros:
     - Stronger uniformity and clearer namespace hygiene.
-    - Closer to "pure Java" semantics.
   - Cons:
     - Makes quick scripts and single-file programs awkward.
     - Unnecessarily diverges from the C++ ergonomics we want for entrypoints (`main.cpp`-like).
@@ -114,7 +113,7 @@ v1.1.0
     - **Rejected**; we support a default package for simplicity and C++-like entry files.
 
 ## Consequences
-- Projects gain a **clear, documented import and package model** that blends Java-style packages with C++-style entrypoint ergonomics.
+- Projects gain a **clear, documented import and package model** that blends Java-style packages with C++ style entrypoint ergonomics.
 - From v1.2.0 onwards, the stdlib is discoverable at a **stable, user-local path** while keeping the door open for future Maven-like dependency resolution without breaking imports.
 - Tooling (CLI, editor integrations) can rely on:
   - A well-defined mapping from `package` + symbol to files.

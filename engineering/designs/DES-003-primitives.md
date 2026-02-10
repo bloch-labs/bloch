@@ -20,7 +20,7 @@
 ## Runtime Architecture
 - `Value::Type` adds `Boolean`, `Long` plus array variants (`BooleanArray`, `LongArray` where needed).
 - Storage: `Boolean` compact; `Long` 64-bit.
-- Ops: arithmetic/bitwise for `long` mirror `int` but 64-bit; Java-like shift masks; logical ops on `boolean`.
+- Ops: arithmetic/bitwise for `long` mirror `int` but 64-bit; logical ops on `boolean`.
 - Echo/QASM: `boolean` prints `true/false`.
 
 ## Testing

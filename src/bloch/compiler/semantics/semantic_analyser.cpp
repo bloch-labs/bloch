@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <unordered_map>
 
 #include "bloch/compiler/semantics/built_ins.hpp"
@@ -99,55 +100,6 @@ namespace bloch::compiler {
             return true;
         }
 
-        bool paramsMatchCall(const std::vector<SemanticAnalyser::TypeInfo>& expected,
-                             const std::vector<SemanticAnalyser::TypeInfo>& actual) {
-            if (expected.size() != actual.size())
-                return false;
-            for (size_t i = 0; i < expected.size(); ++i) {
-                const auto& exp = expected[i];
-                const auto& act = actual[i];
-                bool expIsArray = exp.className.size() >= 2 &&
-                                  exp.className.rfind("[]") == exp.className.size() - 2;
-                auto matchesPrimitive = [](ValueType expectedValue, ValueType actualValue) {
-                    if (expectedValue == ValueType::Unknown || actualValue == ValueType::Unknown)
-                        return true;
-                    if (expectedValue == actualValue)
-                        return true;
-                    // Allow widening int -> long
-                    if (expectedValue == ValueType::Long && actualValue == ValueType::Int)
-                        return true;
-                    return false;
-                };
-                if (!exp.className.empty()) {
-                    if (exp.isTypeParam) {
-                        if (act.value != ValueType::Unknown && act.className.empty())
-                            return false;  // primitives cannot satisfy a type parameter
-                        continue;
-                    }
-                    if (act.value == ValueType::Null) {
-                        if (expIsArray)
-                            return false;
-                        continue;  // nullable class
-                    }
-                    if (act.className.empty()) {
-                        if (act.value == ValueType::Unknown)
-                            continue;
-                        return false;
-                    }
-                    if (!SemanticAnalyser::typeEquals(exp, act))
-                        return false;
-                } else if (exp.value != ValueType::Unknown) {
-                    if (act.value == ValueType::Unknown)
-                        continue;
-                    if (act.value == ValueType::Null)
-                        return false;
-                    if (!matchesPrimitive(exp.value, act.value))
-                        return false;
-                }
-            }
-            return true;
-        }
-
         auto numericPromotion = [](ValueType a, ValueType b) {
             if (a == ValueType::Float || b == ValueType::Float)
                 return ValueType::Float;
@@ -208,6 +160,16 @@ namespace bloch::compiler {
             return combine(typeFromString(prim->name), "");
         if (auto named = dynamic_cast<NamedType*>(typeNode)) {
             std::string cls = named->nameParts.empty() ? "" : named->nameParts.back();
+            if (!m_inClassRegistryBuild && named->hasTypeArgumentList &&
+                named->typeArguments.empty()) {
+                const ClassInfo* info = findClass(cls);
+                if (info && info->typeParams.empty()) {
+                    throw BlochError(ErrorCategory::Semantic, named->line, named->column,
+                                     "type '" + cls + "' is not generic");
+                }
+                throw BlochError(ErrorCategory::Semantic, named->line, named->column,
+                                 "cannot infer type arguments for '" + cls + "' in this context");
+            }
             for (const auto& tp : m_currentTypeParams) {
                 if (tp.name == cls) {
                     TypeInfo t = combine(ValueType::Unknown, cls);
@@ -330,29 +292,62 @@ namespace bloch::compiler {
             searchType = *bound;
         }
         const ClassInfo* cur = findClass(searchType.className);
-        std::vector<MethodInfo*> matches;
+        if (!params) {
+            while (cur) {
+                auto mit = cur->methods.find(method);
+                if (mit != cur->methods.end() && !mit->second.empty())
+                    return const_cast<MethodInfo*>(&mit->second.front());
+                if (cur->base.empty())
+                    break;
+                cur = findClass(cur->base);
+            }
+            return nullptr;
+        }
+
+        struct Candidate {
+            MethodInfo* method = nullptr;
+            int cost = 0;
+        };
+        std::unordered_set<std::string> hiddenSignatures;
+        std::vector<Candidate> matches;
         while (cur) {
             auto mit = cur->methods.find(method);
             if (mit != cur->methods.end()) {
-                if (!params) {
-                    return const_cast<MethodInfo*>(&mit->second.front());
-                }
                 for (auto& cand : mit->second) {
                     auto expected =
                         substituteMany(cand.paramTypes, cur->typeParams, searchType.typeArgs);
-                    if (paramsMatchCall(expected, *params))
-                        matches.push_back(const_cast<MethodInfo*>(&cand));
+                    std::string signature = methodSignatureLabel(cand.name, expected);
+                    if (hiddenSignatures.count(signature))
+                        continue;
+                    hiddenSignatures.insert(signature);
+                    auto cost = paramsConversionCost(expected, *params);
+                    if (!cost)
+                        continue;
+                    matches.push_back({const_cast<MethodInfo*>(&cand), *cost});
                 }
-                if (!matches.empty())
-                    break;
             }
             if (cur->base.empty())
                 break;
             cur = findClass(cur->base);
         }
-        if (matches.size() == 1)
-            return matches.front();
-        return matches.empty() ? nullptr : nullptr;
+        if (matches.empty())
+            return nullptr;
+
+        int bestCost = std::numeric_limits<int>::max();
+        MethodInfo* best = nullptr;
+        bool ambiguous = false;
+        for (const auto& candidate : matches) {
+            if (candidate.cost < bestCost) {
+                bestCost = candidate.cost;
+                best = candidate.method;
+                ambiguous = false;
+            } else if (candidate.cost == bestCost) {
+                ambiguous = true;
+            }
+        }
+        if (ambiguous)
+            return nullptr;
+        return best;
     }
 
     SemanticAnalyser::FieldInfo* SemanticAnalyser::findFieldInHierarchy(
@@ -407,6 +402,156 @@ namespace bloch::compiler {
             cur = findClass(cur->base);
         }
         return false;
+    }
+
+    int SemanticAnalyser::inheritanceDistance(const std::string& derived,
+                                              const std::string& base) const {
+        if (derived.empty() || base.empty())
+            return -1;
+        if (derived == base)
+            return 0;
+        int distance = 0;
+        const ClassInfo* cur = findClass(derived);
+        while (cur && !cur->base.empty()) {
+            ++distance;
+            if (cur->base == base)
+                return distance;
+            cur = findClass(cur->base);
+        }
+        return -1;
+    }
+
+    bool SemanticAnalyser::isAssignableType(const TypeInfo& expected,
+                                            const TypeInfo& actual) const {
+        bool expectedIsArray = isArrayType(expected);
+        bool expectedIsClassRef = isClassRefType(expected);
+
+        if (actual.value == ValueType::Null) {
+            return expectedIsClassRef;
+        }
+
+        if (expected.className.empty()) {
+            if (expected.value == ValueType::Unknown || actual.value == ValueType::Unknown)
+                return true;
+            if (actual.className.empty())
+                return matchesPrimitive(expected.value, actual.value);
+            return false;
+        }
+
+        if (expected.isTypeParam) {
+            if (actual.value != ValueType::Unknown && actual.className.empty())
+                return false;  // primitives cannot satisfy type params
+            if (actual.isTypeParam)
+                return expected.className == actual.className;
+            if (auto bound = getTypeParamBound(expected.className)) {
+                if (!bound->className.empty())
+                    return isAssignableType(*bound, actual);
+            }
+            return true;
+        }
+
+        if (expectedIsArray) {
+            if (!isArrayType(actual))
+                return false;
+            return typeEquals(expected, actual);
+        }
+
+        if (actual.className.empty())
+            return actual.value == ValueType::Unknown;
+        if (actual.isTypeParam) {
+            auto bound = getTypeParamBound(actual.className);
+            if (!bound || bound->className.empty())
+                return false;
+            return isAssignableType(expected, *bound);
+        }
+
+        if (typeEquals(expected, actual))
+            return true;
+
+        if (actual.typeArgs.empty() && expected.typeArgs.empty()) {
+            return actual.className == expected.className ||
+                   isSubclassOf(actual.className, expected.className);
+        }
+
+        return false;
+    }
+
+    std::optional<int> SemanticAnalyser::conversionCost(const TypeInfo& expected,
+                                                        const TypeInfo& actual) const {
+        if (actual.value == ValueType::Null) {
+            return isClassRefType(expected) ? std::optional<int>(3) : std::nullopt;
+        }
+
+        if (expected.className.empty()) {
+            if (expected.value == ValueType::Unknown || actual.value == ValueType::Unknown)
+                return 0;
+            if (actual.className.empty()) {
+                if (expected.value == actual.value)
+                    return 0;
+                if (expected.value == ValueType::Long && actual.value == ValueType::Int)
+                    return 1;
+            }
+            return std::nullopt;
+        }
+
+        if (expected.isTypeParam) {
+            if (actual.value != ValueType::Unknown && actual.className.empty())
+                return std::nullopt;
+            if (actual.isTypeParam)
+                return expected.className == actual.className ? std::optional<int>(0)
+                                                              : std::nullopt;
+            if (auto bound = getTypeParamBound(expected.className)) {
+                if (!bound->className.empty())
+                    return conversionCost(*bound, actual);
+            }
+            return 1;
+        }
+
+        if (isArrayType(expected)) {
+            if (!isArrayType(actual))
+                return std::nullopt;
+            return typeEquals(expected, actual) ? std::optional<int>(0) : std::nullopt;
+        }
+
+        if (actual.className.empty())
+            return actual.value == ValueType::Unknown ? std::optional<int>(0) : std::nullopt;
+        if (actual.isTypeParam) {
+            auto bound = getTypeParamBound(actual.className);
+            if (!bound || bound->className.empty())
+                return std::nullopt;
+            return conversionCost(expected, *bound);
+        }
+
+        if (typeEquals(expected, actual))
+            return 0;
+
+        if (actual.typeArgs.empty() && expected.typeArgs.empty()) {
+            int distance = inheritanceDistance(actual.className, expected.className);
+            if (distance >= 0)
+                return distance;
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<int> SemanticAnalyser::paramsConversionCost(
+        const std::vector<TypeInfo>& expected, const std::vector<TypeInfo>& actual) const {
+        if (expected.size() != actual.size())
+            return std::nullopt;
+
+        int total = 0;
+        for (size_t i = 0; i < expected.size(); ++i) {
+            auto cost = conversionCost(expected[i], actual[i]);
+            if (!cost)
+                return std::nullopt;
+            total += *cost;
+        }
+        return total;
+    }
+
+    bool SemanticAnalyser::paramsAssignable(const std::vector<TypeInfo>& expected,
+                                            const std::vector<TypeInfo>& actual) const {
+        return paramsConversionCost(expected, actual).has_value();
     }
 
     void SemanticAnalyser::validateOverrides(ClassInfo& info) {
@@ -545,9 +690,232 @@ namespace bloch::compiler {
         return dynamic_cast<SuperExpression*>(call->callee.get()) != nullptr;
     }
 
+    std::unique_ptr<Type> SemanticAnalyser::typeFromTypeInfo(const TypeInfo& typeInfo) const {
+        if (typeInfo.isTypeParam) {
+            auto named = std::make_unique<NamedType>(std::vector<std::string>{typeInfo.className});
+            return named;
+        }
+        if (isArrayType(typeInfo) && !typeInfo.typeArgs.empty()) {
+            auto elementType = typeFromTypeInfo(typeInfo.typeArgs.front());
+            if (!elementType)
+                return nullptr;
+            return std::make_unique<ArrayType>(std::move(elementType));
+        }
+        if (!typeInfo.className.empty()) {
+            auto named = std::make_unique<NamedType>(std::vector<std::string>{typeInfo.className});
+            for (const auto& arg : typeInfo.typeArgs) {
+                auto argType = typeFromTypeInfo(arg);
+                if (!argType)
+                    return nullptr;
+                named->typeArguments.push_back(std::move(argType));
+            }
+            return named;
+        }
+        switch (typeInfo.value) {
+            case ValueType::Int:
+                return std::make_unique<PrimitiveType>("int");
+            case ValueType::Long:
+                return std::make_unique<PrimitiveType>("long");
+            case ValueType::Float:
+                return std::make_unique<PrimitiveType>("float");
+            case ValueType::Bit:
+                return std::make_unique<PrimitiveType>("bit");
+            case ValueType::Boolean:
+                return std::make_unique<PrimitiveType>("boolean");
+            case ValueType::String:
+                return std::make_unique<PrimitiveType>("string");
+            case ValueType::Char:
+                return std::make_unique<PrimitiveType>("char");
+            case ValueType::Qubit:
+                return std::make_unique<PrimitiveType>("qubit");
+            case ValueType::Void:
+                return std::make_unique<VoidType>();
+            default:
+                return nullptr;
+        }
+    }
+
+    void SemanticAnalyser::inferDiamondTypeArguments(Expression* initializer,
+                                                     const TypeInfo& expectedType, int line,
+                                                     int column) {
+        auto* newExpr = dynamic_cast<NewExpression*>(initializer);
+        if (!newExpr)
+            return;
+        auto* named = dynamic_cast<NamedType*>(newExpr->classType.get());
+        if (!named || !named->hasTypeArgumentList || !named->typeArguments.empty() ||
+            named->nameParts.empty())
+            return;
+
+        const std::string& className = named->nameParts.back();
+        const ClassInfo* info = findClass(className);
+        if (!info)
+            return;
+        if (info->typeParams.empty()) {
+            throw BlochError(ErrorCategory::Semantic, line, column,
+                             "type '" + className + "' is not generic");
+        }
+        if (expectedType.className.empty() || expectedType.className != className ||
+            expectedType.typeArgs.empty()) {
+            throw BlochError(
+                ErrorCategory::Semantic, line, column,
+                "cannot infer type arguments for '" + className + "' from assignment target");
+        }
+        if (info->typeParams.size() != expectedType.typeArgs.size()) {
+            throw BlochError(
+                ErrorCategory::Semantic, line, column,
+                "cannot infer type arguments for '" + className + "' from assignment target");
+        }
+
+        for (const auto& typeArg : expectedType.typeArgs) {
+            auto inferred = typeFromTypeInfo(typeArg);
+            if (!inferred) {
+                throw BlochError(ErrorCategory::Semantic, line, column,
+                                 "cannot infer type arguments for '" + className + "'");
+            }
+            named->typeArguments.push_back(std::move(inferred));
+        }
+    }
+
+    void SemanticAnalyser::validateTypedInitializer(const std::string& name, Type* declaredType,
+                                                    Expression* initializer, int line, int column) {
+        if (!declaredType || !initializer)
+            return;
+
+        TypeInfo targetInfo = typeFromAst(declaredType);
+        inferDiamondTypeArguments(initializer, targetInfo, line, column);
+        TypeInfo initInfo = inferTypeInfo(initializer);
+
+        if (auto arr = dynamic_cast<ArrayType*>(declaredType)) {
+            if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
+                if (elem->name == "qubit") {
+                    throw BlochError(ErrorCategory::Semantic, line, column,
+                                     "qubit[] cannot be initialised");
+                }
+            }
+            if (initInfo.value == ValueType::Null) {
+                throw BlochError(ErrorCategory::Semantic, line, column,
+                                 "initialiser for '" + name + "' cannot be null");
+            }
+        }
+
+        if (auto call = dynamic_cast<CallExpression*>(initializer)) {
+            if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
+                if (returnsVoid(callee->name)) {
+                    throw BlochError(ErrorCategory::Semantic, line, column,
+                                     "cannot assign result of 'void' function");
+                }
+            }
+        }
+
+        // Validate initializer expression first so cast errors surface before type checks.
+        initializer->accept(*this);
+
+        if (auto primType = targetInfo.value; primType != ValueType::Unknown) {
+            ValueType initT = initInfo.value;
+            if (!matchesPrimitive(primType, initT)) {
+                if (primType == ValueType::Bit) {
+                    if (auto lit = dynamic_cast<LiteralExpression*>(initializer)) {
+                        if (lit->literalType == "int") {
+                            throw BlochError(ErrorCategory::Semantic, line, column,
+                                             "bit literals must be 0b or 1b");
+                        }
+                    }
+                } else if (primType == ValueType::Float) {
+                    if (auto lit = dynamic_cast<LiteralExpression*>(initializer)) {
+                        if (lit->literalType == "int") {
+                            throw BlochError(ErrorCategory::Semantic, line, column,
+                                             "float literals must end with 'f'");
+                        }
+                    }
+                }
+                throw BlochError(ErrorCategory::Semantic, line, column,
+                                 "initialiser for '" + name + "' expected '" +
+                                     typeToString(primType) + "' but got '" + typeToString(initT) +
+                                     "'");
+            }
+        } else if (!targetInfo.className.empty()) {
+            bool targetIsArray =
+                targetInfo.className.size() >= 2 &&
+                targetInfo.className.rfind("[]") == targetInfo.className.size() - 2;
+            if (initInfo.value == ValueType::Null) {
+                if (targetIsArray) {
+                    throw BlochError(ErrorCategory::Semantic, line, column,
+                                     "initialiser for '" + name + "' cannot be null");
+                }
+            } else if (!isAssignableType(targetInfo, initInfo) &&
+                       initInfo.value != ValueType::Unknown) {
+                throw BlochError(
+                    ErrorCategory::Semantic, line, column,
+                    "initialiser for '" + name + "' expected '" + typeLabel(targetInfo) + "'");
+            }
+        }
+    }
+
+    void SemanticAnalyser::recordFinalFieldAssignment(const FieldInfo& field,
+                                                      const std::string& fieldName, int line,
+                                                      int column) {
+        if (!field.isFinal)
+            return;
+
+        bool isConstructorFieldWrite = m_inConstructor && !field.isStatic;
+        bool allowed = isConstructorFieldWrite && m_constructorFinalAssignmentDepth == 0;
+        if (!allowed) {
+            if (isConstructorFieldWrite && m_constructorFinalAssignmentDepth > 0) {
+                throw BlochError(ErrorCategory::Semantic, line, column,
+                                 "final field '" + fieldName +
+                                     "' must be assigned as a top-level constructor statement");
+            }
+            throw BlochError(ErrorCategory::Semantic, line, column,
+                             "cannot assign to final field '" + fieldName + "'");
+        }
+        if (field.owner != m_currentClass) {
+            throw BlochError(ErrorCategory::Semantic, line, column,
+                             "cannot assign inherited final field '" + fieldName + "'");
+        }
+        if (field.hasInitializer) {
+            throw BlochError(
+                ErrorCategory::Semantic, line, column,
+                "cannot reassign final field '" + fieldName + "' with a declaration initialiser");
+        }
+
+        std::string key = field.owner + "::" + fieldName;
+        int& assignmentCount = m_constructorFinalAssignments[key];
+        assignmentCount += 1;
+        if (assignmentCount > 1) {
+            throw BlochError(
+                ErrorCategory::Semantic, line, column,
+                "final field '" + fieldName + "' may only be assigned once in a constructor");
+        }
+    }
+
     void SemanticAnalyser::buildClassRegistry(Program& program) {
         m_classes.clear();
         m_inClassRegistryBuild = true;
+
+        bool hasExplicitObjectClass = false;
+        for (const auto& clsNode : program.classes) {
+            if (clsNode && clsNode->name == "Object") {
+                hasExplicitObjectClass = true;
+                break;
+            }
+        }
+        if (!hasExplicitObjectClass) {
+            ClassInfo rootObject;
+            rootObject.name = "Object";
+            rootObject.line = 0;
+            rootObject.column = 0;
+            rootObject.isStatic = false;
+            rootObject.isAbstract = false;
+            MethodInfo ctorInfo;
+            ctorInfo.visibility = Visibility::Public;
+            ctorInfo.hasBody = true;
+            ctorInfo.isDefault = true;
+            ctorInfo.owner = rootObject.name;
+            ctorInfo.returnType = combine(ValueType::Unknown, rootObject.name);
+            rootObject.constructors.push_back(std::move(ctorInfo));
+            m_classes[rootObject.name] = std::move(rootObject);
+        }
+
         for (auto& clsNode : program.classes) {
             if (!clsNode)
                 continue;
@@ -559,16 +927,29 @@ namespace bloch::compiler {
             info.name = clsNode->name;
             info.line = clsNode->line;
             info.column = clsNode->column;
+            info.isStatic = clsNode->isStatic;
+            info.isAbstract = clsNode->isAbstract;
+            bool hasExplicitBase = false;
             if (clsNode->baseType) {
                 if (auto named = dynamic_cast<NamedType*>(clsNode->baseType.get())) {
-                    if (!named->nameParts.empty())
+                    if (!named->nameParts.empty()) {
                         info.base = named->nameParts.back();
+                        hasExplicitBase = true;
+                    }
                 }
             } else if (!clsNode->baseName.empty()) {
                 info.base = clsNode->baseName.back();
+                hasExplicitBase = true;
+            } else if (!info.isStatic && info.name != "Object") {
+                info.base = "Object";
             }
-            info.isStatic = clsNode->isStatic;
-            info.isAbstract = clsNode->isAbstract;
+            if (info.name == "Object") {
+                if (hasExplicitBase) {
+                    throw BlochError(ErrorCategory::Semantic, info.line, info.column,
+                                     "class 'Object' cannot declare a base class");
+                }
+                info.base.clear();
+            }
             // Type parameters
             m_currentTypeParams.clear();
             for (auto& tp : clsNode->typeParameters) {
@@ -578,6 +959,10 @@ namespace bloch::compiler {
                     pi.bound = typeFromAst(tp->bound.get());
                 m_currentTypeParams.push_back(pi);
                 info.typeParams.push_back(pi);
+            }
+            if (info.name == "Object" && !info.typeParams.empty()) {
+                throw BlochError(ErrorCategory::Semantic, info.line, info.column,
+                                 "class 'Object' cannot declare type parameters");
             }
             for (auto& member : clsNode->members) {
                 if (!member)
@@ -592,6 +977,11 @@ namespace bloch::compiler {
                         throw BlochError(
                             ErrorCategory::Semantic, field->line, field->column,
                             "static class '" + info.name + "' cannot declare instance fields");
+                    }
+                    if (field->isFinal && field->isStatic && !field->initializer) {
+                        throw BlochError(
+                            ErrorCategory::Semantic, field->line, field->column,
+                            "final static field '" + field->name + "' must be initialised");
                     }
                     FieldInfo f;
                     f.visibility = field->visibility;
@@ -702,6 +1092,11 @@ namespace bloch::compiler {
                         throw BlochError(ErrorCategory::Semantic, p->line, p->column,
                                          "default constructor parameter '" + p->name +
                                              "' cannot bind to static field");
+                    }
+                    if (f.isFinal && f.hasInitializer) {
+                        throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                         "default constructor cannot bind final field '" + p->name +
+                                             "' because it already has a declaration initialiser");
                     }
                     if (f.type.value == ValueType::Qubit ||
                         (!f.type.className.empty() && f.type.value == ValueType::Unknown &&
@@ -1185,75 +1580,13 @@ namespace bloch::compiler {
                                  "array size must be non-negative");
             }
         }
-        if (node.initializer) {
-            TypeInfo initInfo = inferTypeInfo(node.initializer.get());
-            // Disallow initialisation of qubit arrays
-            if (auto arr = dynamic_cast<ArrayType*>(node.varType.get())) {
-                if (auto elem = dynamic_cast<PrimitiveType*>(arr->elementType.get())) {
-                    if (elem->name == "qubit") {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "qubit[] cannot be initialised");
-                    }
-                }
-                if (initInfo.value == ValueType::Null) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "initializer for '" + node.name + "' cannot be null");
-                }
-            }
-            if (auto call = dynamic_cast<CallExpression*>(node.initializer.get())) {
-                if (auto callee = dynamic_cast<VariableExpression*>(call->callee.get())) {
-                    if (returnsVoid(callee->name)) {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "cannot assign result of 'void' function");
-                    }
-                }
-            }
-            // Validate initializer expression first so cast errors surface before type checks.
-            node.initializer->accept(*this);
-            if (auto primType = tinfo.value; primType != ValueType::Unknown) {
-                ValueType initT = initInfo.value;
-                if (!matchesPrimitive(primType, initT)) {
-                    if (primType == ValueType::Bit) {
-                        if (auto lit = dynamic_cast<LiteralExpression*>(node.initializer.get())) {
-                            if (lit->literalType == "int") {
-                                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                                 "bit literals must be 0b or 1b");
-                            }
-                        }
-                    } else if (primType == ValueType::Float) {
-                        if (auto lit = dynamic_cast<LiteralExpression*>(node.initializer.get())) {
-                            if (lit->literalType == "int") {
-                                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                                 "float literals must end with 'f'");
-                            }
-                        }
-                    }
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "initializer for '" + node.name + "' expected '" +
-                                         typeToString(primType) + "' but got '" +
-                                         typeToString(initT) + "'");
-                }
-            } else if (!tinfo.className.empty()) {
-                bool targetIsArray = tinfo.className.size() >= 2 &&
-                                     tinfo.className.rfind("[]") == tinfo.className.size() - 2;
-                if (initInfo.value == ValueType::Null) {
-                    if (targetIsArray) {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "initializer for '" + node.name + "' cannot be null");
-                    }
-                } else if (!initInfo.className.empty()) {
-                    if (!typeEquals(initInfo, tinfo)) {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "initializer for '" + node.name + "' expected '" +
-                                             typeLabel(tinfo) + "'");
-                    }
-                } else if (initInfo.value != ValueType::Unknown) {
-                    throw BlochError(
-                        ErrorCategory::Semantic, node.line, node.column,
-                        "initializer for '" + node.name + "' expected '" + typeLabel(tinfo) + "'");
-                }
-            }
+        if (node.isFinal && !node.initializer) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "final variable '" + node.name + "' must be initialised");
         }
+        if (node.initializer)
+            validateTypedInitializer(node.name, node.varType.get(), node.initializer.get(),
+                                     node.line, node.column);
         if (node.isFinal) {
             if (auto prim = dynamic_cast<PrimitiveType*>(node.varType.get())) {
                 if (prim->name == "int" && node.initializer) {
@@ -1266,9 +1599,14 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::visit(BlockStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         beginScope();
         for (auto& stmt : node.statements) stmt->accept(*this);
         endScope();
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(ExpressionStatement& node) {
@@ -1289,6 +1627,7 @@ namespace bloch::compiler {
                              "Non-void function must return a value");
         }
         if (node.value) {
+            inferDiamondTypeArguments(node.value.get(), m_currentReturn, node.line, node.column);
             auto actual = inferTypeInfo(node.value.get());
             if (!isVoid) {
                 bool expectedIsArray =
@@ -1300,7 +1639,7 @@ namespace bloch::compiler {
                                          "return type mismatch");
                     }
                 } else if (!m_currentReturn.className.empty()) {
-                    if (!typeEquals(actual, m_currentReturn)) {
+                    if (!isAssignableType(m_currentReturn, actual)) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                          "return type mismatch");
                     }
@@ -1314,6 +1653,9 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::visit(IfStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         if (node.condition) {
             node.condition->accept(*this);
             auto condType = inferTypeInfo(node.condition.get());
@@ -1328,9 +1670,14 @@ namespace bloch::compiler {
             node.thenBranch->accept(*this);
         if (node.elseBranch)
             node.elseBranch->accept(*this);
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(TernaryStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         if (node.condition) {
             node.condition->accept(*this);
             auto condType = inferTypeInfo(node.condition.get());
@@ -1345,9 +1692,14 @@ namespace bloch::compiler {
             node.thenBranch->accept(*this);
         if (node.elseBranch)
             node.elseBranch->accept(*this);
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(ForStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         beginScope();
         if (node.initializer)
             node.initializer->accept(*this);
@@ -1366,9 +1718,14 @@ namespace bloch::compiler {
         if (node.body)
             node.body->accept(*this);
         endScope();
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(WhileStatement& node) {
+        bool trackNesting = m_inConstructor;
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth += 1;
         if (node.condition) {
             node.condition->accept(*this);
             auto condType = inferTypeInfo(node.condition.get());
@@ -1381,6 +1738,8 @@ namespace bloch::compiler {
         }
         if (node.body)
             node.body->accept(*this);
+        if (trackNesting)
+            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(EchoStatement& node) {
@@ -1428,33 +1787,34 @@ namespace bloch::compiler {
                                  "Cannot assign to final variable '" + node.name + "'");
             }
             if (node.value) {
+                TypeInfo targetType = getVariableType(node.name);
+                inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
                 auto valType = inferTypeInfo(node.value.get());
                 if (valType.value == ValueType::Null) {
-                    TypeInfo target = getVariableType(node.name);
                     bool targetIsArray =
-                        target.className.size() >= 2 &&
-                        target.className.rfind("[]") == target.className.size() - 2;
-                    bool targetIsClass = !target.className.empty() && !targetIsArray;
+                        targetType.className.size() >= 2 &&
+                        targetType.className.rfind("[]") == targetType.className.size() - 2;
+                    bool targetIsClass = !targetType.className.empty() && !targetIsArray;
                     if (!targetIsClass) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                          "cannot assign null to '" + node.name + "'");
                     }
+                } else if (valType.value != ValueType::Unknown &&
+                           !isAssignableType(targetType, valType)) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "assignment to '" + node.name + "' expects '" +
+                                         typeLabel(targetType) + "'");
                 }
                 node.value->accept(*this);
             }
             return;
         }
         if (auto field = resolveField(node.name, node.line, node.column)) {
-            if (field->isFinal) {
-                bool allowed = m_inConstructor && !field->isStatic;
-                if (!allowed) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "cannot assign to final field '" + node.name + "'");
-                }
-            }
+            recordFinalFieldAssignment(*field, node.name, node.line, node.column);
             if (node.value) {
-                auto valType = inferTypeInfo(node.value.get());
                 TypeInfo targetType = field->type;
+                inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
+                auto valType = inferTypeInfo(node.value.get());
                 bool fieldIsArray =
                     targetType.className.size() >= 2 &&
                     targetType.className.rfind("[]") == targetType.className.size() - 2;
@@ -1464,12 +1824,11 @@ namespace bloch::compiler {
                                          "cannot assign null to field '" + node.name + "'");
                     }
                 }
-                if (!targetType.className.empty() && valType.value != ValueType::Null) {
-                    if (!typeEquals(valType, targetType)) {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "assignment to field '" + node.name + "' expects '" +
-                                             typeLabel(targetType) + "'");
-                    }
+                if (!targetType.className.empty() && valType.value != ValueType::Null &&
+                    valType.value != ValueType::Unknown && !isAssignableType(targetType, valType)) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "assignment to field '" + node.name + "' expects '" +
+                                         typeLabel(targetType) + "'");
                 } else if (field->type.value != ValueType::Unknown &&
                            valType.value != ValueType::Unknown &&
                            !matchesPrimitive(targetType.value, valType.value)) {
@@ -1761,7 +2120,7 @@ namespace bloch::compiler {
                                          "argument #" + std::to_string(i + 1) + " to '" + name +
                                              "' expected '" + typeLabel(expected) + "'");
                     }
-                    if (!typeEquals(actual, expected)) {
+                    if (!isAssignableType(expected, actual)) {
                         throw BlochError(ErrorCategory::Semantic, arg->line, arg->column,
                                          "argument #" + std::to_string(i + 1) + " to '" + name +
                                              "' expected '" + typeLabel(expected) + "'");
@@ -1889,47 +2248,32 @@ namespace bloch::compiler {
                                  "'super' used without a base class");
             }
             const ClassInfo* base = findClass(cur->base);
-            bool matched = base && base->constructors.empty() &&
-                           node.arguments.empty();  // default ctor allowed
+            bool matched = false;
+            bool ambiguous = false;
+            int bestCost = std::numeric_limits<int>::max();
             if (base) {
                 for (const auto& ctor : base->constructors) {
                     if (!isAccessible(ctor.visibility, base->name, m_currentClass))
                         continue;
-                    if (ctor.paramTypes.size() != node.arguments.size())
+                    auto cost = paramsConversionCost(ctor.paramTypes, actualTypes);
+                    if (!cost)
                         continue;
-                    bool sigOk = true;
-                    for (size_t i = 0; i < ctor.paramTypes.size(); ++i) {
-                        auto expected = ctor.paramTypes[i];
-                        auto actual = inferTypeInfo(node.arguments[i].get());
-                        bool expectedIsArray =
-                            expected.className.size() >= 2 &&
-                            expected.className.rfind("[]") == expected.className.size() - 2;
-                        if (expectedIsArray && actual.value == ValueType::Null) {
-                            sigOk = false;
-                            break;
-                        }
-                        if (!expected.className.empty()) {
-                            if (!actual.className.empty() &&
-                                actual.className != expected.className) {
-                                sigOk = false;
-                                break;
-                            }
-                        } else if (expected.value != ValueType::Unknown &&
-                                   actual.value != ValueType::Unknown &&
-                                   expected.value != actual.value) {
-                            sigOk = false;
-                            break;
-                        }
-                    }
-                    if (sigOk) {
+                    if (*cost < bestCost) {
+                        bestCost = *cost;
                         matched = true;
-                        break;
+                        ambiguous = false;
+                    } else if (*cost == bestCost) {
+                        ambiguous = true;
                     }
                 }
             }
             if (!matched) {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "no accessible base constructor matches 'super(...)'");
+            }
+            if (ambiguous) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "ambiguous base constructor call in 'super(...)'");
             }
         } else if (node.callee) {
             node.callee->accept(*this);
@@ -2017,20 +2361,32 @@ namespace bloch::compiler {
             actualTypes.reserve(node.arguments.size());
             for (auto& arg : node.arguments) actualTypes.push_back(inferTypeInfo(arg.get()));
             bool matched = false;
+            bool ambiguous = false;
+            int bestCost = std::numeric_limits<int>::max();
             for (const auto& ctor : info->constructors) {
                 if (!isAccessible(ctor.visibility, info->name, m_currentClass))
                     continue;
                 auto params = ctor.paramTypes;
                 params = substituteMany(params, info->typeParams, cls.typeArgs);
-                if (paramsMatchCall(params, actualTypes)) {
+                auto cost = paramsConversionCost(params, actualTypes);
+                if (!cost)
+                    continue;
+                if (*cost < bestCost) {
+                    bestCost = *cost;
                     matched = true;
-                    break;
+                    ambiguous = false;
+                } else if (*cost == bestCost) {
+                    ambiguous = true;
                 }
             }
             if (!matched) {
                 throw BlochError(
                     ErrorCategory::Semantic, node.line, node.column,
                     "no accessible constructor found for class '" + cls.className + "'");
+            }
+            if (ambiguous) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "ambiguous constructor call for class '" + cls.className + "'");
             }
         }
         for (auto& arg : node.arguments)
@@ -2100,33 +2456,34 @@ namespace bloch::compiler {
                                  "Cannot assign to final variable '" + node.name + "'");
             }
             if (node.value) {
+                TypeInfo targetType = getVariableType(node.name);
+                inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
                 auto valType = inferTypeInfo(node.value.get());
                 if (valType.value == ValueType::Null) {
-                    TypeInfo target = getVariableType(node.name);
                     bool targetIsArray =
-                        target.className.size() >= 2 &&
-                        target.className.rfind("[]") == target.className.size() - 2;
-                    bool targetIsClass = !target.className.empty() && !targetIsArray;
+                        targetType.className.size() >= 2 &&
+                        targetType.className.rfind("[]") == targetType.className.size() - 2;
+                    bool targetIsClass = !targetType.className.empty() && !targetIsArray;
                     if (!targetIsClass) {
                         throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                          "cannot assign null to '" + node.name + "'");
                     }
+                } else if (valType.value != ValueType::Unknown &&
+                           !isAssignableType(targetType, valType)) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "assignment to '" + node.name + "' expects '" +
+                                         typeLabel(targetType) + "'");
                 }
                 node.value->accept(*this);
             }
             return;
         }
         if (auto field = resolveField(node.name, node.line, node.column)) {
-            if (field->isFinal) {
-                bool allowed = m_inConstructor && !field->isStatic;
-                if (!allowed) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "cannot assign to final field '" + node.name + "'");
-                }
-            }
+            recordFinalFieldAssignment(*field, node.name, node.line, node.column);
             if (node.value) {
-                auto valType = inferTypeInfo(node.value.get());
                 TypeInfo targetType = field->type;
+                inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
+                auto valType = inferTypeInfo(node.value.get());
                 bool fieldIsArray =
                     targetType.className.size() >= 2 &&
                     targetType.className.rfind("[]") == targetType.className.size() - 2;
@@ -2136,15 +2493,14 @@ namespace bloch::compiler {
                                          "cannot assign null to field '" + node.name + "'");
                     }
                 }
-                if (!targetType.className.empty() && valType.value != ValueType::Null) {
-                    if (!typeEquals(valType, targetType)) {
-                        throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                         "assignment to field '" + node.name + "' expects '" +
-                                             typeLabel(targetType) + "'");
-                    }
+                if (!targetType.className.empty() && valType.value != ValueType::Null &&
+                    valType.value != ValueType::Unknown && !isAssignableType(targetType, valType)) {
+                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                     "assignment to field '" + node.name + "' expects '" +
+                                         typeLabel(targetType) + "'");
                 } else if (field->type.value != ValueType::Unknown &&
                            valType.value != ValueType::Unknown &&
-                           targetType.value != valType.value) {
+                           !matchesPrimitive(targetType.value, valType.value)) {
                     throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                      "assignment to field '" + node.name + "' expects '" +
                                          typeToString(targetType.value) + "'");
@@ -2201,12 +2557,14 @@ namespace bloch::compiler {
                 throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                                  "cannot assign to final field '" + node.member + "'");
             }
+            recordFinalFieldAssignment(*field, node.member, node.line, node.column);
         }
         if (node.value) {
-            auto valType = inferTypeInfo(node.value.get());
             TypeInfo targetType = field->type;
             if (!searchType.typeArgs.empty() && cls)
                 targetType = substituteTypeParams(targetType, cls->typeParams, searchType.typeArgs);
+            inferDiamondTypeArguments(node.value.get(), targetType, node.line, node.column);
+            auto valType = inferTypeInfo(node.value.get());
             bool fieldIsArray = targetType.className.size() >= 2 &&
                                 targetType.className.rfind("[]") == targetType.className.size() - 2;
             if (valType.value == ValueType::Null) {
@@ -2215,12 +2573,11 @@ namespace bloch::compiler {
                                      "cannot assign null to field '" + node.member + "'");
                 }
             }
-            if (!targetType.className.empty() && valType.value != ValueType::Null) {
-                if (!typeEquals(valType, targetType)) {
-                    throw BlochError(ErrorCategory::Semantic, node.line, node.column,
-                                     "assignment to field '" + node.member + "' expects '" +
-                                         typeLabel(targetType) + "'");
-                }
+            if (!targetType.className.empty() && valType.value != ValueType::Null &&
+                valType.value != ValueType::Unknown && !isAssignableType(targetType, valType)) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "assignment to field '" + node.member + "' expects '" +
+                                     typeLabel(targetType) + "'");
             } else if (targetType.value != ValueType::Unknown &&
                        valType.value != ValueType::Unknown &&
                        !matchesPrimitive(targetType.value, valType.value)) {
@@ -2273,7 +2630,8 @@ namespace bloch::compiler {
         }
 
         auto typesCompatible =
-            typeEquals(valType, elemType) || matchesPrimitive(elemType.value, valType.value) ||
+            isAssignableType(elemType, valType) ||
+            matchesPrimitive(elemType.value, valType.value) ||
             (elemType.value == ValueType::Int && valType.value == ValueType::Bit);
 
         if (!typesCompatible) {
@@ -2310,6 +2668,23 @@ namespace bloch::compiler {
                                  "'@shots(N)' can only decorate the main() function.");
             }
         }
+        TypeInfo tinfo = typeFromAst(node.fieldType.get());
+        if (tinfo.value == ValueType::Void) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "fields cannot have type 'void'");
+        }
+
+        bool savedStatic = m_inStaticContext;
+        m_inStaticContext = node.isStatic;
+        if (node.isFinal && node.isStatic && !node.initializer) {
+            throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                             "final static field '" + node.name + "' must be initialised");
+        }
+        if (node.initializer) {
+            validateTypedInitializer(node.name, node.fieldType.get(), node.initializer.get(),
+                                     node.line, node.column);
+        }
+        m_inStaticContext = savedStatic;
     }
 
     void SemanticAnalyser::visit(MethodDeclaration& node) {
@@ -2386,6 +2761,10 @@ namespace bloch::compiler {
         auto savedReturn = m_currentReturn;
         bool savedFoundReturn = m_foundReturn;
         bool savedAllowSuper = m_allowSuperConstructorCall;
+        auto savedCtorFinalAssignments = m_constructorFinalAssignments;
+        int savedCtorAssignmentDepth = m_constructorFinalAssignmentDepth;
+        m_constructorFinalAssignments.clear();
+        m_constructorFinalAssignmentDepth = 0;
         m_inStaticContext = false;
         m_inConstructor = true;
         m_inDestructor = false;
@@ -2405,8 +2784,32 @@ namespace bloch::compiler {
             declare(p->name, false, pt);
             p->accept(*this);
         }
+        const ClassInfo* ctorClassInfo = findClass(savedClass);
+        if (ctorClassInfo && node.isDefault) {
+            for (auto& p : node.params) {
+                auto it = ctorClassInfo->fields.find(p->name);
+                if (it == ctorClassInfo->fields.end())
+                    continue;
+                const FieldInfo& f = it->second;
+                if (f.isStatic || !f.isFinal)
+                    continue;
+                if (f.hasInitializer) {
+                    throw BlochError(ErrorCategory::Semantic, p->line, p->column,
+                                     "default constructor cannot bind final field '" + p->name +
+                                         "' because it already has a declaration initialiser");
+                }
+                std::string key = f.owner + "::" + p->name;
+                int& assignmentCount = m_constructorFinalAssignments[key];
+                assignmentCount += 1;
+                if (assignmentCount > 1) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, p->line, p->column,
+                        "final field '" + p->name + "' may only be assigned once in a constructor");
+                }
+            }
+        }
+        bool superSeen = false;
         if (node.body) {
-            bool superSeen = false;
             auto& stmts = node.body->statements;
             for (size_t i = 0; i < stmts.size(); ++i) {
                 bool isSuper = isSuperConstructorCall(stmts[i].get());
@@ -2426,6 +2829,54 @@ namespace bloch::compiler {
                     m_allowSuperConstructorCall = false;
                 } else {
                     stmts[i]->accept(*this);
+                    if (dynamic_cast<ReturnStatement*>(stmts[i].get()))
+                        break;
+                }
+            }
+        }
+        if (ctorClassInfo && !superSeen && !ctorClassInfo->base.empty()) {
+            const ClassInfo* base = findClass(ctorClassInfo->base);
+            bool matched = false;
+            bool ambiguous = false;
+            int bestCost = std::numeric_limits<int>::max();
+            const std::vector<TypeInfo> noArgs;
+            if (base) {
+                for (const auto& ctor : base->constructors) {
+                    if (!isAccessible(ctor.visibility, base->name, m_currentClass))
+                        continue;
+                    auto cost = paramsConversionCost(ctor.paramTypes, noArgs);
+                    if (!cost)
+                        continue;
+                    if (*cost < bestCost) {
+                        bestCost = *cost;
+                        matched = true;
+                        ambiguous = false;
+                    } else if (*cost == bestCost) {
+                        ambiguous = true;
+                    }
+                }
+            }
+            if (!matched) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "no accessible base constructor matches implicit super()");
+            }
+            if (ambiguous) {
+                throw BlochError(ErrorCategory::Semantic, node.line, node.column,
+                                 "ambiguous implicit super() constructor call");
+            }
+        }
+        if (ctorClassInfo) {
+            for (const auto& entry : ctorClassInfo->fields) {
+                const std::string& fieldName = entry.first;
+                const FieldInfo& field = entry.second;
+                if (field.isStatic || !field.isFinal || field.hasInitializer)
+                    continue;
+                std::string key = field.owner + "::" + fieldName;
+                auto it = m_constructorFinalAssignments.find(key);
+                if (it == m_constructorFinalAssignments.end() || it->second == 0) {
+                    throw BlochError(
+                        ErrorCategory::Semantic, node.line, node.column,
+                        "final field '" + fieldName + "' must be initialised in every constructor");
                 }
             }
         }
@@ -2439,6 +2890,8 @@ namespace bloch::compiler {
         m_currentReturn = savedReturn;
         m_foundReturn = savedFoundReturn;
         m_allowSuperConstructorCall = savedAllowSuper;
+        m_constructorFinalAssignments = std::move(savedCtorFinalAssignments);
+        m_constructorFinalAssignmentDepth = savedCtorAssignmentDepth;
     }
 
     void SemanticAnalyser::visit(DestructorDeclaration& node) {

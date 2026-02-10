@@ -195,6 +195,13 @@ namespace bloch::compiler {
         FieldInfo* findFieldInHierarchy(const TypeInfo& classType, const std::string& field) const;
         const FieldInfo* resolveField(const std::string& name, int line, int column) const;
         bool isSubclassOf(const std::string& derived, const std::string& base) const;
+        int inheritanceDistance(const std::string& derived, const std::string& base) const;
+        bool isAssignableType(const TypeInfo& expected, const TypeInfo& actual) const;
+        bool paramsAssignable(const std::vector<TypeInfo>& expected,
+                              const std::vector<TypeInfo>& actual) const;
+        std::optional<int> conversionCost(const TypeInfo& expected, const TypeInfo& actual) const;
+        std::optional<int> paramsConversionCost(const std::vector<TypeInfo>& expected,
+                                                const std::vector<TypeInfo>& actual) const;
         void validateOverrides(ClassInfo& info);
         void validateAbstractness(ClassInfo& info);
         bool isAccessible(Visibility visibility, const std::string& owner,
@@ -202,6 +209,13 @@ namespace bloch::compiler {
         bool isTypeReference(Expression* expr) const;
         bool isThisReference(Expression* expr) const;
         bool isSuperConstructorCall(Statement* stmt) const;
+        std::unique_ptr<Type> typeFromTypeInfo(const TypeInfo& typeInfo) const;
+        void inferDiamondTypeArguments(Expression* initializer, const TypeInfo& expectedType,
+                                       int line, int column);
+        void validateTypedInitializer(const std::string& name, Type* declaredType,
+                                      Expression* initializer, int line, int column);
+        void recordFinalFieldAssignment(const FieldInfo& field, const std::string& fieldName,
+                                        int line, int column);
 
         // Type inference
         std::optional<int> evaluateConstInt(Expression* expr) const;
@@ -217,6 +231,10 @@ namespace bloch::compiler {
                                              const std::vector<TypeInfo>& args) const;
         void validateTypeApplication(const TypeInfo& t, int line, int column) const;
         std::optional<TypeInfo> getTypeParamBound(const std::string& name) const;
+
+        // Tracks final-field assignments in the constructor currently being analysed.
+        std::unordered_map<std::string, int> m_constructorFinalAssignments;
+        int m_constructorFinalAssignmentDepth = 0;
     };
 
 }  // namespace bloch::compiler
