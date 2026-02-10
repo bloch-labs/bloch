@@ -323,6 +323,102 @@ namespace bloch::update {
             return std::filesystem::path("bloch");
         }
 
+        std::filesystem::path resolveStdlibRootPath() {
+            if (const char* overridePath = std::getenv("BLOCH_STDLIB_PATH");
+                overridePath && *overridePath) {
+                return std::filesystem::path(overridePath);
+            }
+#ifdef _WIN32
+            if (const char* local = std::getenv("LOCALAPPDATA"); local && *local) {
+                return std::filesystem::path(local) / "Bloch" / "library";
+            }
+#elif defined(__APPLE__)
+            if (const char* home = std::getenv("HOME"); home && *home) {
+                return std::filesystem::path(home) / "Library" / "Application Support" / "Bloch" /
+                       "library";
+            }
+#else
+            std::filesystem::path dataRoot;
+            if (const char* xdg = std::getenv("XDG_DATA_HOME"); xdg && *xdg) {
+                dataRoot = std::filesystem::path(xdg);
+            } else if (const char* home = std::getenv("HOME"); home && *home) {
+                dataRoot = std::filesystem::path(home) / ".local" / "share";
+            }
+            if (!dataRoot.empty()) {
+                return dataRoot / "bloch" / "library";
+            }
+#endif
+            return {};
+        }
+
+        std::optional<std::filesystem::path> findBundledLibraryRoot(
+            const std::filesystem::path& extractedRoot) {
+            std::error_code ec;
+            for (auto it = std::filesystem::recursive_directory_iterator(extractedRoot, ec);
+                 it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+                if (ec)
+                    break;
+                if (!it->is_directory(ec))
+                    continue;
+                const auto path = it->path();
+                if (path.filename() != "library")
+                    continue;
+                auto parent = path.parent_path();
+                if (parent.filename() == "bloch" && parent.parent_path().filename() == "share")
+                    return path;
+            }
+            return std::nullopt;
+        }
+
+        bool copyDirectoryContents(const std::filesystem::path& source,
+                                   const std::filesystem::path& destination, std::string& error) {
+            std::error_code ec;
+            std::filesystem::create_directories(destination, ec);
+            if (ec) {
+                error = "failed creating directory '" + destination.string() + "'";
+                return false;
+            }
+            for (const auto& entry : std::filesystem::directory_iterator(source, ec)) {
+                if (ec) {
+                    error = "failed iterating '" + source.string() + "'";
+                    return false;
+                }
+                const auto target = destination / entry.path().filename();
+                std::filesystem::copy(entry.path(), target,
+                                      std::filesystem::copy_options::recursive |
+                                          std::filesystem::copy_options::overwrite_existing,
+                                      ec);
+                if (ec) {
+                    error = "failed copying '" + entry.path().string() + "' to '" +
+                            target.string() + "'";
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        bool installBundledStdlib(const std::filesystem::path& extractedRoot,
+                                  const std::string& version, std::string& error) {
+            auto bundled = findBundledLibraryRoot(extractedRoot);
+            if (!bundled) {
+                error = "bundled stdlib not found in release archive";
+                return false;
+            }
+            auto stdlibRoot = resolveStdlibRootPath();
+            if (stdlibRoot.empty()) {
+                error = "unable to resolve stdlib install root";
+                return false;
+            }
+            auto versioned = stdlibRoot / version;
+            std::error_code ec;
+            std::filesystem::remove_all(versioned, ec);
+            if (!copyDirectoryContents(*bundled, stdlibRoot, error))
+                return false;
+            if (!copyDirectoryContents(*bundled, versioned, error))
+                return false;
+            return true;
+        }
+
         bool downloadText(const std::string& host, const std::string& path,
                           const std::string& agent, std::string& out, std::string& error) {
             httplib::SSLClient client(host);
@@ -663,6 +759,11 @@ namespace bloch::update {
             std::cerr << "Failed to install the new binary to " << installPath << ": "
                       << ec.message() << std::endl;
             return false;
+        }
+
+        std::string stdlibErr;
+        if (!installBundledStdlib(tempDir, *latest, stdlibErr)) {
+            std::cerr << "Warning: " << stdlibErr << std::endl;
         }
 
         UpdateCache cache = emptyCache();

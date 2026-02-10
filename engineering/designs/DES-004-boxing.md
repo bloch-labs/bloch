@@ -22,7 +22,7 @@
   - virtual `toPrimitive() -> void` placeholder
 
 - **Boolean**
-  - `valueOf(boolean) -> Boolean`
+  - `of(boolean) -> Boolean`
   - `toPrimitive() -> boolean`
   - `equals(Object) -> boolean` (value-based)
   - `toString() -> string` ("true"/"false")
@@ -33,7 +33,7 @@
   - `static parse(string) -> Boolean`
 
 - **Integer**
-  - `valueOf(int) -> Integer`
+  - `of(int) -> Integer`
   - `toPrimitive() -> int`
   - `equals(Object) -> boolean` (value-based)
   - `toString() -> string`
@@ -46,7 +46,7 @@
   - `static max(Integer, Integer) -> Integer`
 
 - **Long**
-  - `valueOf(long) -> Long`
+  - `of(long) -> Long`
   - `toPrimitive() -> long`
   - `equals(Object) -> boolean`
   - `toString() -> string`
@@ -59,7 +59,7 @@
   - `static max(Long, Long) -> Long`
 
 - **Float**
-  - `valueOf(float) -> Float`
+  - `of(float) -> Float`
   - `toPrimitive() -> float`
   - `equals(Object) -> boolean`
   - `toString() -> string`
@@ -73,7 +73,7 @@
   - `static max(Float, Float) -> Float`
 
 - **Char**
-  - `valueOf(char) -> Char`
+  - `of(char) -> Char`
   - `toPrimitive() -> char`
   - `equals(Object) -> boolean`
   - `toString() -> string` (single-character)
@@ -84,7 +84,7 @@
   - `toLower() -> Char`
 
 - **String**
-  - `valueOf(string) -> String`
+  - `of(string) -> String`
   - `toPrimitive() -> string`
   - `equals(Object) -> boolean` (value-based)
   - `toString() -> string`

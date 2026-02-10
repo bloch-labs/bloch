@@ -505,6 +505,38 @@ TEST(ParserTest, ParseGenericClassAndInstantiation) {
     EXPECT_EQ(targ->name, "int");
 }
 
+TEST(ParserTest, ParseGenericDiamondInstantiation) {
+    const char* src =
+        "class Box<T> { public constructor() -> Box<T> = default; } "
+        "function main() -> void { Box<int> b = new Box<>(); }";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->functions.size(), 1u);
+    auto* mainFn = program->functions[0].get();
+    ASSERT_NE(mainFn->body, nullptr);
+    ASSERT_EQ(mainFn->body->statements.size(), 1u);
+    auto* var = dynamic_cast<VariableDeclaration*>(mainFn->body->statements[0].get());
+    ASSERT_NE(var, nullptr);
+
+    auto* init = dynamic_cast<NewExpression*>(var->initializer.get());
+    ASSERT_NE(init, nullptr);
+    auto* named = dynamic_cast<NamedType*>(init->classType.get());
+    ASSERT_NE(named, nullptr);
+    EXPECT_TRUE(named->hasTypeArgumentList);
+    EXPECT_EQ(named->typeArguments.size(), 0u);
+}
+
+TEST(ParserTest, EmptyTypeArgumentListOutsideNewFails) {
+    const char* src = "class Box<T> { public constructor() -> Box<T> = default; } Box<> b;";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    EXPECT_THROW(parser.parse(), BlochError);
+}
+
 TEST(ParserTest, ParseArrayTypesAndIndexing) {
     const char* src =
         "int[] a; int[5] b; int[] c = {0,1,2}; function main() -> void { echo(c[1]); }";

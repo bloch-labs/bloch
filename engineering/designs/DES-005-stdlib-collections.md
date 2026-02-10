@@ -17,7 +17,7 @@
 
 ## Stdlib Classes & APIs
 
-- **List<T extends Object>**
+- **List<T>**
   - `static of(T v1, T v2?, ...) -> List<T>`
   - `add(T) -> void`
   - `get(int index) -> T`
@@ -27,7 +27,7 @@
   - `isEmpty() -> boolean`.
   - Semantics: singly linked backing is acceptable; index out-of-range throws runtime error.
 
-- **Set<T extends Object>**
+- **Set<T>**
   - `static of(T v1, ...) -> Set<T>`
   - `add(T) -> boolean` (true if inserted)
   - `remove(T) -> boolean`
@@ -37,7 +37,7 @@
   - `clear() -> void`.
   - Semantics: uniqueness by `equals`; initial implementation may be linear or hashed but deterministic.
 
-- **Map<K extends Object, V extends Object>**
+- **Map<K, V>**
   - `static of(K k1, V v1, K k2, V v2, ...) -> Map<K,V>`
   - `put(K,V) -> void`
   - `get(K) -> V`
@@ -48,7 +48,7 @@
   - `clear() -> void`.
   - Semantics: key equality via `equals`; linear map acceptable for v1.2.0.
 
-- **Pair<A extends Object, B extends Object>**
+- **Pair<A, B>**
   - `static of(A,B) -> Pair<A,B>`
   - `first() -> A`
   - `second() -> B`
@@ -60,4 +60,4 @@
 - Integration: examples using boxed primitives and user classes (`List<Integer>`, `Set<String>`, `Map<Integer,String>`, `Pair<Boolean,Integer>`).
 
 ## Compatability
-- Reference-only: type args must extend `Object`; primitives require boxing. No iterators/generators; all operations are eager and deterministic.
+- Reference-only intent: APIs are designed for class references (including boxed primitives) and rely on `Object`-level behaviour via implicit inheritance. No iterators/generators; all operations are eager and deterministic.
