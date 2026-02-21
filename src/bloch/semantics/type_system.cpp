@@ -59,7 +59,10 @@ namespace bloch {
 
     void SymbolTable::beginScope() { m_scopes.emplace_back(); }
 
-    void SymbolTable::endScope() { m_scopes.pop_back(); }
+    void SymbolTable::endScope() {
+        if (!m_scopes.empty())
+            m_scopes.pop_back();
+    }
 
     void SymbolTable::declare(const std::string& name, bool isFinal, ValueType type) {
         if (m_scopes.empty())
