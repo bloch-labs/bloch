@@ -1,18 +1,21 @@
 # Casting
 
-Bloch v1.1.x supports explicit casting using parentheses and performs implicit float promotion for division e.g. `1/2` yields `0.5`.
+Bloch supports explicit casts using parentheses and performs implicit float promotion for
+division (for example, `1/2` yields `0.5f`).
 
 ## Syntax
-- Cast: `(target_type)expression`
-- Supported targets: `int`, `float`, `bit`
-- Not supported: `void`, `char`, or class types
+- Cast: `(target_type) expression`
+- Supported targets: `int`, `long`, `float`, `bit`
+- Not supported: `void`, `boolean`, `char`, `string`, or class types
 
 ## Numeric rules
-- Division `/` always produces a `float` result when used with numeric primitives, even if both operands are `int`.
+- Division `/` always produces a `float` result when used with numeric primitives, even if both
+  operands are `int` or `bit`.
 - `%` remains integer-only.
 - Explicit casts allow:
-  - Widening: `int`/`bit` → `float`
-  - Narrowing: `float` → `int`/`bit` (truncates toward zero)
+  - Widening: `int`/`long`/`bit` -> `float`
+  - Narrowing: `float` -> `int`/`long`/`bit` (truncates toward zero)
+  - Integer widening: `int` -> `long`
 
 ## Examples
 ```bloch
@@ -26,5 +29,6 @@ function main() -> void {
     float widened = (float)numerator;
     int truncated = (int)widened;         // 3
     bit flag = (bit)widened;              // 1 (non-zero becomes 1)
+    long big = (long)numerator;           // 3L
 }
 ```
