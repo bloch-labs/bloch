@@ -1,6 +1,7 @@
 # Getting Started
+**About 5 minutes.**
 
-This quick guide helps you install Bloch and run your first program. **About 5 minutes.** By the end you'll have run a classical "Hello, Bloch!" program and a simple quantum program that emits OpenQASM.
+This quick guide helps you install Bloch and run your first program. By the end you'll have run a classical "Hello, Bloch!" program and a simple quantum program that emits OpenQASM 2.0.
 
 ## Prerequisites
 
@@ -38,7 +39,7 @@ Verify the install:
 bloch --version
 ```
 
-## Verify your install
+## Run your first program
 
 Run a shipped example to confirm everything works. From the repo root (if you have the repo), or using an installed `bloch` with a path to the example file:
 

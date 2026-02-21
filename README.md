@@ -1,6 +1,6 @@
 # Bloch
 
-Bloch is an open-source, strongly typed hybrid quantum programming language. It’s designed for people who want classical and quantum code side by side. The toolchain is hardware-agnostic so you can move between simulators and future backends.
+Bloch is an open-source, strongly typed, hybrid quantum programming language. It’s designed for people who want classical and quantum code side by side. The toolchain is hardware-agnostic so you can move between simulators and future backends.
 
 ## 🚀 Install 
 - Linux/macOS:
