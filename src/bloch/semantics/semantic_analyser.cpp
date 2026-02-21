@@ -19,10 +19,16 @@
 namespace bloch {
 
     void SemanticAnalyser::analyse(Program& program) {
+        // Reset state so analyser instances are safely reusable.
+        m_symbols = SymbolTable{};
+        m_currentReturnType = ValueType::Unknown;
+        m_foundReturn = false;
+        m_functions.clear();
+        m_functionInfo.clear();
+
         // Global scope for top-level declarations and functions.
-        beginScope();
+        ScopeGuard globalScope(*this);
         program.accept(*this);
-        endScope();
     }
 
     ValueType SemanticAnalyser::inferType(Expression* expr) const {
@@ -301,9 +307,8 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(BlockStatement& node) {
-        beginScope();
+        ScopeGuard scope(*this);
         for (auto& stmt : node.statements) stmt->accept(*this);
-        endScope();
     }
 
     void SemanticAnalyser::visit(ExpressionStatement& node) {
@@ -371,7 +376,7 @@ namespace bloch {
     }
 
     void SemanticAnalyser::visit(ForStatement& node) {
-        beginScope();
+        ScopeGuard scope(*this);
         if (node.initializer)
             node.initializer->accept(*this);
         if (node.condition)
@@ -380,7 +385,6 @@ namespace bloch {
             node.increment->accept(*this);
         if (node.body)
             node.body->accept(*this);
-        endScope();
     }
 
     void SemanticAnalyser::visit(WhileStatement& node) {
@@ -695,7 +699,7 @@ namespace bloch {
 
         bool prevFoundReturn = m_foundReturn;
         m_foundReturn = false;
-        beginScope();
+        ScopeGuard functionScope(*this);
         for (auto& param : node.params) {
             if (isDeclared(param->name)) {
                 throw BlochError(ErrorCategory::Semantic, param->line, param->column,
@@ -716,7 +720,6 @@ namespace bloch {
             throw BlochError(ErrorCategory::Semantic, node.line, node.column,
                              "Non-void function must have a 'return' statement.");
         }
-        endScope();
 
         m_foundReturn = prevFoundReturn;
         m_currentReturnType = prevReturn;

@@ -70,6 +70,20 @@ namespace bloch {
         void visit(Program& node) override;
 
        private:
+        // Ensures beginScope/endScope are paired during stack unwinding.
+        class ScopeGuard {
+           public:
+            explicit ScopeGuard(SemanticAnalyser& analyser) : m_analyser(analyser) {
+                m_analyser.beginScope();
+            }
+            ~ScopeGuard() { m_analyser.endScope(); }
+            ScopeGuard(const ScopeGuard&) = delete;
+            ScopeGuard& operator=(const ScopeGuard&) = delete;
+
+           private:
+            SemanticAnalyser& m_analyser;
+        };
+
         SymbolTable m_symbols;
         ValueType m_currentReturnType = ValueType::Unknown;
         bool m_foundReturn = false;
