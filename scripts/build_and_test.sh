@@ -53,8 +53,49 @@ require_cmd() {
 require_cmd cmake
 require_cmd ctest
 
+cache_internal_value() {
+  local key="$1"
+  local cache_file="$2"
+  local line
+
+  line="$(grep -E "^${key}:INTERNAL=" "${cache_file}" 2>/dev/null || true)"
+  printf "%s\n" "${line#*=}"
+}
+
+cmake_supports_fresh() {
+  cmake --help 2>/dev/null | grep -q -- "--fresh"
+}
+
+CONFIGURE_ARGS=(-S "${ROOT_DIR}" -B "${BUILD_DIR}" -DCMAKE_BUILD_TYPE="${CONFIG}")
+
+if [[ -f "${BUILD_DIR}/CMakeCache.txt" ]]; then
+  CACHED_SOURCE_DIR="$(cache_internal_value CMAKE_HOME_DIRECTORY "${BUILD_DIR}/CMakeCache.txt")"
+  CACHED_BUILD_DIR="$(cache_internal_value CMAKE_CACHEFILE_DIR "${BUILD_DIR}/CMakeCache.txt")"
+
+  if [[ "${CACHED_SOURCE_DIR}" != "${ROOT_DIR}" || "${CACHED_BUILD_DIR}" != "${BUILD_DIR}" ]]; then
+    warn "Detected stale CMake cache for a different checkout path."
+    warn "Cached source: ${CACHED_SOURCE_DIR:-unknown}"
+    warn "Cached build:  ${CACHED_BUILD_DIR:-unknown}"
+
+    if cmake_supports_fresh; then
+      warn "Reconfiguring with 'cmake --fresh' to rebuild CMake metadata."
+      CONFIGURE_ARGS=(--fresh "${CONFIGURE_ARGS[@]}")
+    else
+      warn "Removing stale CMake cache files before reconfiguring."
+      cmake -E rm -f \
+        "${BUILD_DIR}/CMakeCache.txt" \
+        "${BUILD_DIR}/CTestTestfile.cmake" \
+        "${BUILD_DIR}/cmake_install.cmake" \
+        "${BUILD_DIR}/compile_commands.json"
+      if [[ -d "${BUILD_DIR}/CMakeFiles" ]]; then
+        cmake -E remove_directory "${BUILD_DIR}/CMakeFiles"
+      fi
+    fi
+  fi
+fi
+
 step "Configuring CMake (${CONFIG}) in ${BUILD_DIR}"
-cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" -DCMAKE_BUILD_TYPE="${CONFIG}"
+cmake "${CONFIGURE_ARGS[@]}"
 
 step "Building (parallel: ${JOBS})"
 cmake --build "${BUILD_DIR}" --parallel "${JOBS}"
