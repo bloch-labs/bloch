@@ -420,6 +420,26 @@ TEST(SemanticTest, DuplicateFunctionDeclarationFails) {
     EXPECT_THROW(analyser.analyse(*program), BlochError);
 }
 
+TEST(SemanticTest, AnalyserCanBeReusedAcrossPrograms) {
+    SemanticAnalyser analyser;
+
+    auto first = parseProgram("function main() -> void { int x = 1; }");
+    EXPECT_NO_THROW(analyser.analyse(*first));
+
+    auto second = parseProgram("function main() -> void { int y = 2; }");
+    EXPECT_NO_THROW(analyser.analyse(*second));
+}
+
+TEST(SemanticTest, AnalyserRecoversAfterFailedAnalysis) {
+    SemanticAnalyser analyser;
+
+    auto bad = parseProgram("function main() -> void { int x = 1; y = 2; }");
+    EXPECT_THROW(analyser.analyse(*bad), BlochError);
+
+    auto good = parseProgram("function main() -> void { int x = 1; x = x + 1; }");
+    EXPECT_NO_THROW(analyser.analyse(*good));
+}
+
 TEST(SemanticTest, BuiltinGateCallIsValid) {
     const char* src = "qubit q; h(q);";
     auto program = parseProgram(src);

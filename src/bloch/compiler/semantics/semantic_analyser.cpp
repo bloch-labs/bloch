@@ -19,6 +19,7 @@
 #include <iostream>
 #include <limits>
 #include <unordered_map>
+#include <utility>
 
 #include "bloch/compiler/semantics/built_ins.hpp"
 
@@ -76,6 +77,23 @@ namespace bloch::compiler {
     }
 
     namespace {
+        template <typename Fn>
+        class ScopeExit {
+           public:
+            explicit ScopeExit(Fn&& fn) : m_fn(std::forward<Fn>(fn)) {}
+            ~ScopeExit() { m_fn(); }
+            ScopeExit(const ScopeExit&) = delete;
+            ScopeExit& operator=(const ScopeExit&) = delete;
+
+           private:
+            Fn m_fn;
+        };
+
+        template <typename Fn>
+        ScopeExit<Fn> makeScopeExit(Fn&& fn) {
+            return ScopeExit<Fn>(std::forward<Fn>(fn));
+        }
+
         std::string methodSignatureLabel(const std::string& name,
                                          const std::vector<SemanticAnalyser::TypeInfo>& params) {
             std::ostringstream oss;
@@ -1510,8 +1528,28 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::analyse(Program& program) {
+        // Reset state so analyser instances are safely reusable after success or failure.
+        m_symbols = SymbolTable{};
+        m_currentReturn = combine(ValueType::Unknown, "");
+        m_foundReturn = false;
+        m_functions.clear();
+        m_functionInfo.clear();
+        m_classes.clear();
+        m_currentClass.clear();
+        m_inStaticContext = false;
+        m_inConstructor = false;
+        m_inDestructor = false;
+        m_allowSuperConstructorCall = false;
+        m_currentMethod.clear();
+        m_currentMethodIsOverride = false;
+        m_typeStack.clear();
+        m_currentTypeParams.clear();
+        m_inClassRegistryBuild = false;
+        m_constructorFinalAssignments.clear();
+        m_constructorFinalAssignmentDepth = 0;
+
         buildClassRegistry(program);
-        beginScope();
+        ScopeGuard globalScope(*this);
         // Make class names visible as types/values (for static access).
         for (const auto& kv : m_classes) {
             declare(kv.first, true, combine(ValueType::Unknown, kv.first), true);
@@ -1529,7 +1567,6 @@ namespace bloch::compiler {
                 cls->accept(*this);
         for (auto& fn : program.functions) fn->accept(*this);
         for (auto& stmt : program.statements) stmt->accept(*this);
-        endScope();
     }
 
     void SemanticAnalyser::visit(VariableDeclaration& node) {
@@ -1602,11 +1639,12 @@ namespace bloch::compiler {
         bool trackNesting = m_inConstructor;
         if (trackNesting)
             m_constructorFinalAssignmentDepth += 1;
-        beginScope();
+        auto restoreNesting = makeScopeExit([&] {
+            if (trackNesting)
+                m_constructorFinalAssignmentDepth -= 1;
+        });
+        ScopeGuard scope(*this);
         for (auto& stmt : node.statements) stmt->accept(*this);
-        endScope();
-        if (trackNesting)
-            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(ExpressionStatement& node) {
@@ -1656,6 +1694,10 @@ namespace bloch::compiler {
         bool trackNesting = m_inConstructor;
         if (trackNesting)
             m_constructorFinalAssignmentDepth += 1;
+        auto restoreNesting = makeScopeExit([&] {
+            if (trackNesting)
+                m_constructorFinalAssignmentDepth -= 1;
+        });
         if (node.condition) {
             node.condition->accept(*this);
             auto condType = inferTypeInfo(node.condition.get());
@@ -1670,14 +1712,16 @@ namespace bloch::compiler {
             node.thenBranch->accept(*this);
         if (node.elseBranch)
             node.elseBranch->accept(*this);
-        if (trackNesting)
-            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(TernaryStatement& node) {
         bool trackNesting = m_inConstructor;
         if (trackNesting)
             m_constructorFinalAssignmentDepth += 1;
+        auto restoreNesting = makeScopeExit([&] {
+            if (trackNesting)
+                m_constructorFinalAssignmentDepth -= 1;
+        });
         if (node.condition) {
             node.condition->accept(*this);
             auto condType = inferTypeInfo(node.condition.get());
@@ -1692,15 +1736,17 @@ namespace bloch::compiler {
             node.thenBranch->accept(*this);
         if (node.elseBranch)
             node.elseBranch->accept(*this);
-        if (trackNesting)
-            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(ForStatement& node) {
         bool trackNesting = m_inConstructor;
         if (trackNesting)
             m_constructorFinalAssignmentDepth += 1;
-        beginScope();
+        auto restoreNesting = makeScopeExit([&] {
+            if (trackNesting)
+                m_constructorFinalAssignmentDepth -= 1;
+        });
+        ScopeGuard scope(*this);
         if (node.initializer)
             node.initializer->accept(*this);
         if (node.condition) {
@@ -1717,15 +1763,16 @@ namespace bloch::compiler {
             node.increment->accept(*this);
         if (node.body)
             node.body->accept(*this);
-        endScope();
-        if (trackNesting)
-            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(WhileStatement& node) {
         bool trackNesting = m_inConstructor;
         if (trackNesting)
             m_constructorFinalAssignmentDepth += 1;
+        auto restoreNesting = makeScopeExit([&] {
+            if (trackNesting)
+                m_constructorFinalAssignmentDepth -= 1;
+        });
         if (node.condition) {
             node.condition->accept(*this);
             auto condType = inferTypeInfo(node.condition.get());
@@ -1738,8 +1785,6 @@ namespace bloch::compiler {
         }
         if (node.body)
             node.body->accept(*this);
-        if (trackNesting)
-            m_constructorFinalAssignmentDepth -= 1;
     }
 
     void SemanticAnalyser::visit(EchoStatement& node) {
@@ -2715,7 +2760,18 @@ namespace bloch::compiler {
         bool savedOverride = m_currentMethodIsOverride;
         bool savedCtor = m_inConstructor;
         bool savedDtor = m_inDestructor;
-        m_currentClass = savedClass.empty() ? "" : savedClass;
+        bool savedFoundReturn = m_foundReturn;
+        auto restoreState = makeScopeExit([&] {
+            m_currentReturn = std::move(savedReturn);
+            m_foundReturn = savedFoundReturn;
+            m_currentClass = std::move(savedClass);
+            m_inStaticContext = savedStatic;
+            m_currentMethod = std::move(savedMethod);
+            m_currentMethodIsOverride = savedOverride;
+            m_inConstructor = savedCtor;
+            m_inDestructor = savedDtor;
+        });
+        m_currentClass = savedClass;
         m_inStaticContext = node.isStatic;
         m_currentMethod = node.name;
         m_currentMethodIsOverride = node.isOverride;
@@ -2724,7 +2780,7 @@ namespace bloch::compiler {
         m_currentReturn = ret;
         m_foundReturn = false;
 
-        beginScope();
+        ScopeGuard scope(*this);
         // 'this' binding
         if (!node.isStatic && !savedClass.empty()) {
             declare("this", true, combine(ValueType::Unknown, savedClass));
@@ -2740,15 +2796,6 @@ namespace bloch::compiler {
         }
         if (node.body)
             node.body->accept(*this);
-        endScope();
-
-        m_currentReturn = savedReturn;
-        m_currentClass = savedClass;
-        m_inStaticContext = savedStatic;
-        m_currentMethod = savedMethod;
-        m_currentMethodIsOverride = savedOverride;
-        m_inConstructor = savedCtor;
-        m_inDestructor = savedDtor;
     }
 
     void SemanticAnalyser::visit(ConstructorDeclaration& node) {
@@ -2763,6 +2810,19 @@ namespace bloch::compiler {
         bool savedAllowSuper = m_allowSuperConstructorCall;
         auto savedCtorFinalAssignments = m_constructorFinalAssignments;
         int savedCtorAssignmentDepth = m_constructorFinalAssignmentDepth;
+        auto restoreState = makeScopeExit([&] {
+            m_inStaticContext = savedStatic;
+            m_currentClass = std::move(savedClass);
+            m_inConstructor = savedCtor;
+            m_inDestructor = savedDtor;
+            m_currentMethod = std::move(savedMethod);
+            m_currentMethodIsOverride = savedOverride;
+            m_currentReturn = std::move(savedReturn);
+            m_foundReturn = savedFoundReturn;
+            m_allowSuperConstructorCall = savedAllowSuper;
+            m_constructorFinalAssignments = std::move(savedCtorFinalAssignments);
+            m_constructorFinalAssignmentDepth = savedCtorAssignmentDepth;
+        });
         m_constructorFinalAssignments.clear();
         m_constructorFinalAssignmentDepth = 0;
         m_inStaticContext = false;
@@ -2772,7 +2832,7 @@ namespace bloch::compiler {
         m_currentMethodIsOverride = false;
         m_currentReturn = combine(ValueType::Unknown, savedClass);
         m_foundReturn = false;
-        beginScope();
+        ScopeGuard scope(*this);
         if (!savedClass.empty())
             declare("this", true, combine(ValueType::Unknown, savedClass));
         for (auto& p : node.params) {
@@ -2880,18 +2940,6 @@ namespace bloch::compiler {
                 }
             }
         }
-        endScope();
-        m_inStaticContext = savedStatic;
-        m_currentClass = savedClass;
-        m_inConstructor = savedCtor;
-        m_inDestructor = savedDtor;
-        m_currentMethod = savedMethod;
-        m_currentMethodIsOverride = savedOverride;
-        m_currentReturn = savedReturn;
-        m_foundReturn = savedFoundReturn;
-        m_allowSuperConstructorCall = savedAllowSuper;
-        m_constructorFinalAssignments = std::move(savedCtorFinalAssignments);
-        m_constructorFinalAssignmentDepth = savedCtorAssignmentDepth;
     }
 
     void SemanticAnalyser::visit(DestructorDeclaration& node) {
@@ -2901,29 +2949,34 @@ namespace bloch::compiler {
         bool savedDtor = m_inDestructor;
         auto savedMethod = m_currentMethod;
         bool savedOverride = m_currentMethodIsOverride;
+        auto restoreState = makeScopeExit([&] {
+            m_inStaticContext = savedStatic;
+            m_currentClass = std::move(savedClass);
+            m_inConstructor = savedCtor;
+            m_inDestructor = savedDtor;
+            m_currentMethod = std::move(savedMethod);
+            m_currentMethodIsOverride = savedOverride;
+        });
         m_inStaticContext = false;
         m_inConstructor = false;
         m_inDestructor = true;
         m_currentMethod = "<destructor>";
         m_currentMethodIsOverride = false;
-        beginScope();
+        ScopeGuard scope(*this);
         if (!savedClass.empty())
             declare("this", true, combine(ValueType::Unknown, savedClass));
         if (node.body)
             node.body->accept(*this);
-        endScope();
-        m_inStaticContext = savedStatic;
-        m_currentClass = savedClass;
-        m_inConstructor = savedCtor;
-        m_inDestructor = savedDtor;
-        m_currentMethod = savedMethod;
-        m_currentMethodIsOverride = savedOverride;
     }
 
     void SemanticAnalyser::visit(ClassDeclaration& node) {
         // Visit member bodies minimally.
         auto savedClass = m_currentClass;
         auto savedParams = m_currentTypeParams;
+        auto restoreState = makeScopeExit([&] {
+            m_currentClass = std::move(savedClass);
+            m_currentTypeParams = std::move(savedParams);
+        });
         m_currentClass = node.name;
         auto it = m_classes.find(node.name);
         if (it != m_classes.end())
@@ -2938,8 +2991,6 @@ namespace bloch::compiler {
             else if (auto dtor = dynamic_cast<DestructorDeclaration*>(member.get()))
                 dtor->accept(*this);
         }
-        m_currentClass = savedClass;
-        m_currentTypeParams = savedParams;
     }
 
     void SemanticAnalyser::visit(FunctionDeclaration& node) {
@@ -2992,8 +3043,13 @@ namespace bloch::compiler {
         }
 
         TypeInfo ret = typeFromAst(node.returnType.get());
-        m_currentReturn = ret;
+        auto savedReturn = m_currentReturn;
         bool prevFound = m_foundReturn;
+        auto restoreState = makeScopeExit([&] {
+            m_currentReturn = std::move(savedReturn);
+            m_foundReturn = prevFound;
+        });
+        m_currentReturn = ret;
         m_foundReturn = false;
 
         FunctionInfo info;
@@ -3003,7 +3059,7 @@ namespace bloch::compiler {
         }
         m_functionInfo[node.name] = info;
 
-        beginScope();
+        ScopeGuard scope(*this);
         for (auto& param : node.params) {
             if (isDeclared(param->name)) {
                 throw BlochError(ErrorCategory::Semantic, param->line, param->column,
@@ -3025,9 +3081,6 @@ namespace bloch::compiler {
                                  "Non-void function must have a 'return' statement.");
             }
         }
-        endScope();
-
-        m_foundReturn = prevFound;
     }
 
     void SemanticAnalyser::visit(Program& node) {

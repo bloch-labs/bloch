@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/bloch-labs/bloch/compare/v1.0.3...v1.0.4) (2026-02-21)
+
+
+### Bug Fixes
+
+* reset analyser state and make scope unwinding exception-safe ([#239](https://github.com/bloch-labs/bloch/issues/239)) ([df13d7a](https://github.com/bloch-labs/bloch/commit/df13d7a7e22ce2aaa89188e5a3f0a44b8f8e3fdb))
+
 ## [1.0.3](https://github.com/bloch-labs/bloch/compare/v1.0.2...v1.0.3) (2026-01-28)
 
 
