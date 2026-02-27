@@ -88,16 +88,20 @@ Conceptual flow:
     1. Directory of the importing file.
     2. Configured search paths (used by tests/embedding).
     3. Current working directory.
+  - For `bloch.*` imports, configured search paths are checked first to avoid project shadowing
+    of installed stdlib modules.
   - For `import foo.bar.Baz;` load `foo/bar/Baz.bloch`.
   - For `import foo.bar.*;` load all `.bloch` files in `foo/bar/`.
+  - Support default-package symbol imports (`import Foo;`).
+  - Auto-load `bloch.lang.Object` before the entry module when available.
   - Validate that each imported module declares `package foo.bar;` (or no `package` for the default package).
   - Detect import cycles, cache loaded modules, and enforce a single `main()` across the graph.
 
-- **Stdlib layout (planned)**
-  - Stdlib discovery is not yet implemented in v1.1.x.
-  - The import syntax is stable and does not expose the underlying directory structure; once a
-    stdlib root is introduced, `ModuleLoader` will extend its search paths without changing
-    user-facing imports.
+- **Stdlib layout (implemented in v1.1.0)**
+  - CLI supplies platform-aware stdlib roots (plus `BLOCH_STDLIB_PATH` override) to
+    `ModuleLoader`.
+  - Versioned stdlib directories are supported (`vX.Y.Z`, `X.Y.Z`) with root fallback.
+  - The import syntax remains stable and does not expose physical directory layout.
 
 ## Testing
 - **Unit tests (compiler)**
@@ -109,10 +113,12 @@ Conceptual flow:
     - Duplicate class names across imports are reported as errors.
     - Package declarations are optional on entry files (default package).
 
-- **Unit tests (ModuleLoader)**
+- **Unit tests (ModuleLoader/runtime import coverage)**
   - Pure C++ tests for the module loader logic with a fake filesystem layout:
     - Resolution from the importing file's directory.
     - Resolution from configured search paths.
+    - `bloch.*` precedence to protect installed stdlib modules from project shadowing.
+    - Implicit `bloch.lang.Object` bootstrap when available.
     - Wildcard imports that load all `.bloch` files in a package directory.
     - Package mismatch errors when an imported module declares the wrong package.
     - Import cycle detection and multiple-main errors.
@@ -123,7 +129,7 @@ Conceptual flow:
     - Omit `package` in a `main.bloch`-style entrypoint and still import from packaged code.
   - Ensure diagnostics are clear when imports fail (e.g. missing module, package mismatch).
 
-## Compatability
+## Compatibility
 - **Backwards compatibility**
   - Existing single-file programs without `package` declarations remain valid as default-package files.
   - Projects that previously relied on path-based multi-file loading are normalised into the
@@ -132,7 +138,7 @@ Conceptual flow:
 
 - **Forward compatibility**
   - The import system is intentionally **agnostic** to the underlying library distribution mechanism:
-    - Today: local project paths only (no installed stdlib resolution in v1.1.x).
+    - Today: local project paths plus installed stdlib roots in v1.1.0.
     - Future: Maven-like repository and package manager that expose the same logical packages to the compiler.
   - By treating `ModuleLoader` and a small "library provider" abstraction as the only components aware of on-disk layout, we can:
     - Swap in a `.m2`-like structure without changing language syntax.

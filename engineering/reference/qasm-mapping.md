@@ -67,6 +67,5 @@ measure q[1] -> c[1];
 ```
 
 See also
-- Built-ins and signatures: [Built-ins](./builtins)
-- Runtime and simulator details: [Runtime Overview](../runtime)
-
+- Built-ins and signatures: [Built-ins](./builtins.md)
+- Runtime and simulator details: [Runtime Evaluator](./runtime-evaluator.md) and [QASM Simulator](./qasm-simulator.md)
