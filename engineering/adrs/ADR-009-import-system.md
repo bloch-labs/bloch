@@ -9,8 +9,8 @@ Accepted
 ## Delivered In
 v1.1.0
 
-> Note: stdlib packaging and installation are planned for v1.2.0. The v1.1.x implementation
-> resolves imports from local project paths only; stdlib resolution is future work.
+> Note: v1.1.0 includes installed-stdlib discovery via CLI-provided search paths and implicit
+> `bloch.lang.Object` bootstrap loading when available.
 
 ## Context
 - With the implementation of a class system in Bloch we need to clearly specify an import/package model.
@@ -52,30 +52,28 @@ v1.1.0
     1. **Directory of the importing file**.
     2. **Configured search paths** (used by tests and embedding).
     3. **Current working directory**.
+  - For `bloch.*` imports, configured search paths are checked first to avoid project-local
+    shadowing of stdlib modules.
   - The importer stops at the first successful resolution; missing imports are reported as semantic errors.
   - For wildcard imports (`import p.q.*;`), the resolver locates the package directory and loads
     all `.bloch` files it contains.
 
-- **Stdlib location (planned for v1.2.0+)**
-  - v1.1.x does not yet ship or resolve an installed stdlib; only project paths are searched.
-  - Beginning with v1.2.0 (Bloch stdlib release), Bloch will use a **single stdlib root directory**
-    per user:
+- **Stdlib location (v1.1.0 implementation)**
+  - Bloch resolves installed stdlib roots by platform:
     - Unix-like systems (XDG default): `~/.local/share/bloch/library`.
     - Windows (default): `%LOCALAPPDATA%\\Bloch\\library`.
     - macOS (default): `~/Library/Application Support/Bloch/library`.
-    - The actual path is computed via a small platform abstraction and may be overridden via an
-      environment variable (e.g. `BLOCH_STDLIB_PATH`) for testing and packaging.
-  - Under that root we maintain a **versioned subdirectory**:
-    - Example: `~/.local/share/bloch/library/v1.2.0/stdlib/...`
-    - The compiler/runtime target a single "active" stdlib version per Bloch binary, matching the
-      language version.
+    - Override is supported via `BLOCH_STDLIB_PATH`.
+  - Versioned roots are supported (for example `v1.1.0` and `1.1.0` subdirectories), plus an
+    unversioned root fallback.
+  - The loader auto-loads `bloch.lang.Object` before the entry file when that module is available.
   - Package names inside the stdlib are stable and decoupled from the physical layout so that a
     future ADR can introduce a Maven-like repository without changing user-facing import syntax.
 
 - **Future extensibility**
   - The import resolver is structured around a pluggable **search path**:
     - Project roots (always first).
-    - One or more **library providers** (stdlib planned for v1.2.0; more in future).
+    - One or more **library providers** (stdlib is implemented; more providers in future).
   - A later ADR may:
     - Add a Maven-style multi-version repository for community packages.
     - Allow mapping `group:artifact:version` coordinates onto the same import syntax used for the stdlib.
@@ -114,10 +112,12 @@ v1.1.0
 
 ## Consequences
 - Projects gain a **clear, documented import and package model** that blends Java-style packages with C++ style entrypoint ergonomics.
-- From v1.2.0 onwards, the stdlib is discoverable at a **stable, user-local path** while keeping the door open for future Maven-like dependency resolution without breaking imports.
+- The stdlib is discoverable at a **stable, user-local path** in v1.1.0, while keeping the door
+  open for future Maven-like dependency resolution without breaking imports.
 - Tooling (CLI, editor integrations) can rely on:
   - A well-defined mapping from `package` + symbol to files.
-  - A fixed search order (importing file directory → search paths → working directory).
+  - A fixed search order (importing file directory → search paths → working directory), with
+    `bloch.*` imports preferring configured search paths.
 - Future work:
   - Additional ADRs to specify a full package manager, Lattice build system, and Maven-like repository layout.
   - DES-007 (Import System) defines the concrete compiler/runtime architecture and resolver APIs implementing this ADR.
