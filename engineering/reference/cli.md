@@ -10,15 +10,18 @@ Outputs:
 - Echo/tracked output to stdout/stderr
 - `<file>.qasm` written alongside the source
 - Background update check (stderr notice on availability)
+- Refreshed stdlib installation on successful `--update`
 
 Behaviour:
 The CLI parses flags, validates shot and echo options, and warns when `--shots=N` conflicts with
 `@shots`. It runs a non-blocking update check on startup and can self-update when requested.
-Before loading modules, it builds stdlib search paths from install locations and
-`BLOCH_STDLIB_PATH`. After parsing, it invokes the module loader, semantic analyser, and runtime
-interpreter to execute the program. Multi-shot mode reruns the interpreter, aggregates tracked
-values, prints per-variable summaries, and preserves the last shot’s QASM. Echo defaults to
-`auto`, suppressing output during large shot counts unless explicitly overridden.
+Before loading modules, it builds stdlib search paths from `BLOCH_STDLIB_PATH`, platform install
+locations, binary-adjacent `share/bloch` directories, and local `library`/`stdlib` directories.
+After parsing, it invokes the module loader, semantic analyser, and runtime interpreter to execute
+the program. Multi-shot mode reruns the interpreter, aggregates tracked values, prints per-variable
+summaries, and preserves the last shot’s QASM. Echo defaults to `auto`, suppressing output during
+large shot counts unless explicitly overridden. `--update` replaces the binary and installs the
+bundled stdlib into the resolved user-local library root.
 
 Invariants/Guarantees:
 - Requires a single input file; errors out with usage on missing file.

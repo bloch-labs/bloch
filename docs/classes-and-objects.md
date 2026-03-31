@@ -1,9 +1,10 @@
 # Classes and Objects
 
-Bloch v1.1.x includes a class system with single inheritance, visibility, virtual dispatch,
+Bloch v1.1.0 includes a class system with single inheritance, visibility, virtual dispatch,
 and generics.
 
-Every non-static class implicitly extends `Object`.
+Every non-static class implicitly extends `Object`. When the stdlib is installed, that root
+resolves to `bloch.lang.Object` automatically.
 
 ## Declaring classes
 ```bloch
@@ -39,9 +40,12 @@ class Point {
 
 Rules:
 - Every non-static class must declare at least one constructor.
+- Default constructors bind parameters to matching instance fields by name and type. They cannot
+  bind static fields, `qubit` fields, or `final` fields that already have declaration initialisers.
 - `super(...)` is only valid as the first statement in a constructor.
 - If `super(...)` is omitted, an accessible zero-arg base constructor must exist.
-- Destructors are optional and use `destructor() -> void { ... }` (at most one per class).
+- Destructors are optional and use `destructor() -> void { ... }` or
+  `destructor() -> void = default;` (at most one per class).
 
 ## Inheritance and overrides
 ```bloch

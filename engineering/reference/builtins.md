@@ -18,8 +18,8 @@ All return `void`.
 - `cx(qubit, qubit)`
 
 ## Measurement/Reset
-- `measure q` — expression form, returns `bit`.
-- `measure q;` — statement form.
-- `reset q;` — statement; sets `q` to `|0>`.
+- `measure q` — expression form, accepts a single `qubit` and returns `bit`.
+- `measure q;` — statement form, accepts `qubit` or `qubit[]`.
+- `reset q;` — statement; accepts a single `qubit` and sets it to `|0>`.
 
 See also: [Language Specification](../../docs/language-spec.md).

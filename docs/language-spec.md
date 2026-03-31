@@ -1,7 +1,8 @@
 # Bloch Language Specification
 
-This document defines the Bloch language as implemented by the current release (see
-`CHANGELOG.md`). It is the normative reference; the other guides in this folder are explanatory.
+This document defines the Bloch language as implemented on this branch. Released versions are
+tracked in `CHANGELOG.md`. It is the normative reference; the other guides in this folder are
+explanatory.
 
 ## Notation
 - Grammar snippets use EBNF. Terminals appear in double quotes.
@@ -82,6 +83,8 @@ import com.example.*;
 
 Imports are resolved relative to the importing file first, then any configured search paths,
 then the current working directory. `bloch.*` imports prefer configured search paths first.
+When you run code via the `bloch` CLI, those search paths include the installed stdlib roots
+plus local `library/` and `stdlib/` directories when present.
 Wildcard imports load all `.bloch` files in the directory, and the loader validates that imported
 files declare the expected package (or no package for the default package). Imports are merged
 into a single program. Exactly one `main()` function must exist across all modules.
@@ -110,12 +113,16 @@ class Point {
 ```
 
 Key rules:
+- Every non-static class has an implicit `Object` root. When the stdlib is available, the loader
+  auto-loads `bloch.lang.Object` before user code.
 - `static class` is a namespace for static members only (no instance fields, methods,
   constructors, or destructors).
 - `abstract` classes may contain bodyless `virtual` methods.
 - Constructors use `constructor(params) -> ClassName { ... }` or `= default` to bind parameters
-  to fields by name and type.
-- At most one destructor may be declared: `destructor() -> void { ... }`.
+  to fields by name and type. Default constructors may not bind static fields, `qubit` fields, or
+  `final` fields that already have declaration initialisers.
+- At most one destructor may be declared: `destructor() -> void { ... }` or
+  `destructor() -> void = default;`.
 - Methods may be marked `virtual`; overrides must be marked `override` and match the base method
   signature exactly. Static methods cannot be `virtual` or `override`.
 - `super(...)` is only valid as the first statement of a constructor, and only when a base class
@@ -140,7 +147,8 @@ Bloch uses C-style precedence and left-to-right evaluation for most operators. H
 - Casts: `(int|long|float|bit) expr` for explicit numeric/bit conversions. Casting to or from
   `boolean`, `char`, `string`, or class references is not supported.
 
-`measure expr` is a prefix expression that returns a `bit` value.
+`measure expr` is a prefix expression that returns a `bit` value. The expression form only accepts
+a single `qubit`.
 
 ## Statements
 - Block: `{ ... }`
@@ -151,8 +159,8 @@ Bloch uses C-style precedence and left-to-right evaluation for most operators. H
 - While: `while (cond) { ... }` (cond must be `boolean` or `bit`)
 - For: `for (init?; cond; update) { ... }` (cond must be `boolean` or `bit`)
 - Echo: `echo(expr);`
-- Reset: `reset expr;` (qubit only)
-- Measure (statement form): `measure expr;`
+- Reset: `reset expr;` (single `qubit` only)
+- Measure (statement form): `measure expr;` (`expr` must be `qubit` or `qubit[]`)
 - Destroy: `destroy expr;`
 - Conditional statement: `expr ? statement : statement` (statement-level only)
 
@@ -177,6 +185,8 @@ For a single reference with descriptions, see [Built-ins and Quantum Gates](./bu
 - Each run writes `<file>.qasm` next to the input file; `--emit-qasm` prints it to stdout.
 - `@shots(N)` or `--shots=N` repeats execution and aggregates tracked values. If both are present,
   the annotation wins and the CLI flag is ignored with a warning.
+- With `--echo=auto` (the default), echo output is suppressed during multi-shot runs unless you
+  explicitly request `--echo=all`.
 
 ## Errors
 Bloch reports lexical, parse, semantic, and runtime errors with 1-based line and column numbers.

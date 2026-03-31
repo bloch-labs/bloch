@@ -11,12 +11,27 @@ Run programs with `bloch path/to/file.bloch`.
 
 - `--help` — Show usage and available options.
 - `--version` — Print the build string and check for updates.
-- `--update` — Download and install the latest release.
+- `--update` — Download and install the latest release, including the bundled stdlib.
 - `--emit-qasm` — Print the emitted OpenQASM log to stdout (in addition to writing `<input>.qasm` beside your source).
 - `--shots=N` — Run the program N times and aggregate tracked values. **to be deprecated in v2.0.0;** prefer `@shots(N)` on `main()`. See [Annotations & Tracking](./annotations-and-tracking.md). If both the annotation and this flag are set, the annotation wins and the flag is ignored with a warning.
 - `--echo=auto|all|none` — Control echo output. Default `auto` suppresses echo when taking many shots; use `all` for verbose per-shot output, `none` to silence echo.
 
 Each run writes `<input>.qasm` next to your source file. The `--emit-qasm` flag only controls whether that log is also printed to stdout.
+
+## Stdlib discovery
+
+When the CLI resolves imports, it prepares search paths for the stdlib and project libraries:
+
+- If `BLOCH_STDLIB_PATH` is set, Bloch uses that root first and also checks `1.1.0`/`v1.1.0`
+  style versioned subdirectories when present.
+- Otherwise Bloch checks the platform install location for the stdlib:
+  - Linux: `$XDG_DATA_HOME/bloch/library` or `~/.local/share/bloch/library`
+  - macOS: `~/Library/Application Support/Bloch/library`
+  - Windows: `%LOCALAPPDATA%\Bloch\library`
+- Bloch also checks locations beside the installed binary plus local `./library` and `./stdlib`
+  directories in your current working directory.
+
+This is why `import bloch.lang.Object;` works immediately after a standard install.
 
 ## Where is `bloch` installed?
 

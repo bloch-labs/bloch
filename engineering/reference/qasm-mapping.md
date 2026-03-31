@@ -32,7 +32,9 @@ Notes
 ## Measurement and classical bits
 
 - Statement form: `measure q;` becomes `measure q[i] -> c[i];` in the log and collapses the qubit.
-- Expression form: `bit b = measure q;` also produces a measurement result and returns a `bit` value to the program.
+- Statement form on `qubit[]` emits one measurement line per element, in index order.
+- Expression form: `bit b = measure q;` accepts a single `qubit`, produces a measurement result,
+  and returns a `bit` value to the program.
 
 The simulator maintains a classical register `c[...]` for recorded outcomes in the QASM log.
 
