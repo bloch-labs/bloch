@@ -27,7 +27,6 @@ jobs:
           types: |
             feat
             fix
-            hotfix
             perf
             refactor
             revert
