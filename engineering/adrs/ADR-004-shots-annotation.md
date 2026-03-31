@@ -15,7 +15,7 @@ Bloch supports repeated execution of quantum programs (“shots”). We needed a
 ## Decision
 - Introduce `@shots(N)` annotation on the `main` function only.
 - If both CLI `--shots` and `@shots(N)` are present, `@shots` has higher precedence and a warning is emitted about the mismatch.
-- `@shots` is rejected on non-`main` functions; `main` may also be `@quantum` if its return type is valid (`bit/bit[]`/`void`).
+- `@shots` is rejected on non-`main` functions, and `@quantum` remains disallowed on `main()`.
 - Semantic checks enforce placement and validate that `N` is an integer literal.
 - Runtime uses the resolved shot count when executing the entry point.
 
@@ -25,4 +25,4 @@ Bloch supports repeated execution of quantum programs (“shots”). We needed a
 ## Consequences
 - Users get deterministic shot selection; conflicts produce explicit warnings.
 - No per-function or per-block shot overrides—out of scope for simplicity.
-- CLI flag to be deprecated in v2.0.0. 
+- CLI flag to be deprecated in v2.0.0.

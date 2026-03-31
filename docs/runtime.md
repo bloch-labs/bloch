@@ -13,8 +13,8 @@ logs OpenQASM 2.0 operations.
 
 ## Simulator and QASM
 `QasmSimulator` maintains a statevector and emits a QASM log. Gates update amplitudes;
-`measure` collapses and writes `measure q[i] -> c[i];` to the log. `reset` sends a qubit to
-`|0>`.
+statement-form `measure` collapses qubits and writes `measure q[i] -> c[i];` to the log
+(one line per element when measuring `qubit[]`). `reset` sends a single qubit back to `|0>`.
 
 ## QASM emission
 The CLI always writes `<file>.qasm` next to your source. Use `--emit-qasm` to also print it to
