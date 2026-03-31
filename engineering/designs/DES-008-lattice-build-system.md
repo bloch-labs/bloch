@@ -77,7 +77,7 @@
     - Verify Lattice is compatible across compiler/runtime versions within a supported range.
     - Ensure error propagation and diagnostics are surfaced clearly to users.
 
-## Compatability
+## Compatibility
 - **With v1.x**
   - Lattice is **not** required for v1.x, but:
     - Compiler CLI contracts introduced in late 1.x are designed so that adoption of Lattice in 2.0.0 does not break existing scripts.

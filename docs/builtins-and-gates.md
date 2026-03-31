@@ -12,7 +12,7 @@ This page is the single reference for built-in functions and quantum operations 
 
 ## Quantum gates
 
-All gates return `void` and operate on qubit(s). Gate names are reserved.
+All gates return `void` and operate on qubits. Gate names are reserved.
 
 | Gate | Operands | Description |
 |------|----------|-------------|
@@ -29,12 +29,13 @@ All gates return `void` and operate on qubit(s). Gate names are reserved.
 
 | Operation | Form | Description |
 |-----------|------|-------------|
-| `measure` | `measure expr;` (statement) or `measure expr` (expression) | Collapses the qubit(s) to a classical outcome. Statement form has no return; expression form returns a `bit` (single qubit) or is used in expressions for measurement results. Applying a gate to a qubit after measurement without first calling `reset` is a runtime error. |
-| `reset` | `reset expr;` | Resets the qubit(s) to \|0⟩. Use after measurement if you need to apply more gates to the same qubit. |
+| `measure` | `measure expr;` (statement) or `measure expr` (expression) | Collapses a quantum state to a classical outcome. Statement form accepts a `qubit` or `qubit[]` and has no return value. Expression form accepts a single `qubit` and returns a `bit`. Applying a gate to a measured qubit before `reset` is a runtime error. |
+| `reset` | `reset expr;` | Resets a single `qubit` to \|0⟩. Use it after measurement if you need to apply more gates to the same qubit again. |
 
 - For a single qubit: `measure q` returns a `bit` (0 or 1).
-- For `qubit[]`, you typically measure elements individually (e.g. `measure qreg[0]`) or in sequence and collect bits.
-- `reset` accepts a qubit or qubit array; it does not return a value.
+- For `qubit[]`, statement form measures each element in order; expression form still requires a
+  single qubit.
+- `reset` does not return a value and only accepts a single qubit target.
 
 ## See also
 

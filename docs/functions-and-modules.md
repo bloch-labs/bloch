@@ -29,7 +29,9 @@ import com.example.*;
 
 Imports are resolved relative to the importing file first, then any configured search paths,
 then the current working directory. Wildcard imports load all `.bloch` files in that directory
-in sorted order. Imported modules are validated against the expected package declaration.
+in sorted order. When running through the CLI, configured search paths include installed stdlib
+roots plus local `library/` and `stdlib/` directories. Imported modules are validated against the
+expected package declaration.
 
 All modules are merged into a single program. Exactly one `main()` must exist across all
 imports.

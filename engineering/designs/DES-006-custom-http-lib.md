@@ -27,6 +27,6 @@
 - Integration (optional/CI-guarded): hits known httpbin endpoints for real network coverage.
 - TLS tests: pinned cert local server to validate hostname verification.
 
-## Compatability
+## Compatibility
 - Platforms: POSIX + WinSock for sockets backend; TLS via OpenSSL initially, Schannel/Darwin Security frameworks considered later.
 - HTTP/1.1 only; no proxy or HTTP/2 support initially. Streaming/async deferred to later revisions.

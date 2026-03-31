@@ -29,5 +29,5 @@
 - Runtime: `long` edge cases (overflow behaviour), boolean logic.
 - Integration: example programs using new primitives and boxed counterparts.
 
-## Compatability
+## Compatibility
 - Existing code unaffected; `bit` semantics unchanged. No auto-widening except via explicit long operations; literals without `L` stay `int`.
