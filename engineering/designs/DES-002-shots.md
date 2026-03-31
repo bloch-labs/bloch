@@ -13,7 +13,7 @@
 ## Semantic Analysis
 - Reject `@shots` on non-`main` or multiple occurrences.
 - Validate `N` is integer literal.
-- Ensure `main` return type is compatible with `@quantum` rules when used together (`bit`, `bit[]`, `void`).
+- Ensure `@quantum` is rejected on `main()` even when `@shots` is present.
 
 ## Runtime Architecture
 - Shot resolution order: annotation > CLI `--shots` > default.
@@ -24,5 +24,5 @@
 - Semantic tests: placement, multiplicity, literal checks, invalid types.
 - Integration: annotation alone; CLI alone; conflicts produce warning and use annotation.
 
-## Compatability
+## Compatibility
 - Backward-compatible: CLI still works; annotation is preferred when present. No impact on non-quantum programs beyond shot handling.

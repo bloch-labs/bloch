@@ -59,5 +59,5 @@
 - Unit tests per class: creation, core ops, size/emptiness, error cases (out of range/missing key), equality behaviour.
 - Integration: examples using boxed primitives and user classes (`List<Integer>`, `Set<String>`, `Map<Integer,String>`, `Pair<Boolean,Integer>`).
 
-## Compatability
+## Compatibility
 - Reference-only intent: APIs are designed for class references (including boxed primitives) and rely on `Object`-level behaviour via implicit inheritance. No iterators/generators; all operations are eager and deterministic.

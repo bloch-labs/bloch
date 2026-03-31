@@ -102,5 +102,5 @@
 ## Testing
 - Unit tests per class.
 
-## Compatability
+## Compatibility
 - Explicit boxing/unboxing; no auto-boxing. `bit`/`qubit` remain unboxed. Boxes use standard class rules.

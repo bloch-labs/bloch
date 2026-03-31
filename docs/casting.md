@@ -10,8 +10,9 @@ division (for example, `1/2` yields `0.5f`).
 
 ## Numeric rules
 - Division `/` always produces a `float` result when used with numeric primitives, even if both
-  operands are `int` or `bit`.
+  operands are `int` or `long`.
 - `%` remains integer-only.
+- Arithmetic operators do not accept `bit`; use logical or bitwise operators for `bit` values.
 - Explicit casts allow:
   - Widening: `int`/`long`/`bit` -> `float`
   - Narrowing: `float` -> `int`/`long`/`bit` (truncates toward zero)
