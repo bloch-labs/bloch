@@ -20,7 +20,7 @@ Edge Cases/Errors:
 
 Extension points:
 - Add new categories to `ErrorCategory` if new phases are introduced; ensure format helpers cover them.
-- For non-colour environments, gate colour output behind a feature flag or env check.
+- For non-colour environments, gate colour output behind an environment check.
 
 Tests:
 - Indirect via semantics/runtime/CLI tests that assert on error messages and locations.

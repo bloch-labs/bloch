@@ -82,10 +82,9 @@ Bloch's architecture is intentionally modular:
   (`src/main.cpp`) can execute programs for `N` shots, aggregate measurement
   counts, and emit tabulated probability estimates alongside the generated
   QASM.
-* **Feature staging.** The lightweight feature-flag registry
-  (`src/bloch/feature_flags.hpp`) gives maintainers a way to land experimental
-  language constructs (e.g., an upcoming class system) without destabilising
-  the default build.
+* **Language evolution.** Language constructs are developed directly in the
+  default build, with parser, semantic-analysis, runtime, and test coverage
+  evolving together.
 
 The following Bloch kernel produces the interaction shown in Figure 1 when run
 for a single shot:
@@ -183,8 +182,8 @@ experiments. Current use cases include:
 
 Bloch is openly developed at https://github.com/bloch-labs/bloch under the
 Apache-2.0 license. The repository bundles setup instructions, contribution
-guidelines, and a list of feature flags so that new contributors can propose
-language extensions while maintaining release stability. Pre-built binaries are available but
+guidelines so that new contributors can propose language extensions while
+maintaining release stability. Pre-built binaries are available but
 not required; the CMake toolchain builds the CLI across major platforms, and the
 project's documentation hub (https://docs.bloch-labs.com) provides user guides and API
 notes.
