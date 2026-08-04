@@ -1,5 +1,7 @@
 # CMake build folders
 /build
+/build-debug
+/build-release
 /CMakeFiles
 /CMakeCache.txt
 Makefile
