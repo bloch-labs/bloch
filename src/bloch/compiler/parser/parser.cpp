@@ -434,6 +434,11 @@ namespace bloch::compiler {
         }
 
         if (match(TokenType::Function)) {
+            for (const auto& annotation : annotations) {
+                if (annotation && annotation->name != "quantum") {
+                    reportError("Only '@quantum' may annotate class methods");
+                }
+            }
             if (isStaticClass && !isStatic) {
                 reportError("Static classes may only contain static methods");
             }
@@ -449,6 +454,11 @@ namespace bloch::compiler {
         }
         if (isStaticClass && !isStatic) {
             reportError("Static classes may only contain static members");
+        }
+        for (const auto& annotation : annotations) {
+            if (annotation && annotation->name != "tracked") {
+                reportError("Only '@tracked' may annotate class fields");
+            }
         }
 
         bool isFinalField = match(TokenType::Final);
@@ -708,12 +718,17 @@ namespace bloch::compiler {
         std::vector<std::unique_ptr<AnnotationNode>> annotations;
 
         while (check(TokenType::At)) {
-            // TODO: refactor this, currently if invalid variable annotation is used, it will be
-            // caught rather than thrown this is a rather hacky solution.
-            try {
+            if (checkNext(TokenType::Tracked)) {
                 annotations.push_back(parseVariableAnnotation());
-            } catch (BlochError error) {
+            } else if (checkNext(TokenType::Quantum) || checkNext(TokenType::Shots)) {
                 annotations.push_back(parseFunctionAnnotation());
+            } else {
+                const Token& invalid =
+                    m_current + 1 < m_tokens.size() ? m_tokens[m_current + 1] : peek();
+                const std::string invalidName =
+                    invalid.value.empty() ? std::string{} : invalid.value;
+                reportError(std::string("\"") + "@" + invalidName +
+                            "\" is not a valid Bloch annotation");
             }
         }
 

@@ -662,6 +662,38 @@ class Derived extends foo.bar.Base {
     ASSERT_NE(dynamic_cast<ThisExpression*>(thisAccess->object.get()), nullptr);
 }
 
+TEST(ParserTest, ParsesAnnotationsOnClassMethods) {
+    const char* src = R"(
+class Circuit {
+    public constructor() -> Circuit = default;
+
+    @quantum
+    public function run(qubit q) -> void { h(q); }
+
+    private @quantum function resetQubit(qubit q) -> void { reset q; }
+}
+)";
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    ASSERT_EQ(program->classes.size(), 1u);
+    ASSERT_EQ(program->classes[0]->members.size(), 3u);
+
+    auto* run = dynamic_cast<MethodDeclaration*>(program->classes[0]->members[1].get());
+    ASSERT_NE(run, nullptr);
+    ASSERT_EQ(run->annotations.size(), 1u);
+    EXPECT_EQ(run->annotations[0]->name, "quantum");
+    EXPECT_TRUE(run->annotations[0]->isFunctionAnnotation);
+
+    auto* resetQubit = dynamic_cast<MethodDeclaration*>(program->classes[0]->members[2].get());
+    ASSERT_NE(resetQubit, nullptr);
+    ASSERT_EQ(resetQubit->annotations.size(), 1u);
+    EXPECT_EQ(resetQubit->annotations[0]->name, "quantum");
+    EXPECT_TRUE(resetQubit->annotations[0]->isFunctionAnnotation);
+}
+
 TEST(ParserTest, ParsesOptionalPackageAndImports) {
     const char* src = R"(
 package foo.bar;
