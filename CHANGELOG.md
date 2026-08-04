@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/bloch-labs/bloch/compare/v1.0.4...v1.0.5) (2026-08-04)
+
+
+### 🐛 Bug Fixes
+
+* class annotation are now correctly parsed ([#244](https://github.com/bloch-labs/bloch/issues/244)) ([89c899d](https://github.com/bloch-labs/bloch/commit/89c899dc45152295c2c125cd11ae3cc50b370ebe))
+
 ## [1.0.4](https://github.com/bloch-labs/bloch/compare/v1.0.3...v1.0.4) (2026-02-21)
 
 
