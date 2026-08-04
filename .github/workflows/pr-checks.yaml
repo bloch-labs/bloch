@@ -66,3 +66,28 @@ jobs:
         run: ctest --test-dir build --output-on-failure
       - name: Run acceptance tests
         run: bash scripts/run_examples.sh build/bin/bloch
+  
+  debug-build:
+    name: Debug Build Check for Release
+    if: startsWith(github.head_ref, 'release-please-')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libssl-dev pkg-config
+
+      - name: Configure CMake (Debug)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run unit and integration tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run acceptance tests
+        run: bash scripts/run_examples.sh build/bin/bloch
