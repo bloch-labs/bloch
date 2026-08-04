@@ -2219,7 +2219,7 @@ namespace bloch::runtime {
                                      "unsupported array literal type");
             }
             return v;
-        } else if (auto thisExpr = dynamic_cast<ThisExpression*>(e)) {
+        } else if (dynamic_cast<ThisExpression*>(e)) {
             return lookup("this");
         } else if (auto superExpr = dynamic_cast<SuperExpression*>(e)) {
             (void)superExpr;

@@ -534,7 +534,7 @@ TEST(ParserTest, EmptyTypeArgumentListOutsideNewFails) {
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
     Parser parser(std::move(tokens));
-    EXPECT_THROW(parser.parse(), BlochError);
+    EXPECT_THROW((void)parser.parse(), BlochError);
 }
 
 TEST(ParserTest, ParseArrayTypesAndIndexing) {
