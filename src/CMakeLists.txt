@@ -1,22 +1,3 @@
-set(BLOCH_AVAILABLE_FEATURE_FLAGS
-    "BLOCH_CLASS_SYSTEM"
-)
-
-set(_BLOCH_ENABLED_FEATURE_DEFINITIONS "")
-set(_BLOCH_ENABLED_FEATURE_LABELS "")
-
-foreach(_bloch_feature ${BLOCH_AVAILABLE_FEATURE_FLAGS})
-    if(NOT _bloch_feature MATCHES "^BLOCH_[A-Z_]+$")
-        message(FATAL_ERROR "Invalid feature flag '${_bloch_feature}'. Flags must match BLOCH_[A-Z_]+")
-    endif()
-    set(_bloch_option "BLOCH_FEATURE_${_bloch_feature}")
-    option(${_bloch_option} "Enable Bloch feature flag ${_bloch_feature}" OFF)
-    if(${_bloch_option})
-        list(APPEND _BLOCH_ENABLED_FEATURE_DEFINITIONS ${_bloch_option})
-        list(APPEND _BLOCH_ENABLED_FEATURE_LABELS ${_bloch_feature})
-    endif()
-endforeach()
-
 # Prefer static OpenSSL to avoid a runtime dependency; fall back to shared if
 # static libraries are unavailable. Release artifacts can force static by
 # ensuring libssl.a/libcrypto.a are present.
@@ -93,14 +74,6 @@ target_compile_definitions(bloch_cli PUBLIC
     BLOCH_COMMIT_HASH="${BLOCH_COMMIT_HASH}"
 )
 
-# Apply feature flags to public libraries (propagates to dependents).
-set(_BLOCH_PUBLIC_TARGETS bloch_compiler bloch_runtime bloch_cli bloch_http)
-foreach(_bloch_target IN LISTS _BLOCH_PUBLIC_TARGETS)
-    foreach(_bloch_definition ${_BLOCH_ENABLED_FEATURE_DEFINITIONS})
-        target_compile_definitions(${_bloch_target} PUBLIC ${_bloch_definition}=1)
-    endforeach()
-endforeach()
-
 add_executable(bloch
     main.cpp
 )
@@ -108,11 +81,6 @@ add_executable(bloch
 target_link_libraries(bloch
     PRIVATE bloch_cli
 )
-
-if(_BLOCH_ENABLED_FEATURE_LABELS)
-    list(JOIN _BLOCH_ENABLED_FEATURE_LABELS ", " _bloch_enabled_str)
-    message(STATUS "Bloch feature flags enabled: ${_bloch_enabled_str}")
-endif()
 
 # Install targets for local development installs
 install(TARGETS bloch bloch_cli bloch_compiler bloch_runtime bloch_update bloch_http

@@ -22,7 +22,6 @@ workflow, then dive into component references as needed.
 - [Testing](./testing.md)
 - [Coding Standards](./coding-standards.md)
 - [Support & Errors](./support-and-errors.md)
-- [Feature Flags](./feature-flags.md)
 - [Built-ins](./builtins.md)
 
 ## Design history
