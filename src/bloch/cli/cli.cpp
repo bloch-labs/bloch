@@ -190,7 +190,6 @@ namespace bloch::cli {
             bool shotsProvided = false;
             bool isCliShots = false;
             int cliShots = 1;
-            bool isAnnotationShots = false;
             std::string echoOpt;
             std::string file;
 

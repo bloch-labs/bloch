@@ -3083,7 +3083,7 @@ namespace bloch::compiler {
         }
     }
 
-    void SemanticAnalyser::visit(Program& node) {
+    void SemanticAnalyser::visit(Program&) {
         // handled in analyse
     }
 

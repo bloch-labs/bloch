@@ -1,0 +1,44 @@
+name: Release Check
+
+on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-check-${{ github.event.pull_request.head.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug-build-and-test:
+    name: Release Debug build and test
+    if: startsWith(github.head_ref, 'release-please-')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libssl-dev pkg-config
+
+      - name: Configure CMake (Debug)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run unit and integration tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run acceptance tests
+        run: bash scripts/run_examples.sh build/bin/bloch
