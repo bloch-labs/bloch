@@ -5,6 +5,7 @@
 #   cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 #   cmake --build build --parallel
 #   ctest --test-dir build --output-on-failure
+#   scripts/run_examples.sh build/bin/bloch
 
 if [ -z "${BASH_VERSION:-}" ]; then
   echo "This script requires bash (macOS/Linux)." >&2
@@ -100,7 +101,10 @@ cmake "${CONFIGURE_ARGS[@]}"
 step "Building (parallel: ${JOBS})"
 cmake --build "${BUILD_DIR}" --parallel "${JOBS}"
 
-step "Running tests"
+step "Running unit and integration tests"
 ctest --test-dir "${BUILD_DIR}" --output-on-failure
+
+step "Running acceptance tests"
+"${SCRIPT_DIR}/run_examples.sh" "${BUILD_DIR}/bin/bloch"
 
 success "Build and tests completed successfully."

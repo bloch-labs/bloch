@@ -119,11 +119,11 @@ outcome | count |  prob
 
 ## 05 Teleportation (class-based)
 
-**File:** `examples/09_teleport_class.bloch`
+**File:** `examples/05_teleport_class.bloch`
 
 **Try:**
 ```bash
-bloch examples/09_teleport_class.bloch --shots=512
+bloch examples/05_teleport_class.bloch --shots=512
 ```
 
 Prepares a |+> state to teleport, builds a Bell pair via the `Teleporter` class, measures the sender, and applies classical corrections to the receiver.  
@@ -135,11 +135,11 @@ Across many shots, the receiver’s outcome matches the input state (here |+>, s
 
 ## 06 MaxCut on C4 (class-based QAOA p=1)
 
-**File:** `examples/10_maxcut_c4_class.bloch`
+**File:** `examples/06_maxcut_c4_class.bloch`
 
 **Try:**
 ```bash
-bloch examples/10_maxcut_c4_class.bloch --shots=1024
+bloch examples/06_maxcut_c4_class.bloch --shots=1024
 ```
 
 Encapsulates a p=1 QAOA for the 4-node cycle. Constructor captures `(gamma, beta)`; `run` builds |+>^4, applies the cost on edges (0,1), (1,2), (2,3), (3,0), then a mixer.  
