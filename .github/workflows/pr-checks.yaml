@@ -62,5 +62,7 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build
         run: cmake --build build --parallel
-      - name: Run unit tests
+      - name: Run unit and integration tests
         run: ctest --test-dir build --output-on-failure
+      - name: Run acceptance tests
+        run: bash scripts/run_examples.sh build/bin/bloch
