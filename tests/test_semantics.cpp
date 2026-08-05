@@ -1079,6 +1079,48 @@ TEST(SemanticTest, GenericBoundSatisfiedPasses) {
     EXPECT_NO_THROW(analyser.analyse(*program));
 }
 
+TEST(SemanticTest, GenericBaseSpecialisationSubstitutesConstructorParameters) {
+    const char* src =
+        "class Base<T> { public T value; public constructor(T value) -> Base<T> { "
+        "this.value = value; return this; } } "
+        "class Derived extends Base<int> { public constructor(int value) -> Derived { "
+        "super(value); return this; } } "
+        "function main() -> void { Derived d = new Derived(1); }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_NO_THROW(analyser.analyse(*program));
+}
+
+TEST(SemanticTest, RawGenericBaseIsRejected) {
+    const char* src =
+        "class Box<T> { public constructor() -> Box<T> = default; } "
+        "class Derived extends Box { public constructor() -> Derived { super(); return this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, GenericBaseBoundViolationIsRejected) {
+    const char* src =
+        "class Entity { public constructor() -> Entity = default; } "
+        "class Box<T extends Entity> { public constructor(T value) -> Box<T> { return this; } } "
+        "class Derived extends Box<int> { public constructor() -> Derived { super(1); return this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
+TEST(SemanticTest, GenericBaseSpecialisedBoundViolationIsRejected) {
+    const char* src =
+        "class Token<T> { public constructor() -> Token<T> = default; } "
+        "class Box<T extends Token<int>> { public constructor() -> Box<T> = default; } "
+        "class Derived extends Box<Token<float>> { public constructor() -> Derived { "
+        "super(); return this; } }";
+    auto program = parseProgram(src);
+    SemanticAnalyser analyser;
+    EXPECT_THROW(analyser.analyse(*program), BlochError);
+}
+
 TEST(SemanticTest, GenericDiamondInferenceFromDeclarationType) {
     const char* src =
         "class Box<T> { public constructor() -> Box<T> = default; } "

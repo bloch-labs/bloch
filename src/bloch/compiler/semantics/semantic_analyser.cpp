@@ -255,6 +255,8 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::validateTypeApplication(const TypeInfo& t, int line, int column) const {
+        for (const auto& arg : t.typeArgs)
+            validateTypeApplication(arg, line, column);
         if (t.className.empty())
             return;
         const ClassInfo* info = findClass(t.className);
@@ -267,17 +269,25 @@ namespace bloch::compiler {
         }
         for (size_t i = 0; i < info->typeParams.size() && i < t.typeArgs.size(); ++i) {
             const auto& bound = info->typeParams[i].bound;
-            const auto& actual = t.typeArgs[i];
+            TypeInfo actual = t.typeArgs[i];
+            if (!bound.className.empty() && actual.isTypeParam) {
+                auto actualBound = getTypeParamBound(actual.className);
+                if (!actualBound) {
+                    throw BlochError(ErrorCategory::Semantic, line, column,
+                                     "type parameter '" + actual.className +
+                                         "' does not satisfy bound '" + typeLabel(bound) + "'");
+                }
+                actual = *actualBound;
+            }
             if (!bound.className.empty()) {
-                if (actual.isTypeParam)
-                    continue;
                 if (actual.className.empty()) {
                     throw BlochError(ErrorCategory::Semantic, line, column,
                                      "type argument '" + typeLabel(actual) +
                                          "' does not satisfy bound '" + typeLabel(bound) + "'");
                 }
-                if (actual.className != bound.className &&
-                    !isSubclassOf(actual.className, bound.className)) {
+                if ((actual.className == bound.className && !typeEquals(actual, bound)) ||
+                    (actual.className != bound.className &&
+                     !isSubclassOf(actual.className, bound.className))) {
                     throw BlochError(ErrorCategory::Semantic, line, column,
                                      "type argument '" + typeLabel(actual) +
                                          "' does not satisfy bound '" + typeLabel(bound) + "'");
@@ -947,28 +957,8 @@ namespace bloch::compiler {
             info.column = clsNode->column;
             info.isStatic = clsNode->isStatic;
             info.isAbstract = clsNode->isAbstract;
-            bool hasExplicitBase = false;
-            if (clsNode->baseType) {
-                if (auto named = dynamic_cast<NamedType*>(clsNode->baseType.get())) {
-                    if (!named->nameParts.empty()) {
-                        info.base = named->nameParts.back();
-                        hasExplicitBase = true;
-                    }
-                }
-            } else if (!clsNode->baseName.empty()) {
-                info.base = clsNode->baseName.back();
-                hasExplicitBase = true;
-            } else if (!info.isStatic && info.name != "Object") {
-                info.base = "Object";
-            }
-            if (info.name == "Object") {
-                if (hasExplicitBase) {
-                    throw BlochError(ErrorCategory::Semantic, info.line, info.column,
-                                     "class 'Object' cannot declare a base class");
-                }
-                info.base.clear();
-            }
-            // Type parameters
+
+            // A base can refer to this class's type parameters: Child<T> extends Base<T>.
             m_currentTypeParams.clear();
             for (auto& tp : clsNode->typeParameters) {
                 ClassInfo::TypeParamInfo pi;
@@ -977,6 +967,30 @@ namespace bloch::compiler {
                     pi.bound = typeFromAst(tp->bound.get());
                 m_currentTypeParams.push_back(pi);
                 info.typeParams.push_back(pi);
+            }
+            bool hasExplicitBase = false;
+            if (clsNode->baseType) {
+                if (auto named = dynamic_cast<NamedType*>(clsNode->baseType.get())) {
+                    if (!named->nameParts.empty()) {
+                        info.base = named->nameParts.back();
+                        info.baseType = typeFromAst(clsNode->baseType.get());
+                        hasExplicitBase = true;
+                    }
+                }
+            } else if (!clsNode->baseName.empty()) {
+                info.base = clsNode->baseName.back();
+                info.baseType = combine(ValueType::Unknown, info.base);
+                hasExplicitBase = true;
+            } else if (!info.isStatic && info.name != "Object") {
+                info.base = "Object";
+                info.baseType = combine(ValueType::Unknown, "Object");
+            }
+            if (info.name == "Object") {
+                if (hasExplicitBase) {
+                    throw BlochError(ErrorCategory::Semantic, info.line, info.column,
+                                     "class 'Object' cannot declare a base class");
+                }
+                info.base.clear();
             }
             if (info.name == "Object" && !info.typeParams.empty()) {
                 throw BlochError(ErrorCategory::Semantic, info.line, info.column,
@@ -1091,6 +1105,15 @@ namespace bloch::compiler {
                 throw BlochError(ErrorCategory::Semantic, 0, 0,
                                  "base class '" + info.base + "' not found for '" + name + "'");
             }
+        }
+
+        // Extends clauses are converted while forward references are permitted. Now that the
+        // registry is complete, reject raw generic bases and invalid specialisation bounds.
+        for (auto& [_, info] : m_classes) {
+            if (info.base.empty())
+                continue;
+            m_currentTypeParams = info.typeParams;
+            validateTypeApplication(info.baseType, info.line, info.column);
         }
 
         // Validate default constructors (parameter-field alignment)
@@ -1281,7 +1304,7 @@ namespace bloch::compiler {
         if (dynamic_cast<SuperExpression*>(expr)) {
             const ClassInfo* cur = findClass(m_currentClass);
             if (cur && !cur->base.empty())
-                return combine(ValueType::Unknown, cur->base);
+                return cur->baseType;
             return combine(ValueType::Unknown, "");
         }
         if (auto call = dynamic_cast<CallExpression*>(expr)) {
@@ -2300,7 +2323,9 @@ namespace bloch::compiler {
                 for (const auto& ctor : base->constructors) {
                     if (!isAccessible(ctor.visibility, base->name, m_currentClass))
                         continue;
-                    auto cost = paramsConversionCost(ctor.paramTypes, actualTypes);
+                    auto params = substituteMany(ctor.paramTypes, base->typeParams,
+                                                 cur->baseType.typeArgs);
+                    auto cost = paramsConversionCost(params, actualTypes);
                     if (!cost)
                         continue;
                     if (*cost < bestCost) {
@@ -2904,7 +2929,9 @@ namespace bloch::compiler {
                 for (const auto& ctor : base->constructors) {
                     if (!isAccessible(ctor.visibility, base->name, m_currentClass))
                         continue;
-                    auto cost = paramsConversionCost(ctor.paramTypes, noArgs);
+                    auto params = substituteMany(ctor.paramTypes, base->typeParams,
+                                                 ctorClassInfo->baseType.typeArgs);
+                    auto cost = paramsConversionCost(params, noArgs);
                     if (!cost)
                         continue;
                     if (*cost < bestCost) {
