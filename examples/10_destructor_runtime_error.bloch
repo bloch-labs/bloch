@@ -1,0 +1,13 @@
+// Acceptance regression: errors in user destructor code must be reported normally.
+class FailingCleanup {
+    public constructor() -> FailingCleanup { }
+
+    destructor() -> void {
+        int x = 1 % 0;
+    }
+}
+
+function main() -> void {
+    FailingCleanup resource = new FailingCleanup();
+    destroy resource;
+}

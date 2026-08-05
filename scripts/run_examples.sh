@@ -84,9 +84,28 @@ failures=0
 for example in "${EXAMPLES[@]}"; do
   relative_path="${example#${TEMP_DIR}/}"
   output_file="${TEMP_DIR}/example-output.txt"
+  expected_error_file="${example%.bloch}.expected-error"
   printf '  RUN  %s\n' "${relative_path}"
 
-  if run_example "${example}" "${output_file}"; then
+  if [[ -f "${expected_error_file}" ]]; then
+    expected_error="$(<"${expected_error_file}")"
+    if run_example "${example}" "${output_file}"; then
+      failures=$((failures + 1))
+      printf '  %bFAIL%b %s (expected a runtime failure)\n' \
+        "${RED}" "${RESET}" "${relative_path}" >&2
+    else
+      status=$?
+      if [[ ${status} -ne 1 ]] || ! grep -Fq -- "${expected_error}" "${output_file}"; then
+        failures=$((failures + 1))
+        printf '  %bFAIL%b %s (exit %d)\n' \
+          "${RED}" "${RESET}" "${relative_path}" "${status}" >&2
+        sed 's/^/       /' "${output_file}" >&2
+      else
+        printf '  %bPASS%b %s (expected runtime diagnostic)\n' \
+          "${GREEN}" "${RESET}" "${relative_path}"
+      fi
+    fi
+  elif run_example "${example}" "${output_file}"; then
     printf '  %bPASS%b %s\n' "${GREEN}" "${RESET}" "${relative_path}"
   else
     status=$?
