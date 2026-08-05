@@ -255,8 +255,7 @@ namespace bloch::compiler {
     }
 
     void SemanticAnalyser::validateTypeApplication(const TypeInfo& t, int line, int column) const {
-        for (const auto& arg : t.typeArgs)
-            validateTypeApplication(arg, line, column);
+        for (const auto& arg : t.typeArgs) validateTypeApplication(arg, line, column);
         if (t.className.empty())
             return;
         const ClassInfo* info = findClass(t.className);
@@ -2323,8 +2322,8 @@ namespace bloch::compiler {
                 for (const auto& ctor : base->constructors) {
                     if (!isAccessible(ctor.visibility, base->name, m_currentClass))
                         continue;
-                    auto params = substituteMany(ctor.paramTypes, base->typeParams,
-                                                 cur->baseType.typeArgs);
+                    auto params =
+                        substituteMany(ctor.paramTypes, base->typeParams, cur->baseType.typeArgs);
                     auto cost = paramsConversionCost(params, actualTypes);
                     if (!cost)
                         continue;

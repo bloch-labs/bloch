@@ -1104,7 +1104,8 @@ TEST(SemanticTest, GenericBaseBoundViolationIsRejected) {
     const char* src =
         "class Entity { public constructor() -> Entity = default; } "
         "class Box<T extends Entity> { public constructor(T value) -> Box<T> { return this; } } "
-        "class Derived extends Box<int> { public constructor() -> Derived { super(1); return this; } }";
+        "class Derived extends Box<int> { public constructor() -> Derived { super(1); return this; "
+        "} }";
     auto program = parseProgram(src);
     SemanticAnalyser analyser;
     EXPECT_THROW(analyser.analyse(*program), BlochError);
