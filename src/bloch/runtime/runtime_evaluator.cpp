@@ -534,6 +534,7 @@ namespace bloch::runtime {
         m_gcRequested = false;
         m_gcThreadStarted = false;
         m_allocSinceGc = 0;
+        m_deferredRuntimeError = nullptr;
         m_sim = QasmSimulator{m_collectQasmLog};
         bool hasClasses = !program.classes.empty();
         if (hasClasses) {
@@ -556,6 +557,7 @@ namespace bloch::runtime {
                 m_gcThread.join();
         }
         runCycleCollector();
+        throwDeferredRuntimeError();
         // Ensure warnings appear before any normal echo output
         if (m_warnOnExit)
             warnUnmeasured();
@@ -1355,6 +1357,28 @@ namespace bloch::runtime {
         obj->fields.clear();
     }
 
+    void RuntimeEvaluator::deferRuntimeError(std::exception_ptr error) noexcept {
+        try {
+            std::lock_guard<std::mutex> lock(m_deferredRuntimeErrorMutex);
+            // Preserve the first failure: it is the one that caused teardown to begin.
+            if (!m_deferredRuntimeError)
+                m_deferredRuntimeError = std::move(error);
+        } catch (...) {
+            // A deleter cannot propagate any exception. Failure to retain a diagnostic is
+            // preferable to terminating the host process.
+        }
+    }
+
+    void RuntimeEvaluator::throwDeferredRuntimeError() {
+        std::exception_ptr error;
+        {
+            std::lock_guard<std::mutex> lock(m_deferredRuntimeErrorMutex);
+            error = std::move(m_deferredRuntimeError);
+        }
+        if (error)
+            std::rethrow_exception(error);
+    }
+
     void RuntimeEvaluator::runFieldInitialisers(RuntimeClass* cls,
                                                 const std::shared_ptr<Object>& obj) {
         if (!cls)
@@ -1944,6 +1968,7 @@ namespace bloch::runtime {
             Value val = eval(assignStmt->value.get());
             assign(assignStmt->name, val);
         }
+        throwDeferredRuntimeError();
     }
 
     Value RuntimeEvaluator::eval(Expression* e) {
@@ -2253,7 +2278,13 @@ namespace bloch::runtime {
                                  "cannot instantiate static or abstract class '" + cls->name + "'");
             }
             auto deleter = [this](Object* obj) {
-                destroyObject(obj, !obj->skipDestructor);
+                // This try/catch means that user error in custom destructors is handled internally
+                // and does not crash the application
+                try {
+                    destroyObject(obj, !obj->skipDestructor);
+                } catch (...) {
+                    deferRuntimeError(std::current_exception());
+                }
                 delete obj;
             };
             auto obj = std::shared_ptr<Object>(new Object{}, deleter);

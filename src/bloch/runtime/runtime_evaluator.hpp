@@ -17,6 +17,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <exception>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -260,6 +261,10 @@ namespace bloch::runtime {
         std::condition_variable m_gcCv;
         std::mutex m_gcMutex;
         std::mutex m_heapMutex;
+        // A shared_ptr destruction path must not allow a user-program exception to escape:
+        // shared_ptr destruction is noexcept, so escaping would call std::terminate.
+        std::exception_ptr m_deferredRuntimeError;
+        std::mutex m_deferredRuntimeErrorMutex;
         size_t m_allocSinceGc = 0;
         // Buffer for echo outputs so logs (INFO/WARNING/ERROR)
         // can be displayed first before normal program output.
@@ -321,6 +326,8 @@ namespace bloch::runtime {
         void markValue(const Value& v);
         void markObject(const std::shared_ptr<Object>& obj);
         void destroyObject(Object* obj, bool runUserDestructor);
+        void deferRuntimeError(std::exception_ptr error) noexcept;
+        void throwDeferredRuntimeError();
         Value callMethod(RuntimeMethod* method, RuntimeClass* staticDispatchClass,
                          const std::shared_ptr<Object>& receiver, const std::vector<Value>& args);
         void runConstructorChain(RuntimeClass* cls, const std::shared_ptr<Object>& obj,
