@@ -26,6 +26,8 @@ bloch examples/01_hadamard.bloch --shots=1024
 - `04_grover_search.bloch` — Grover search over 2 qubits, marking `11` as the winner
 - `05_teleport_class.bloch` — class-based single-qubit teleportation (entangle + corrections)
 - `06_maxcut_c4_class.bloch` — class-based QAOA p=1 for MaxCut on a 4-node cycle
+- `08_generics.bloch` — generic classes, bounds, and diamond inference
+- `09_generic_inheritance.bloch` — specialised generic base class for a typed quantum readout
 - `multifile/com/example/QuantumMath.bloch` + `multifile/main.bloch` — multi-file import demo with a static helper
 
 ## 01 Hadamard on |0⟩
@@ -166,6 +168,20 @@ bloch examples/08_generics.bloch
 ```
 
 This demonstrates the usage of generics in user classes. 
+
+## 09 Generic inheritance
+
+**File** `examples/09_generic_inheritance.bloch`
+
+**Try:**
+```bash
+bloch examples/09_generic_inheritance.bloch
+```
+
+`MeasuredReadout` extends `Sample<bit>`. Its `super(measured)` call is an
+acceptance example for generic inheritance: the compiler must substitute
+`T` with `bit` before selecting the `Sample` constructor. The program prints
+`1` because it measures a qubit prepared in the `|1⟩` state.
 
 ## Multi-file import: static QuantumMath helper
 
