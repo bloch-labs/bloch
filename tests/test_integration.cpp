@@ -374,3 +374,26 @@ function main() -> void {
     std::string output = runBloch(src, "generic_runtime.bloch");
     EXPECT_EQ("hi\n", output);
 }
+
+TEST(IntegrationTest, GenericInheritanceSpecialisesSuperConstructor) {
+    std::string src = R"(
+class Sample<T> {
+    public T value;
+    public constructor(T value) -> Sample<T> { this.value = value; return this; }
+}
+
+class MeasuredReadout extends Sample<bit> {
+    public constructor(bit measured) -> MeasuredReadout { super(measured); return this; }
+}
+
+function main() -> void {
+    qubit q;
+    x(q);
+    bit measured = measure q;
+    MeasuredReadout readout = new MeasuredReadout(measured);
+    echo(readout.value);
+}
+)";
+    std::string output = runBloch(src, "generic_inheritance.bloch");
+    EXPECT_EQ("1\n", output);
+}

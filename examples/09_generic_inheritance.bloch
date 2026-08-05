@@ -1,0 +1,28 @@
+// A specialised generic base class is useful for typed quantum readouts.
+// `MeasuredReadout` fixes Sample's type parameter to bit, so its super call
+// must be checked as Sample<bit>.constructor(bit), not constructor(T).
+
+class Sample<T> {
+    public T value;
+
+    public constructor(T value) -> Sample<T> {
+        this.value = value;
+        return this;
+    }
+}
+
+class MeasuredReadout extends Sample<bit> {
+    public constructor(bit measured) -> MeasuredReadout {
+        super(measured);
+        return this;
+    }
+}
+
+function main() -> void {
+    qubit q;
+    x(q);
+    bit measured = measure q;
+
+    MeasuredReadout readout = new MeasuredReadout(measured);
+    echo(readout.value);
+}

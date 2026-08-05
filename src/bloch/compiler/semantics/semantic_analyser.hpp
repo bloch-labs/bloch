@@ -154,6 +154,9 @@ namespace bloch::compiler {
         struct ClassInfo {
             std::string name;
             std::string base;
+            // The declared base, including specialisation arguments such as Base<int>.
+            // `base` remains the simple name used for hierarchy traversal.
+            TypeInfo baseType;
             bool isStatic = false;
             bool isAbstract = false;
             bool hasDestructor = true;       // implicit default exists
