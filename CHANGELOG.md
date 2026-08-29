@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.1.0](https://github.com/bloch-labs/bloch/compare/v1.0.4...v1.1.0) (2026-08-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* final variables must now be initialised at declaration time or in constructors.
+
+### ⚛️ Features
+
+* add [@shots](https://github.com/shots) annotation ([#212](https://github.com/bloch-labs/bloch/issues/212)) ([ebb33e4](https://github.com/bloch-labs/bloch/commit/ebb33e4a70d136c580c1165a4acd52ce0fe2857e))
+* add boolean primitive ([#232](https://github.com/bloch-labs/bloch/issues/232)) ([59a8838](https://github.com/bloch-labs/bloch/commit/59a88382a17d62db8342ca683b759be9aa98381d))
+* add class system keywords ([ca1ddfa](https://github.com/bloch-labs/bloch/commit/ca1ddfad6a0a5c59cdacd87dc9fbc515062ce51f))
+* add long primitve ([#234](https://github.com/bloch-labs/bloch/issues/234)) ([f9d47af](https://github.com/bloch-labs/bloch/commit/f9d47af122f9645a1ad116b6bae9a5074ecca1e8))
+* add null primitive ([#225](https://github.com/bloch-labs/bloch/issues/225)) ([538ae3a](https://github.com/bloch-labs/bloch/commit/538ae3ae20394e72f1b1c7db941a15108b3c8bd7))
+* add parser logic for class system ([#198](https://github.com/bloch-labs/bloch/issues/198)) ([f0c21d0](https://github.com/bloch-labs/bloch/commit/f0c21d0ee02017071b0a5ac895bba4fc470b5a15))
+* add semantic analysis for class system ([#200](https://github.com/bloch-labs/bloch/issues/200)) ([4e7fcbc](https://github.com/bloch-labs/bloch/commit/4e7fcbce4ba4c3b490851749cc05d5183b0c3dd9))
+* added runtime support for class system ([#209](https://github.com/bloch-labs/bloch/issues/209)) ([9940fcc](https://github.com/bloch-labs/bloch/commit/9940fcc0034f8072266708f04ee622588d6c8a0d))
+* create Object root class ([#238](https://github.com/bloch-labs/bloch/issues/238)) ([9cf2d5a](https://github.com/bloch-labs/bloch/commit/9cf2d5af5e335a68269dc6be3fdeac7ad74013d6))
+* enforce final initialiser rule for all variables ([#237](https://github.com/bloch-labs/bloch/issues/237)) ([cfd54d3](https://github.com/bloch-labs/bloch/commit/cfd54d3e18ac1ad1f9d54fb9ecb2155a0f171eaa))
+* explicit casting for numeric values ([#214](https://github.com/bloch-labs/bloch/issues/214)) ([a79fae9](https://github.com/bloch-labs/bloch/commit/a79fae9f73b241667fb074df47f4335af432839f))
+* fix class constructor chaining ([#222](https://github.com/bloch-labs/bloch/issues/222)) ([58695c5](https://github.com/bloch-labs/bloch/commit/58695c52fde2b0efb1fe8b9ce7da601eab5871a8))
+* implement generics ([#230](https://github.com/bloch-labs/bloch/issues/230)) ([dec471f](https://github.com/bloch-labs/bloch/commit/dec471f5f56c3f127f90e6feba3990cc990aac6f))
+* implement method overloading ([#226](https://github.com/bloch-labs/bloch/issues/226)) ([ec05a7d](https://github.com/bloch-labs/bloch/commit/ec05a7d579088969f2c544081849d6b7b650d55a))
+* import system for class logic ([#210](https://github.com/bloch-labs/bloch/issues/210)) ([9207005](https://github.com/bloch-labs/bloch/commit/920700544a20ee60b0edf4ca4216d6b34c4c3b31))
+* measure qubit arrays ([#215](https://github.com/bloch-labs/bloch/issues/215)) ([b480006](https://github.com/bloch-labs/bloch/commit/b4800068870e3ac25f7f3c604446ef718ee2f68d))
+
+
+### 🐛 Bug Fixes
+
+* class annotation are now correctly parsed ([#244](https://github.com/bloch-labs/bloch/issues/244)) ([61d53da](https://github.com/bloch-labs/bloch/commit/61d53da32ebc61d65837d3dbc413f57287506b82))
+* preserve generic arguments in extends clauses ([#254](https://github.com/bloch-labs/bloch/issues/254)) ([95bab19](https://github.com/bloch-labs/bloch/commit/95bab19619731c61ba122cba16fbebb07aaed11e))
+* report errors in custom user destructor logic without crashing ([#255](https://github.com/bloch-labs/bloch/issues/255)) ([1b6bbd2](https://github.com/bloch-labs/bloch/commit/1b6bbd24cab2deb3da92871f97d51437546b71b8))
+
+
+### ⚡ Performance
+
+* only start gc thread when there are custom classes ([20f7ab0](https://github.com/bloch-labs/bloch/commit/20f7ab089b08f0579568efbc0d0c880b967d8008))
+
 ## [1.0.4](https://github.com/bloch-labs/bloch/compare/v1.0.3...v1.0.4) (2026-02-21)
 
 
