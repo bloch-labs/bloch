@@ -1,3 +1,14 @@
+> [!IMPORTANT]
+> **This repository contains the archived original implementation of the Bloch programming language and is no longer under active development.**
+>
+> The original `v1.0.x` release line is preserved here as part of Bloch's development and research history. Bloch `v1.0.3` is the software release associated with the 2026 Journal of Open Source Software publication and is permanently archived as Zenodo DOI `10.5281/zenodo.18407424`.
+>
+> Active development of Bloch restarted in August 2026 in [`bloch-labs/bloch-lang`](https://github.com/bloch-labs/bloch-lang), using a pre-1.0 versioning policy while the language architecture, package model and compiler interfaces are stabilised.
+>
+> JOSS paper DOI: `10.21105/joss.09625`
+>
+> ---
+
 # Bloch
 
 Bloch is an open-source, strongly typed, hybrid quantum programming language. It’s designed for people who want classical and quantum code side by side. The toolchain is hardware-agnostic so you can move between simulators and future backends.
